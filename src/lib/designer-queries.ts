@@ -9,13 +9,59 @@ export type BrandKit = {
   footer_text: string | null; tone: string | null; extracted_at: string | null;
 };
 
-export type ElementBase = { id: string; x: number; y: number; w: number; h: number; rotation?: number; z?: number };
-export type TextElement = ElementBase & { type: "text"; text: string; font?: "heading" | "body"; size: number; weight: number; color: string; align: "left" | "center" | "right" };
-export type ImageElement = ElementBase & { type: "image"; src: string; fit: "cover" | "contain"; radius?: number; assetId?: string };
-export type ShapeElement = ElementBase & { type: "shape"; shape: "rect" | "circle" | "line"; fill: string; radius?: number };
+export type Shadow = { x: number; y: number; blur: number; color: string };
+export type GradientStop = { offset: number; color: string };
+export type Gradient = { kind: "linear" | "radial"; angle?: number; stops: GradientStop[] };
+export type Fill = string | Gradient;
+
+export type ElementBase = {
+  id: string; x: number; y: number; w: number; h: number;
+  rotation?: number; z?: number;
+  opacity?: number;
+  locked?: boolean;
+  hidden?: boolean;
+  shadow?: Shadow | null;
+};
+export type TextElement = ElementBase & {
+  type: "text";
+  text: string;
+  font?: "heading" | "body" | string;
+  size: number;
+  weight: number;
+  color: string;
+  align: "left" | "center" | "right";
+  lineHeight?: number;
+  letterSpacing?: number;
+  italic?: boolean;
+  underline?: boolean;
+};
+export type ImageElement = ElementBase & {
+  type: "image"; src: string; fit: "cover" | "contain"; radius?: number; assetId?: string;
+};
+export type ShapeElement = ElementBase & {
+  type: "shape";
+  shape: "rect" | "circle" | "triangle";
+  fill: Fill;
+  radius?: number;
+  stroke?: string;
+  strokeWidth?: number;
+};
+export type LineElement = ElementBase & {
+  type: "line";
+  stroke: string;
+  strokeWidth: number;
+  arrowStart?: boolean;
+  arrowEnd?: boolean;
+};
+export type IconElement = ElementBase & {
+  type: "icon"; name: string; color: string; strokeWidth?: number;
+};
 export type LogoElement = ElementBase & { type: "logo"; variant: "light" | "dark" };
-export type DesignElement = TextElement | ImageElement | ShapeElement | LogoElement;
-export type Slide = { id: string; bg: string; elements: DesignElement[] };
+
+export type DesignElement =
+  | TextElement | ImageElement | ShapeElement | LineElement | IconElement | LogoElement;
+
+export type Slide = { id: string; bg: Fill; elements: DesignElement[] };
 
 export type Design = {
   id: string; user_id: string; type: "single" | "carousel";
@@ -30,6 +76,22 @@ export type DesignAsset = {
   storage_path: string; public_url: string; prompt: string | null;
   parent_asset_id: string | null; width: number | null; height: number | null;
   mime: string | null; created_at: string;
+};
+
+export type DesignTemplate = {
+  id: string;
+  user_id: string;
+  title: string;
+  category: string | null;
+  platform: Design["platform"];
+  type: "single" | "carousel";
+  width: number;
+  height: number;
+  slides: Slide[];
+  thumbnail_url: string | null;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 async function uid() {
@@ -130,4 +192,56 @@ export async function deleteDesign(id: string) {
 }
 export async function generateDesignFromPrompt(args: { prompt: string; type: "single" | "carousel"; platform: Design["platform"]; slideCount?: number }) {
   return supabase.functions.invoke("generate-design-from-prompt", { body: args });
+}
+
+// ── Templates ──
+export async function listTemplates(filter?: { platform?: Design["platform"]; type?: "single" | "carousel"; q?: string }): Promise<DesignTemplate[]> {
+  const u = await uid();
+  let q = supabase.from("design_templates" as any).select("*").eq("user_id", u).order("updated_at", { ascending: false });
+  if (filter?.platform && filter.platform !== "multi") q = q.eq("platform", filter.platform);
+  if (filter?.type) q = q.eq("type", filter.type);
+  if (filter?.q) q = q.ilike("title", `%${filter.q}%`);
+  const { data } = await q;
+  return (data as any) ?? [];
+}
+export async function saveAsTemplate(args: {
+  title: string; category?: string | null;
+  platform: Design["platform"]; type: "single" | "carousel";
+  width: number; height: number; slides: Slide[]; thumbnail_url?: string | null;
+}): Promise<DesignTemplate> {
+  const u = await uid();
+  const { data, error } = await supabase.from("design_templates" as any).insert({
+    user_id: u, title: args.title, category: args.category ?? null,
+    platform: args.platform, type: args.type,
+    width: args.width, height: args.height, slides: args.slides,
+    thumbnail_url: args.thumbnail_url ?? null,
+  } as any).select().single();
+  if (error) throw error;
+  return data as any;
+}
+export async function deleteTemplate(id: string) {
+  const { error } = await supabase.from("design_templates" as any).delete().eq("id", id);
+  if (error) throw error;
+}
+export async function createDesignFromTemplate(t: DesignTemplate, override?: Partial<Pick<Design, "title">>): Promise<Design> {
+  // Re-generate slide/element ids so duplicates aren't tied to the template
+  const slides = (t.slides as any[]).map((s) => ({
+    ...s, id: crypto.randomUUID(),
+    elements: (s.elements ?? []).map((e: any) => ({ ...e, id: crypto.randomUUID() })),
+  }));
+  return createDesign({
+    type: t.type, platform: t.platform,
+    title: override?.title ?? t.title,
+    width: t.width, height: t.height, slides,
+  });
+}
+
+// ── In-editor AI ──
+export async function aiEditDesign(args: {
+  designId: string;
+  slideIndex: number;
+  message: string;
+  selectedIds?: string[];
+}) {
+  return supabase.functions.invoke("design-ai-chat", { body: args });
 }
