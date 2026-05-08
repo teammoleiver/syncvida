@@ -98,6 +98,57 @@ export type Database = {
         }
         Relationships: []
       }
+      brand_kits: {
+        Row: {
+          avatar_url: string | null
+          brand_name: string | null
+          colors: Json
+          created_at: string
+          extracted_at: string | null
+          fonts: Json
+          footer_text: string | null
+          id: string
+          logo_dark_url: string | null
+          logo_light_url: string | null
+          tone: string | null
+          updated_at: string
+          user_id: string
+          website_url: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          brand_name?: string | null
+          colors?: Json
+          created_at?: string
+          extracted_at?: string | null
+          fonts?: Json
+          footer_text?: string | null
+          id?: string
+          logo_dark_url?: string | null
+          logo_light_url?: string | null
+          tone?: string | null
+          updated_at?: string
+          user_id: string
+          website_url?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          brand_name?: string | null
+          colors?: Json
+          created_at?: string
+          extracted_at?: string | null
+          fonts?: Json
+          footer_text?: string | null
+          id?: string
+          logo_dark_url?: string | null
+          logo_light_url?: string | null
+          tone?: string | null
+          updated_at?: string
+          user_id?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
       calendar_events: {
         Row: {
           color: string | null
@@ -532,6 +583,101 @@ export type Database = {
           water_goal_met?: boolean
           water_ml?: number
           weight_kg?: number | null
+        }
+        Relationships: []
+      }
+      design_assets: {
+        Row: {
+          created_at: string
+          height: number | null
+          id: string
+          kind: string
+          mime: string | null
+          parent_asset_id: string | null
+          prompt: string | null
+          public_url: string
+          storage_path: string
+          user_id: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string
+          height?: number | null
+          id?: string
+          kind: string
+          mime?: string | null
+          parent_asset_id?: string | null
+          prompt?: string | null
+          public_url: string
+          storage_path: string
+          user_id: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string
+          height?: number | null
+          id?: string
+          kind?: string
+          mime?: string | null
+          parent_asset_id?: string | null
+          prompt?: string | null
+          public_url?: string
+          storage_path?: string
+          user_id?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "design_assets_parent_asset_id_fkey"
+            columns: ["parent_asset_id"]
+            isOneToOne: false
+            referencedRelation: "design_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      designs: {
+        Row: {
+          created_at: string
+          height: number
+          id: string
+          planner_entry_id: string | null
+          platform: string
+          slides: Json
+          thumbnail_url: string | null
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+          width: number
+        }
+        Insert: {
+          created_at?: string
+          height?: number
+          id?: string
+          planner_entry_id?: string | null
+          platform?: string
+          slides?: Json
+          thumbnail_url?: string | null
+          title?: string
+          type: string
+          updated_at?: string
+          user_id: string
+          width?: number
+        }
+        Update: {
+          created_at?: string
+          height?: number
+          id?: string
+          planner_entry_id?: string | null
+          platform?: string
+          slides?: Json
+          thumbnail_url?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+          width?: number
         }
         Relationships: []
       }

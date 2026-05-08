@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Utensils, Dumbbell, HeartPulse,
   MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun,
   Droplets, FolderKanban, CheckSquare, CalendarDays,
-  PanelLeftClose, PanelLeft, Megaphone, Library, ClipboardList,
+  PanelLeftClose, PanelLeft, Megaphone, Library, ClipboardList, Palette,
   Shield, User as UserIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -57,6 +57,7 @@ const navGroups: NavGroup[] = [
       { path: "/social", icon: Megaphone, label: "Social Studio" },
       { path: "/content-studio", icon: Library, label: "Content Studio" },
       { path: "/content-planner", icon: ClipboardList, label: "Content Planner" },
+      { path: "/designer", icon: Palette, label: "Designer" },
     ],
   },
 ];
