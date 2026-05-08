@@ -32,6 +32,10 @@ import SearchPage from "./pages/social/SearchPage";
 import ContentStudioPage from "./pages/social/ContentStudioPage";
 import CarouselGenerator from "./pages/CarouselGenerator";
 import CarouselHistory from "./pages/CarouselHistory";
+import DesignerHome from "./pages/designer/DesignerHome";
+import BrandKitPage from "./pages/designer/BrandKitPage";
+import AssetLibraryPage from "./pages/designer/AssetLibraryPage";
+import DesignEditor from "./pages/designer/DesignEditor";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
@@ -115,6 +119,10 @@ function AppRoutes() {
       <Route path="/content-planner" element={<ProtectedRoute><AppLayout><ContentPlannerPage /></AppLayout></ProtectedRoute>} />
       <Route path="/carousel-generator" element={<ProtectedRoute><AppLayout><CarouselGenerator /></AppLayout></ProtectedRoute>} />
       <Route path="/carousel-history" element={<ProtectedRoute><AppLayout><CarouselHistory /></AppLayout></ProtectedRoute>} />
+      <Route path="/designer" element={<ProtectedRoute><AppLayout><DesignerHome /></AppLayout></ProtectedRoute>} />
+      <Route path="/designer/brand" element={<ProtectedRoute><AppLayout><BrandKitPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/designer/assets" element={<ProtectedRoute><AppLayout><AssetLibraryPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/designer/:id" element={<ProtectedRoute><AppLayout><DesignEditor /></AppLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsModule /></AppLayout></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AppLayout><AdminPanel /></AppLayout></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
