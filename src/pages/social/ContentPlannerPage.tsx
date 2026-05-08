@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, List, Sparkles, Figma, Copy } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, List, Sparkles, Figma, Copy, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { listContentPlan, createPlannerPost, updatePlanEntry, deletePlanEntry, pushSinglePost, PLANNER_PLATFORMS, generatePostImage, getWriterSettings } from "@/lib/social-queries";
+import { generateDesignFromPrompt } from "@/lib/designer-queries";
+import { supabase } from "@/integrations/supabase/client";
 import { getProfile } from "@/lib/supabase-queries";
 
 const STATUSES = ["planned", "drafting", "ready", "scheduled", "posted", "failed"];
@@ -219,6 +222,8 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
   });
   const [busy, setBusy] = useState(false);
   const [genBusy, setGenBusy] = useState(false);
+  const [designBusy, setDesignBusy] = useState(false);
+  const navigate = useNavigate();
   const [figmaBrief, setFigmaBrief] = useState<string | null>(null);
   const [me, setMe] = useState<{ name?: string; linkedin_url?: string; style?: string } | null>(null);
 
@@ -294,6 +299,28 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
     } finally { setGenBusy(false); }
   }
 
+  async function designInStudio() {
+    if (!form.hook?.trim()) { toast.error("Add a hook first"); return; }
+    setDesignBusy(true);
+    try {
+      const platforms: string[] = form.platforms ?? [];
+      const platform = (["linkedin","instagram","facebook","x"].includes(platforms[0]) ? platforms[0] : "linkedin") as any;
+      const prompt = `Hook: ${form.hook}\n\nBody: ${form.body ?? ""}`.trim();
+      const { data, error } = await generateDesignFromPrompt({ prompt, type: "single", platform });
+      if (error) throw error;
+      const d = data as any;
+      if (d?.error) throw new Error(d.error);
+      if (!d?.id) throw new Error("No design returned");
+      if (entry?.id) {
+        try { await supabase.from("designs" as any).update({ planner_entry_id: entry.id } as any).eq("id", d.id); } catch { /* ignore */ }
+      }
+      toast.success("Design created — opening editor");
+      navigate(`/designer/${d.id}`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Design failed");
+    } finally { setDesignBusy(false); }
+  }
+
   function buildFigmaBrief() {
     const author = me?.name || "(your name)";
     const linkedin = me?.linkedin_url || "(your LinkedIn URL)";
@@ -367,6 +394,10 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
               </Button>
               <Button type="button" size="sm" variant="outline" onClick={buildFigmaBrief}>
                 <Figma className="w-4 h-4 mr-1" /> Design in Figma
+              </Button>
+              <Button type="button" size="sm" variant="secondary" onClick={designInStudio} disabled={designBusy}>
+                {designBusy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Palette className="w-4 h-4 mr-1" />}
+                Design in Studio
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground">
