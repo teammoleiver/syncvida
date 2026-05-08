@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { listContentPlan, createPlannerPost, updatePlanEntry, deletePlanEntry, pushSinglePost, PLANNER_PLATFORMS, generatePostImage, generateCanvaPost, getWriterSettings } from "@/lib/social-queries";
+import { listContentPlan, createPlannerPost, updatePlanEntry, deletePlanEntry, pushSinglePost, PLANNER_PLATFORMS, generatePostImage, getWriterSettings } from "@/lib/social-queries";
 import { getProfile } from "@/lib/supabase-queries";
 
 const STATUSES = ["planned", "drafting", "ready", "scheduled", "posted", "failed"];
@@ -220,8 +220,6 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
   const [busy, setBusy] = useState(false);
   const [genBusy, setGenBusy] = useState(false);
   const [figmaBrief, setFigmaBrief] = useState<string | null>(null);
-  const [canvaBusy, setCanvaBusy] = useState(false);
-  const [canvaResult, setCanvaResult] = useState<{ view_url?: string; edit_url?: string } | null>(null);
   const [me, setMe] = useState<{ name?: string; linkedin_url?: string; style?: string } | null>(null);
 
   useEffect(() => {
@@ -346,26 +344,6 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
     setFigmaBrief(brief);
   }
 
-  async function generateCanva() {
-    if (!form.hook?.trim()) { toast.error("Add a hook first"); return; }
-    setCanvaBusy(true);
-    try {
-      const { data, error } = await generateCanvaPost({
-        hook: form.hook,
-        body: form.body ?? "",
-        entry_id: entry?.id ?? null,
-      });
-      if (error) throw error;
-      const d = data as any;
-      if (d?.error) throw new Error(d.error);
-      setCanvaResult({ view_url: d.view_url, edit_url: d.edit_url });
-      if (d.image_url) setForm((f: any) => ({ ...f, image_url: d.image_url }));
-      toast.success("Canva design ready");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Canva generation failed");
-    } finally { setCanvaBusy(false); }
-  }
-
   async function copyBrief() {
     if (!figmaBrief) return;
     try { await navigator.clipboard.writeText(figmaBrief); toast.success("Brief copied"); }
@@ -390,24 +368,12 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
               <Button type="button" size="sm" variant="outline" onClick={buildFigmaBrief}>
                 <Figma className="w-4 h-4 mr-1" /> Design in Figma
               </Button>
-              <Button type="button" size="sm" variant="outline" onClick={generateCanva} disabled={canvaBusy}>
-                {canvaBusy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ImageIcon className="w-4 h-4 mr-1" />}
-                Design in Canva
-              </Button>
             </div>
             <p className="text-[11px] text-muted-foreground">
               "Generate with AI" → OpenAI <code>gpt-image-1</code> with your style prompt (Social Studio → Settings).
               "Design in Figma" → full prompt with your name + LinkedIn, ready to paste into Figma AI.
-              "Design in Canva" → autofills your Canva brand template via the Canva Connect API.
             </p>
             {form.image_url && <img src={form.image_url} alt="" className="max-h-48 rounded-md border border-border" />}
-            {canvaResult && (
-              <div className="rounded-md border border-border bg-muted/30 p-3 flex flex-wrap gap-2 text-xs">
-                <span className="font-medium">Canva design ready:</span>
-                {canvaResult.view_url && <a className="underline text-primary" href={canvaResult.view_url} target="_blank" rel="noreferrer">View</a>}
-                {canvaResult.edit_url && <a className="underline text-primary" href={canvaResult.edit_url} target="_blank" rel="noreferrer">Edit in Canva</a>}
-              </div>
-            )}
             {figmaBrief && (
               <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
                 <div className="flex items-center justify-between">

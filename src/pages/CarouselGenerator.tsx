@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Sparkles, ExternalLink, Edit3, RefreshCw, History } from "lucide-react";
+import { Loader2, Sparkles, RefreshCw, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
@@ -13,9 +13,6 @@ import { generateCarousel } from "@/lib/social-queries";
 const STATUS_LABEL: Record<string, string> = {
   pending: "Starting…",
   writing_copy: "Writing copy…",
-  creating_design: "Creating Canva design…",
-  exporting: "Exporting PNG…",
-  uploading: "Almost there…",
   ready: "Ready",
   failed: "Failed",
 };
@@ -66,7 +63,7 @@ export default function CarouselGenerator() {
       <header className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-display text-3xl font-bold">Carousel Generator</h1>
-          <p className="text-sm text-muted-foreground">Paste 6 LinkedIn posts. We turn them into a branded 4-page Canva carousel.</p>
+          <p className="text-sm text-muted-foreground">Paste 6 LinkedIn posts. We turn them into a 4-page carousel copy outline.</p>
         </div>
         <Button variant="outline" asChild><Link to="/carousel-history"><History className="w-4 h-4 mr-1" /> History</Link></Button>
       </header>
@@ -108,21 +105,23 @@ export default function CarouselGenerator() {
             </div>
           )}
 
-          {status === "ready" && row.image_url && (
+          {status === "ready" && row.copy && (
             <div className="space-y-4">
-              <img src={row.image_url} alt="Carousel preview" className="w-full max-w-2xl mx-auto rounded-lg border" />
-              <div className="flex flex-wrap gap-2 justify-center">
-                {row.canva_view_url && (
-                  <Button variant="outline" asChild>
-                    <a href={row.canva_view_url} target="_blank" rel="noreferrer"><ExternalLink className="w-4 h-4 mr-1" /> View in Canva</a>
-                  </Button>
-                )}
-                {row.canva_edit_url && (
-                  <Button asChild>
-                    <a href={row.canva_edit_url} target="_blank" rel="noreferrer"><Edit3 className="w-4 h-4 mr-1" /> Edit in Canva</a>
-                  </Button>
-                )}
-              </div>
+              <Card className="p-4 bg-muted/30">
+                <h3 className="font-display text-xl font-bold mb-1">{row.copy.title_of_the_post}</h3>
+                <p className="text-sm text-muted-foreground mb-4">{row.copy.heres_why}</p>
+                {[1, 2, 3, 4].map((n) => {
+                  const title = row.copy[`page_${n}_title`];
+                  const body = row.copy[`page_${n}_body`] ?? row.copy[`page_${n}_text`];
+                  return (
+                    <div key={n} className="border-t border-border pt-3 mt-3 first:border-0 first:pt-0 first:mt-0">
+                      <div className="text-xs uppercase text-muted-foreground mb-1">Page {n}</div>
+                      {title && <div className="font-medium">{title}</div>}
+                      {body && <p className="text-sm whitespace-pre-wrap">{body}</p>}
+                    </div>
+                  );
+                })}
+              </Card>
             </div>
           )}
 

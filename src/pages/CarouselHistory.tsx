@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ExternalLink, Edit3, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 function rel(d: string) {
@@ -65,10 +65,22 @@ export default function CarouselHistory() {
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>{open?.copy?.title_of_the_post || "Carousel"}</DialogTitle></DialogHeader>
           {open?.image_url && <img src={open.image_url} alt="" className="w-full rounded-lg border" />}
-          <div className="flex flex-wrap gap-2 justify-end">
-            {open?.canva_view_url && <Button variant="outline" asChild><a href={open.canva_view_url} target="_blank" rel="noreferrer"><ExternalLink className="w-4 h-4 mr-1" /> View</a></Button>}
-            {open?.canva_edit_url && <Button asChild><a href={open.canva_edit_url} target="_blank" rel="noreferrer"><Edit3 className="w-4 h-4 mr-1" /> Edit in Canva</a></Button>}
-          </div>
+          {open?.copy && (
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">{open.copy.heres_why}</p>
+              {[1, 2, 3, 4].map((n) => {
+                const title = open.copy[`page_${n}_title`];
+                const body = open.copy[`page_${n}_body`] ?? open.copy[`page_${n}_text`];
+                return (
+                  <div key={n} className="border-t border-border pt-2">
+                    <div className="text-xs uppercase text-muted-foreground">Page {n}</div>
+                    {title && <div className="font-medium">{title}</div>}
+                    {body && <p className="whitespace-pre-wrap">{body}</p>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </section>

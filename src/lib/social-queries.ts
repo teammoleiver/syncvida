@@ -254,9 +254,6 @@ export async function scrapeProfile(profile_id: string) {
 export async function generatePostImage(args: { hook: string; post_body?: string; entry_id?: string | null }) {
   return supabase.functions.invoke("generate-post-image", { body: args });
 }
-export async function generateCanvaPost(args: { hook: string; body?: string; entry_id?: string | null }) {
-  return supabase.functions.invoke("generate-canva-post", { body: args });
-}
 export async function generateCarousel(posts: string[]) {
   return supabase.functions.invoke("generate-carousel", { body: { posts } });
 }
