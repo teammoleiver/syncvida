@@ -13,10 +13,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import {
   listDesigns, createDesign, deleteDesign, generateDesignFromPrompt,
-  listTemplates, deleteTemplate, createDesignFromTemplate,
+  listTemplates, deleteTemplate, createDesignFromTemplate, getBrandKit,
   type Design, type DesignTemplate,
 } from "@/lib/designer-queries";
 import { PLATFORM_SIZES } from "@/lib/designer-utils";
+import { seedCoverTemplates } from "@/lib/designer-seed-templates";
 
 export default function DesignerHome() {
   const navigate = useNavigate();
@@ -148,8 +149,16 @@ function TemplatesList({ onUse }: { onUse: (id: string) => void }) {
       </div>
       {loading ? <p className="text-muted-foreground">Loading…</p>
         : templates.length === 0 ? (
-          <Card className="p-12 text-center text-muted-foreground">
-            No templates yet. Open any design and click <span className="text-foreground">Save as template</span>.
+          <Card className="p-10 text-center text-muted-foreground space-y-3">
+            <p>No templates yet. Add the LinkedIn starter pack or save your own from any design.</p>
+            <Button onClick={async () => {
+              const brand = await getBrandKit();
+              const created = await seedCoverTemplates(brand);
+              toast.success(`Added ${created.length} starter template${created.length === 1 ? "" : "s"}`);
+              reload();
+            }}>
+              <Sparkles className="w-4 h-4 mr-1" /> Add LinkedIn starter pack
+            </Button>
           </Card>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

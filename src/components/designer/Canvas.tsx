@@ -17,6 +17,7 @@ export function Canvas({
   onLiveUpdate, onCommit,
   zoom, onZoom,
   exportMode = false,
+  pageNumber,
 }: {
   design: Design;
   slide: Slide;
@@ -28,6 +29,7 @@ export function Canvas({
   zoom: number;
   onZoom: (z: number) => void;
   exportMode?: boolean;
+  pageNumber?: { current: number; total: number; color: string };
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<DragMode | null>(null);
@@ -63,17 +65,28 @@ export function Canvas({
     const el = slide.elements.find((x) => x.id === id);
     if (!el || el.locked) return;
 
+    // Group expansion: clicking any element in a group selects the whole group,
+    // unless Alt is held (then it acts on just the clicked element).
+    const expandToGroup = (clickedId: string): string[] => {
+      const clicked = slide.elements.find((x) => x.id === clickedId);
+      if (!clicked?.groupId || e.altKey) return [clickedId];
+      return slide.elements.filter((x) => x.groupId === clicked.groupId).map((x) => x.id);
+    };
+
     let ids: string[];
     if (e.shiftKey || e.metaKey || e.ctrlKey) {
       const next = new Set(selectedIds);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      const expanded = expandToGroup(id);
+      const allInside = expanded.every((x) => next.has(x));
+      if (allInside) expanded.forEach((x) => next.delete(x)); else expanded.forEach((x) => next.add(x));
       onSelectionChange(next);
       ids = [...next];
     } else if (selectedIds.has(id)) {
       ids = [...selectedIds];
     } else {
-      onSelectionChange(new Set([id]));
-      ids = [id];
+      const expanded = expandToGroup(id);
+      onSelectionChange(new Set(expanded));
+      ids = expanded;
     }
     if (!ids.length) return;
     const startBoxes = new Map<string, Box>();
@@ -219,6 +232,19 @@ export function Canvas({
               : { top: g.position - 0.5, left: Math.min(g.start, g.end), height: 1, width: Math.abs(g.end - g.start) }),
           }} />
         ))}
+        {/* Auto page number (rendered inside the export node so it shows up in PNG/PDF) */}
+        {pageNumber && (
+          <div style={{
+            position: "absolute",
+            right: 32, bottom: 24,
+            color: pageNumber.color,
+            fontFamily: `"${brand?.fonts.body ?? "Inter"}", system-ui, sans-serif`,
+            fontSize: 22, fontWeight: 600, letterSpacing: 0.5, opacity: 0.7,
+            pointerEvents: "none",
+          }}>
+            {pageNumber.current} / {pageNumber.total}
+          </div>
+        )}
         {/* Marquee */}
         {drag?.kind === "marquee" && (
           <div style={{

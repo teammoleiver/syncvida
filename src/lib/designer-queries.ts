@@ -21,7 +21,10 @@ export type ElementBase = {
   locked?: boolean;
   hidden?: boolean;
   shadow?: Shadow | null;
+  groupId?: string | null;
 };
+
+export type MaskShape = "none" | "circle" | "rounded" | "squircle" | "hexagon" | "blob";
 export type TextElement = ElementBase & {
   type: "text";
   text: string;
@@ -37,6 +40,11 @@ export type TextElement = ElementBase & {
 };
 export type ImageElement = ElementBase & {
   type: "image"; src: string; fit: "cover" | "contain"; radius?: number; assetId?: string;
+  brightness?: number;   // 0..2, default 1
+  contrast?: number;     // 0..2, default 1
+  saturation?: number;   // 0..2, default 1
+  blur?: number;         // 0..40 px, default 0
+  mask?: MaskShape;      // default "none"
 };
 export type ShapeElement = ElementBase & {
   type: "shape";
@@ -69,6 +77,8 @@ export type Design = {
   title: string; width: number; height: number; slides: Slide[];
   thumbnail_url: string | null; planner_entry_id: string | null;
   created_at: string; updated_at: string;
+  showPageNumbers?: boolean;
+  pageNumberStyle?: { color: string; position: "br" | "bl" | "tr" | "tl" };
 };
 
 export type DesignAsset = {
@@ -244,4 +254,28 @@ export async function aiEditDesign(args: {
   selectedIds?: string[];
 }) {
   return supabase.functions.invoke("design-ai-chat", { body: args });
+}
+
+// ── Magic resize: scale the entire design to a new canvas ──
+export async function resizeDesign(id: string, newWidth: number, newHeight: number) {
+  const d = await getDesign(id);
+  if (!d) throw new Error("Design not found");
+  const sx = newWidth / d.width;
+  const sy = newHeight / d.height;
+  const slides = d.slides.map((s) => ({
+    ...s,
+    elements: s.elements.map((e) => {
+      const next: any = {
+        ...e,
+        x: Math.round(e.x * sx),
+        y: Math.round(e.y * sy),
+        w: Math.round(e.w * sx),
+        h: Math.round(e.h * sy),
+      };
+      if (e.type === "text") next.size = Math.max(8, Math.round((e as any).size * Math.min(sx, sy)));
+      return next;
+    }),
+  }));
+  await updateDesign(id, { width: newWidth, height: newHeight, slides });
+  return getDesign(id);
 }

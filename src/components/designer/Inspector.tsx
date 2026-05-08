@@ -256,21 +256,60 @@ function IconSection({ element, brand, onChange }: { element: any; brand: BrandK
 function ImageSection({ element, onChange, onAiEdit }: { element: any; onChange: (p: any) => void; onAiEdit?: () => void }) {
   return (
     <div className="space-y-2">
-      <img src={element.src} alt="" className="w-full rounded border border-border" />
-      <div><Label className="text-xs">Fit</Label>
-        <Select value={element.fit} onValueChange={(v) => onChange({ fit: v })}>
-          <SelectTrigger className="h-7"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="cover">Cover</SelectItem><SelectItem value="contain">Contain</SelectItem></SelectContent>
-        </Select>
+      <img src={element.src} alt="" className="w-full rounded border border-border max-h-40 object-contain" />
+      <div className="grid grid-cols-2 gap-2">
+        <div><Label className="text-xs">Fit</Label>
+          <Select value={element.fit} onValueChange={(v) => onChange({ fit: v })}>
+            <SelectTrigger className="h-7"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="cover">Cover</SelectItem><SelectItem value="contain">Contain</SelectItem></SelectContent>
+          </Select>
+        </div>
+        <div><Label className="text-xs">Mask</Label>
+          <Select value={element.mask ?? "none"} onValueChange={(v) => onChange({ mask: v })}>
+            <SelectTrigger className="h-7"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              <SelectItem value="rounded">Rounded</SelectItem>
+              <SelectItem value="circle">Circle</SelectItem>
+              <SelectItem value="squircle">Squircle</SelectItem>
+              <SelectItem value="hexagon">Hexagon</SelectItem>
+              <SelectItem value="blob">Blob</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <div><Label className="text-xs">Corner radius</Label>
         <Input type="number" value={element.radius ?? 0} onChange={(e) => onChange({ radius: Number(e.target.value) || 0 })} className="h-7" />
+      </div>
+      <div className="border-t border-border pt-2 space-y-1.5">
+        <Label className="text-xs">Adjustments</Label>
+        <FilterSlider label="Brightness" min={0} max={2} step={0.05} value={element.brightness ?? 1} onChange={(v) => onChange({ brightness: v })} />
+        <FilterSlider label="Contrast" min={0} max={2} step={0.05} value={element.contrast ?? 1} onChange={(v) => onChange({ contrast: v })} />
+        <FilterSlider label="Saturation" min={0} max={2} step={0.05} value={element.saturation ?? 1} onChange={(v) => onChange({ saturation: v })} />
+        <FilterSlider label="Blur" min={0} max={40} step={0.5} value={element.blur ?? 0} onChange={(v) => onChange({ blur: v })} unit="px" />
+        <Button size="sm" variant="ghost" className="h-6 text-[11px] w-full"
+          onClick={() => onChange({ brightness: 1, contrast: 1, saturation: 1, blur: 0 })}>
+          Reset adjustments
+        </Button>
       </div>
       {element.assetId && onAiEdit && (
         <Button size="sm" variant="outline" className="w-full" onClick={onAiEdit}>
           <Wand2 className="w-3.5 h-3.5 mr-1" /> Edit image with AI
         </Button>
       )}
+    </div>
+  );
+}
+
+function FilterSlider({ label, value, onChange, min, max, step, unit }: {
+  label: string; value: number; onChange: (v: number) => void;
+  min: number; max: number; step: number; unit?: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 text-[11px]">
+      <span className="w-16 text-muted-foreground">{label}</span>
+      <Slider min={min} max={max} step={step} value={[value]} onValueChange={(v) => onChange(v[0])} className="flex-1" />
+      <span className="w-12 text-right tabular-nums">{value.toFixed(unit ? 1 : 2)}{unit ?? ""}</span>
     </div>
   );
 }

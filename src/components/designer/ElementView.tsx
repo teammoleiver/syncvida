@@ -1,6 +1,13 @@
 import * as Lucide from "lucide-react";
-import type { BrandKit, DesignElement } from "@/lib/designer-queries";
+import type { BrandKit, DesignElement, MaskShape } from "@/lib/designer-queries";
 import { fillToCss } from "@/lib/designer-utils";
+
+const MASK_CLIP: Record<Exclude<MaskShape, "none" | "rounded">, string> = {
+  circle: "circle(50% at 50% 50%)",
+  squircle: "path('M 50,0 C 80,0 100,20 100,50 C 100,80 80,100 50,100 C 20,100 0,80 0,50 C 0,20 20,0 50,0 Z')",
+  hexagon: "polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%)",
+  blob: "path('M 50,5 C 80,5 95,25 95,55 C 95,82 75,98 48,95 C 22,92 5,72 5,45 C 5,20 22,5 50,5 Z')",
+};
 
 export function ElementView({ el, brand, isExport }: { el: DesignElement; brand: BrandKit | null; isExport?: boolean }) {
   const filter = el.shadow ? `drop-shadow(${el.shadow.x}px ${el.shadow.y}px ${el.shadow.blur}px ${el.shadow.color})` : undefined;
@@ -26,13 +33,28 @@ export function ElementView({ el, brand, isExport }: { el: DesignElement; brand:
     );
   }
   if (el.type === "image") {
+    const adjFilter: string[] = [];
+    if (el.brightness !== undefined && el.brightness !== 1) adjFilter.push(`brightness(${el.brightness})`);
+    if (el.contrast !== undefined && el.contrast !== 1) adjFilter.push(`contrast(${el.contrast})`);
+    if (el.saturation !== undefined && el.saturation !== 1) adjFilter.push(`saturate(${el.saturation})`);
+    if (el.blur && el.blur > 0) adjFilter.push(`blur(${el.blur}px)`);
+    const mask = el.mask && el.mask !== "none" ? el.mask : null;
+    const wrapStyle: React.CSSProperties = {
+      ...baseStyle,
+      borderRadius: mask === "rounded" ? (el.radius ?? 24) : (el.radius ?? 0),
+      overflow: "hidden",
+      ...(mask && mask !== "rounded" ? { clipPath: MASK_CLIP[mask] } : {}),
+    };
     return (
-      <img src={el.src} alt="" draggable={false}
-        crossOrigin={isExport ? "anonymous" : undefined}
-        style={{
-          ...baseStyle, objectFit: el.fit, borderRadius: el.radius ?? 0,
-          pointerEvents: "none",
-        }} />
+      <div style={wrapStyle}>
+        <img src={el.src} alt="" draggable={false}
+          crossOrigin={isExport ? "anonymous" : undefined}
+          style={{
+            width: "100%", height: "100%", objectFit: el.fit,
+            filter: adjFilter.length ? adjFilter.join(" ") : undefined,
+            pointerEvents: "none",
+          }} />
+      </div>
     );
   }
   if (el.type === "shape") {
