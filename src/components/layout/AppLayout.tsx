@@ -57,6 +57,7 @@ const navGroups: NavGroup[] = [
       { path: "/social", icon: Megaphone, label: "Social Studio" },
       { path: "/content-studio", icon: Library, label: "Content Studio" },
       { path: "/content-planner", icon: ClipboardList, label: "Content Planner" },
+      { path: "/designer", icon: Palette, label: "Designer" },
     ],
   },
 ];
