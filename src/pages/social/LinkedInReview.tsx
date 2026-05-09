@@ -47,7 +47,7 @@ function formatLongDate(iso: string | null): string {
   return `${wd}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}`;
 }
 
-async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: string | null) {
+async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: string | null, overrideDate?: string | null) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
   const marker = `[linkedin_review:${post.id}]`;
@@ -60,7 +60,7 @@ async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: s
     .maybeSingle();
   const existing = existingRaw as unknown as { id: string } | null;
   if (status === "kept") {
-    const date = parsePostDate(post.date);
+    const date = overrideDate ?? parsePostDate(post.date);
     const lines = (edited ?? post.body).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const hook = lines[0]?.slice(0, 200) || post.topic;
     const body = edited ?? post.body;
