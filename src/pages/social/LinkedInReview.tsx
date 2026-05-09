@@ -450,6 +450,9 @@ function PostCard({ post, state, onOpen, onKeep, onReject }: {
   const status = state?.status ?? "pending";
   const pc = pillarColor(post.pillar);
   const body = state?.edited_body ?? post.body;
+  const eff = effectiveDate(post, state);
+  const orig = parsePostDate(post.date);
+  const moved = eff && orig && eff !== orig;
   const borderClass = status === "kept" ? "border-emerald-500/50" : status === "rejected" ? "border-red-500/50 opacity-60" : "border-border";
   return (
     <Card className={`p-3 flex flex-col gap-2 border ${borderClass}`}>
@@ -462,7 +465,8 @@ function PostCard({ post, state, onOpen, onKeep, onReject }: {
         <StatusDot status={status} />
       </div>
       <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <Calendar className="w-3 h-3" /> {post.date}
+        <Calendar className="w-3 h-3" /> {eff ? formatLongDate(eff) : post.date}
+        {moved && <span className="text-amber-300">· moved</span>}
       </div>
       <button onClick={onOpen} className="text-left">
         <h3 className="text-sm font-semibold leading-snug">{post.topic}</h3>
