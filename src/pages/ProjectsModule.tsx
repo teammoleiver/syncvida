@@ -401,6 +401,44 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
 // ============================================================
 // SUB-COMPONENT: ProjectDetailPanel
 // ============================================================
+// Hoisted out of ProjectDetailPanel so its identity stays stable across keystrokes —
+// otherwise inputs inside lose focus on every change.
+function CollapsibleSection({
+  isOpen, onToggle, icon: SIcon, title, children,
+}: {
+  isOpen: boolean;
+  onToggle: () => void;
+  icon: any;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-border last:border-0">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary/50 transition"
+      >
+        <SIcon className="w-4 h-4 text-muted-foreground" />
+        <span className="flex-1 text-left">{title}</span>
+        {isOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-3">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function ProjectDetailPanel({
   project,
   onClose,
@@ -478,34 +516,7 @@ function ProjectDetailPanel({
   const completedMilestones = project.milestones.filter(m => m.completed).length;
   const totalMilestones = project.milestones.length;
 
-  const Section = ({ id, icon: SIcon, title, children, defaultOpen }: { id: string; icon: any; title: string; children: React.ReactNode; defaultOpen?: boolean }) => {
-    const isOpen = activeSection === id || defaultOpen;
-    return (
-      <div className="border-b border-border last:border-0">
-        <button
-          onClick={() => setActiveSection(activeSection === id ? null : id)}
-          className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary/50 transition"
-        >
-          <SIcon className="w-4 h-4 text-muted-foreground" />
-          <span className="flex-1 text-left">{title}</span>
-          {isOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-        </button>
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="px-4 pb-4 space-y-3">{children}</div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    );
-  };
+  // Section component is hoisted below the parent (see CollapsibleSection)
 
   return (
     <motion.div
@@ -594,7 +605,7 @@ function ProjectDetailPanel({
         </div>
 
         {/* Planning section */}
-        <Section id="planning" icon={Compass} title="Planning" defaultOpen>
+        <CollapsibleSection isOpen={activeSection === "planning" || (activeSection !== "criteria" && activeSection !== "milestones" && activeSection !== "tasks" && activeSection !== "brainstorm" && activeSection !== "notes")} onToggle={() => setActiveSection(activeSection === "planning" ? null : "planning")} icon={Compass} title="Planning">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Horizon</label>
@@ -691,10 +702,10 @@ function ProjectDetailPanel({
               </div>
             </div>
           </div>
-        </Section>
+        </CollapsibleSection>
 
         {/* Success Criteria */}
-        <Section id="criteria" icon={Target} title="Success Criteria">
+        <CollapsibleSection isOpen={activeSection === "criteria"} onToggle={() => setActiveSection(activeSection === "criteria" ? null : "criteria")} icon={Target} title="Success Criteria">
           <div className="space-y-2">
             {project.successCriteria.map((c, i) => (
               <div key={i} className="flex items-start gap-2 group/c">
@@ -718,10 +729,10 @@ function ProjectDetailPanel({
               </button>
             </div>
           </div>
-        </Section>
+        </CollapsibleSection>
 
         {/* Milestones */}
-        <Section id="milestones" icon={Target} title={`Milestones ${totalMilestones > 0 ? `(${completedMilestones}/${totalMilestones})` : ""}`}>
+        <CollapsibleSection isOpen={activeSection === "milestones"} onToggle={() => setActiveSection(activeSection === "milestones" ? null : "milestones")} icon={Target} title={`Milestones ${totalMilestones > 0 ? `(${completedMilestones}/${totalMilestones})` : ""}`}>
           {totalMilestones > 0 && (
             <div className="h-1.5 bg-secondary rounded-full overflow-hidden mb-3">
               <div
@@ -761,10 +772,10 @@ function ProjectDetailPanel({
               Add
             </button>
           </div>
-        </Section>
+        </CollapsibleSection>
 
         {/* Linked Tasks */}
-        <Section id="tasks" icon={Check} title={`Linked Tasks (${project.taskIds.length})`}>
+        <CollapsibleSection isOpen={activeSection === "tasks"} onToggle={() => setActiveSection(activeSection === "tasks" ? null : "tasks")} icon={Check} title={`Linked Tasks (${project.taskIds.length})`}>
           {project.taskIds.length === 0 ? (
             <p className="text-xs text-muted-foreground">No tasks linked yet. Create tasks in the Tasks module and assign them to this project.</p>
           ) : (
@@ -795,10 +806,10 @@ function ProjectDetailPanel({
               </p>
             )}
           </div>
-        </Section>
+        </CollapsibleSection>
 
         {/* Brainstorm Pad */}
-        <Section id="brainstorm" icon={Brain} title="Brainstorm Pad">
+        <CollapsibleSection isOpen={activeSection === "brainstorm"} onToggle={() => setActiveSection(activeSection === "brainstorm" ? null : "brainstorm")} icon={Brain} title="Brainstorm Pad">
           <textarea
             value={project.brainstormNotes}
             onChange={e => update({ brainstormNotes: e.target.value })}
@@ -806,10 +817,10 @@ function ProjectDetailPanel({
             className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-xs text-foreground resize-none outline-none focus:ring-1 focus:ring-primary/40"
             placeholder="Brain dump ideas, concerns, thoughts about this project..."
           />
-        </Section>
+        </CollapsibleSection>
 
         {/* Notes */}
-        <Section id="notes" icon={StickyNote} title={`Notes (${project.notes.length})`}>
+        <CollapsibleSection isOpen={activeSection === "notes"} onToggle={() => setActiveSection(activeSection === "notes" ? null : "notes")} icon={StickyNote} title={`Notes (${project.notes.length})`}>
           <div className="space-y-2">
             {project.notes.map(n => (
               <div key={n.id} className="px-3 py-2 bg-secondary/50 rounded-lg">
@@ -832,7 +843,7 @@ function ProjectDetailPanel({
               Add
             </button>
           </div>
-        </Section>
+        </CollapsibleSection>
       </div>
 
       {/* Footer actions */}

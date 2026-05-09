@@ -462,6 +462,44 @@ function TaskCard({
 // TASK DETAIL PANEL
 // ============================================================
 
+// Hoisted out of TaskDetailPanel so its identity doesn't change every render —
+// otherwise each keystroke remounts every input inside and you lose focus.
+function CollapsibleSection({
+  isOpen, onToggle, icon: SIcon, title, children,
+}: {
+  isOpen: boolean;
+  onToggle: () => void;
+  icon: any;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-border last:border-0">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary/50 transition"
+      >
+        <SIcon className="w-4 h-4 text-muted-foreground" />
+        <span className="flex-1 text-left">{title}</span>
+        {isOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-3">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function TaskDetailPanel({
   task: initialTask,
   columns,
@@ -559,35 +597,6 @@ function TaskDetailPanel({
     });
   };
 
-  const Section = ({ id, icon: SIcon, title, children }: { id: string; icon: any; title: string; children: React.ReactNode }) => {
-    const isOpen = openSections.has(id);
-    return (
-      <div className="border-b border-border last:border-0">
-        <button
-          onClick={() => toggleSection(id)}
-          className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary/50 transition"
-        >
-          <SIcon className="w-4 h-4 text-muted-foreground" />
-          <span className="flex-1 text-left">{title}</span>
-          {isOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-        </button>
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="px-4 pb-4 space-y-3">{children}</div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    );
-  };
-
   return (
     <motion.div
       initial={{ x: "100%" }}
@@ -662,7 +671,7 @@ function TaskDetailPanel({
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto">
         {/* Clarify */}
-        <Section id="clarify" icon={Eye} title="Clarify">
+        <CollapsibleSection isOpen={openSections.has("clarify")} onToggle={() => toggleSection("clarify")} icon={Eye} title="Clarify">
           <div className="flex items-center gap-3">
             <label className="text-xs text-foreground">Two-minute task?</label>
             <button
@@ -693,10 +702,10 @@ function TaskDetailPanel({
               />
             </div>
           )}
-        </Section>
+        </CollapsibleSection>
 
         {/* Details */}
-        <Section id="details" icon={Filter} title="Details">
+        <CollapsibleSection isOpen={openSections.has("details")} onToggle={() => toggleSection("details")} icon={Filter} title="Details">
           {/* Project */}
           <div>
             <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Project</label>
@@ -825,10 +834,10 @@ function TaskDetailPanel({
               </div>
             </div>
           </div>
-        </Section>
+        </CollapsibleSection>
 
         {/* Health module link */}
-        <Section id="health" icon={Heart} title="Health Module Link">
+        <CollapsibleSection isOpen={openSections.has("health")} onToggle={() => toggleSection("health")} icon={Heart} title="Health Module Link">
           <select
             value={task.healthModuleLink || ""}
             onChange={e => update({ healthModuleLink: (e.target.value || null) as Task["healthModuleLink"] })}
@@ -842,10 +851,10 @@ function TaskDetailPanel({
             <option value="body">Body Metrics</option>
             <option value="fasting">Fasting</option>
           </select>
-        </Section>
+        </CollapsibleSection>
 
         {/* Subtasks */}
-        <Section id="subtasks" icon={CheckSquare} title={`Subtasks ${totalSubs > 0 ? `(${completedSubs}/${totalSubs})` : ""}`}>
+        <CollapsibleSection isOpen={openSections.has("subtasks")} onToggle={() => toggleSection("subtasks")} icon={CheckSquare} title={`Subtasks ${totalSubs > 0 ? `(${completedSubs}/${totalSubs})` : ""}`}>
           {totalSubs > 0 && (
             <div className="h-1.5 bg-secondary rounded-full overflow-hidden mb-2">
               <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${(completedSubs / totalSubs) * 100}%` }} />
@@ -877,10 +886,10 @@ function TaskDetailPanel({
             />
             <button onClick={addSubtask} className="px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-medium hover:bg-primary/20 transition">Add</button>
           </div>
-        </Section>
+        </CollapsibleSection>
 
         {/* Notes */}
-        <Section id="notes" icon={StickyNote} title="Notes">
+        <CollapsibleSection isOpen={openSections.has("notes")} onToggle={() => toggleSection("notes")} icon={StickyNote} title="Notes">
           <textarea
             value={task.notes}
             onChange={e => update({ notes: e.target.value })}
@@ -888,10 +897,10 @@ function TaskDetailPanel({
             className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-xs text-foreground resize-none outline-none focus:ring-1 focus:ring-primary/40"
             placeholder="Any additional notes..."
           />
-        </Section>
+        </CollapsibleSection>
 
         {/* Recurring */}
-        <Section id="recurring" icon={Repeat} title="Recurring">
+        <CollapsibleSection isOpen={openSections.has("recurring")} onToggle={() => toggleSection("recurring")} icon={Repeat} title="Recurring">
           <div className="flex items-center gap-3">
             <label className="text-xs text-foreground">Recurring task?</label>
             <button
@@ -916,7 +925,7 @@ function TaskDetailPanel({
               ))}
             </div>
           )}
-        </Section>
+        </CollapsibleSection>
 
         {/* Metadata */}
         <div className="px-4 py-3 border-t border-border text-[10px] text-muted-foreground space-y-1">
