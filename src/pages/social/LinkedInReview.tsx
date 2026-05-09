@@ -296,16 +296,62 @@ export default function LinkedInReview() {
         </div>
       </div>
 
-      {/* Month tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 sticky top-[58px] z-[9] bg-background/95 backdrop-blur">
-        <MonthTab label="All" active={filter.month === "all"} onClick={() => setFilter({ ...filter, month: "all" })} count={posts.length} />
-        {months.map((m) => {
-          const monthPosts = posts.filter((p) => p.month === m);
-          const k = monthPosts.filter((p) => states[p.id]?.status === "kept").length;
-          const r = monthPosts.filter((p) => states[p.id]?.status === "rejected").length;
-          const short = m.split(" — ")[0];
-          return <MonthTab key={m} label={short} active={filter.month === m} onClick={() => setFilter({ ...filter, month: m })} count={monthPosts.length} kept={k} rejected={r} />;
-        })}
+      {/* Year + Month grid */}
+      <div className="space-y-2 sticky top-[58px] z-[9] bg-background/95 backdrop-blur pb-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground">Year</span>
+          <div className="inline-flex rounded-md border border-border overflow-hidden">
+            {years.map((y) => (
+              <button key={y}
+                onClick={() => setFilter({ ...filter, year: y, monthIdx: null })}
+                className={`px-2.5 py-1 text-xs ${filter.year === y ? "bg-primary text-primary-foreground" : "hover:bg-muted text-muted-foreground"}`}>
+                {y}
+              </button>
+            ))}
+          </div>
+          <Button size="sm" variant="ghost" className="h-7 text-xs"
+            onClick={() => setFilter({ ...filter, monthIdx: null })}>
+            All months · {monthCounts.reduce((a, c) => a + c.total, 0)}
+          </Button>
+          {filter.year === nowYear && (
+            <Button size="sm" variant="outline" className="h-7 text-xs border-primary/40 text-primary"
+              onClick={() => setFilter({ ...filter, year: nowYear, monthIdx: nowMonth })}>
+              Jump to current month
+            </Button>
+          )}
+        </div>
+        <div className="grid grid-cols-6 lg:grid-cols-12 gap-1.5">
+          {MONTH_NAMES.map((name, i) => {
+            const c = monthCounts[i];
+            const isCurrent = filter.year === nowYear && i === nowMonth;
+            const isActive = filter.monthIdx === i;
+            const isPast = filter.year !== null && (filter.year < nowYear || (filter.year === nowYear && i < nowMonth));
+            const empty = c.total === 0;
+            return (
+              <button key={name}
+                onClick={() => setFilter({ ...filter, monthIdx: isActive ? null : i })}
+                className={[
+                  "relative px-2 py-2 rounded-md border text-xs flex flex-col items-center gap-0.5 transition-colors",
+                  isActive ? "bg-primary text-primary-foreground border-primary"
+                    : isCurrent ? "border-primary/60 bg-primary/10 text-foreground ring-1 ring-primary/40"
+                    : empty ? "border-dashed border-border/60 text-muted-foreground/60"
+                    : "border-border hover:border-primary/40 text-foreground",
+                  isPast && empty && !isActive ? "opacity-50" : "",
+                ].join(" ")}
+                title={`${MONTH_FULL[i]} ${filter.year ?? ""}${isCurrent ? " · current month" : ""}`}>
+                <span className="font-medium tracking-wide uppercase text-[11px]">{name}</span>
+                <span className="flex items-center gap-1 text-[10px] opacity-80">
+                  <span>{c.total}</span>
+                  {c.kept > 0 && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
+                  {c.rejected > 0 && <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />}
+                </span>
+                {isCurrent && !isActive && (
+                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary" />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Filter bar */}
