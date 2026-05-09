@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, Check, X, Sparkles, Loader2, Eye, EyeOff, Zap, Target, Trash2,
   Save, Wand2, MessageSquare, Minimize2, Maximize2, Feather, Languages,
-  Hash, BarChart3, Calendar, Tag, FileText, Download, RotateCcw, Copy,
+  Hash, BarChart3, Calendar, Tag, FileText, Download, RotateCcw, Copy, CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,27 @@ function parsePostDate(s: string): string | null {
   const d = new Date(cleaned);
   if (isNaN(d.getTime())) return null;
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_FULL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function isIsoDate(s: string | null | undefined): s is string {
+  return !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
+/** Effective date = user override (stored in state.notes) ?? parsed from post.date */
+function effectiveDate(post: LinkedInPost, state?: PostState): string | null {
+  if (isIsoDate(state?.notes)) return state!.notes!;
+  return parsePostDate(post.date);
+}
+
+function formatLongDate(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d.getTime())) return iso;
+  const wd = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
+  return `${wd}, ${MONTH_NAMES[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}`;
 }
 
 async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: string | null) {
