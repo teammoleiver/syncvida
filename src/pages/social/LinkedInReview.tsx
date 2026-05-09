@@ -15,6 +15,45 @@ import {
   pillarColor, POST_TYPE_LABELS, exportMarkdown, isSeedUser,
   type LinkedInPost, type PostState, type PostStatus,
 } from "@/lib/linkedin-review";
+import { supabase } from "@/integrations/supabase/client";
+import { createPlannerPost } from "@/lib/social-queries";
+
+function parsePostDate(s: string): string | null {
+  // e.g. "Tue, May 12 2026" -> "2026-05-12"
+  const cleaned = s.replace(/^[A-Za-z]+,\s*/, "");
+  const d = new Date(cleaned);
+  if (isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: string | null) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const { data: existing } = await supabase
+    .from("social_content_plan" as any)
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("source_kind", "linkedin_review")
+    .eq("source_content_item_id", post.id)
+    .maybeSingle();
+  if (status === "kept") {
+    const date = parsePostDate(post.date);
+    const lines = (edited ?? post.body).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const hook = lines[0]?.slice(0, 200) || post.topic;
+    const body = edited ?? post.body;
+    if (existing?.id) {
+      await supabase.from("social_content_plan" as any).update({ hook, body, scheduled_date: date } as any).eq("id", (existing as any).id);
+    } else {
+      await createPlannerPost({
+        hook, body, scheduled_date: date ?? undefined,
+        platforms: ["linkedin"], status: "ready",
+        source_kind: "linkedin_review", source_content_item_id: post.id,
+      });
+    }
+  } else {
+    if (existing?.id) await supabase.from("social_content_plan" as any).delete().eq("id", (existing as any).id);
+  }
+}
 
 type Filter = {
   search: string; status: "all" | PostStatus; pillar: string; month: string; hideRejected: boolean;
@@ -70,14 +109,24 @@ export default function LinkedInReview() {
   async function setStatus(post_id: string, status: PostStatus) {
     const prev = states[post_id];
     setStates((s) => ({ ...s, [post_id]: { ...(prev ?? { post_id, edited_body: null, notes: null, updated_at: "" }), status, post_id, updated_at: new Date().toISOString() } }));
-    try { await upsertState(post_id, { status }); }
-    catch (e: any) { toast.error(e?.message ?? "Save failed"); reload(); }
+    try {
+      await upsertState(post_id, { status });
+      const post = posts.find((p) => p.id === post_id);
+      if (post) {
+        await syncToCalendar(post, status, prev?.edited_body ?? null);
+        if (status === "kept") toast.success("Added to Calendar");
+      }
+    } catch (e: any) { toast.error(e?.message ?? "Save failed"); reload(); }
   }
 
   async function saveEdit(post_id: string, edited_body: string | null) {
     setStates((s) => ({ ...s, [post_id]: { ...(s[post_id] ?? { post_id, status: "pending", notes: null, updated_at: "" }), edited_body, post_id, updated_at: new Date().toISOString() } as PostState }));
-    try { await upsertState(post_id, { edited_body }); }
-    catch (e: any) { toast.error(e?.message ?? "Save failed"); reload(); }
+    try {
+      await upsertState(post_id, { edited_body });
+      const post = posts.find((p) => p.id === post_id);
+      const cur = states[post_id];
+      if (post && cur?.status === "kept") await syncToCalendar(post, "kept", edited_body);
+    } catch (e: any) { toast.error(e?.message ?? "Save failed"); reload(); }
   }
 
   async function reset(post_id: string) {
