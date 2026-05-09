@@ -29,12 +29,13 @@ function parsePostDate(s: string): string | null {
 async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: string | null) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
+  const marker = `[linkedin_review:${post.id}]`;
   const { data: existingRaw } = await supabase
     .from("social_content_plan" as any)
     .select("id")
     .eq("user_id", user.id)
     .eq("source_kind", "linkedin_review")
-    .eq("source_content_item_id", post.id)
+    .ilike("notes", `${marker}%`)
     .maybeSingle();
   const existing = existingRaw as unknown as { id: string } | null;
   if (status === "kept") {
@@ -43,13 +44,21 @@ async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: s
     const hook = lines[0]?.slice(0, 200) || post.topic;
     const body = edited ?? post.body;
     if (existing?.id) {
-      await supabase.from("social_content_plan" as any).update({ hook, body, scheduled_date: date } as any).eq("id", existing.id);
+      await supabase.from("social_content_plan" as any).update({ hook, body, scheduled_date: date, notes: `${marker} ${post.topic}` } as any).eq("id", existing.id);
     } else {
       await createPlannerPost({
         hook, body, scheduled_date: date ?? undefined,
         platforms: ["linkedin"], status: "ready",
-        source_kind: "linkedin_review", source_content_item_id: post.id,
-      });
+        source_kind: "linkedin_review",
+      } as any);
+      // tag the just-created row with the marker so we can find it later
+      await supabase.from("social_content_plan" as any)
+        .update({ notes: `${marker} ${post.topic}` } as any)
+        .eq("user_id", user.id)
+        .eq("source_kind", "linkedin_review")
+        .eq("scheduled_date", date)
+        .eq("hook", hook)
+        .is("notes", null);
     }
   } else {
     if (existing?.id) await supabase.from("social_content_plan" as any).delete().eq("id", existing.id);
