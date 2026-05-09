@@ -29,20 +29,21 @@ function parsePostDate(s: string): string | null {
 async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: string | null) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
-  const { data: existing } = await supabase
+  const { data: existingRaw } = await supabase
     .from("social_content_plan" as any)
     .select("id")
     .eq("user_id", user.id)
     .eq("source_kind", "linkedin_review")
     .eq("source_content_item_id", post.id)
     .maybeSingle();
+  const existing = existingRaw as { id: string } | null;
   if (status === "kept") {
     const date = parsePostDate(post.date);
     const lines = (edited ?? post.body).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const hook = lines[0]?.slice(0, 200) || post.topic;
     const body = edited ?? post.body;
     if (existing?.id) {
-      await supabase.from("social_content_plan" as any).update({ hook, body, scheduled_date: date } as any).eq("id", (existing as any).id);
+      await supabase.from("social_content_plan" as any).update({ hook, body, scheduled_date: date } as any).eq("id", existing.id);
     } else {
       await createPlannerPost({
         hook, body, scheduled_date: date ?? undefined,
@@ -51,7 +52,7 @@ async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: s
       });
     }
   } else {
-    if (existing?.id) await supabase.from("social_content_plan" as any).delete().eq("id", (existing as any).id);
+    if (existing?.id) await supabase.from("social_content_plan" as any).delete().eq("id", existing.id);
   }
 }
 
