@@ -999,6 +999,36 @@ export type Database = {
         }
         Relationships: []
       }
+      linkedin_post_states: {
+        Row: {
+          created_at: string
+          edited_body: string | null
+          notes: string | null
+          post_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          edited_body?: string | null
+          notes?: string | null
+          post_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          edited_body?: string | null
+          notes?: string | null
+          post_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       meal_logs: {
         Row: {
           calories: number | null
