@@ -1,0 +1,1415 @@
+[
+  {
+    "id": "post_000",
+    "month": "MAY 2026 — Foundation & Voice",
+    "date": "Tue, May 12 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Cairo → Barcelona — career pivot",
+    "body": "Three years ago I was translating contracts in Cairo.\n\nToday I run marketing automation for a B2B company in Barcelona.\n\nThe plot twist wasn't the language. It was the day Python clicked.\n\nI kept getting handed marketing problems that needed a developer's brain. So I borrowed one — line by line, prompt by prompt. n8n. Then Clay. Then Claude.\n\nNow I'm posting daily for a year. Stack, process, lessons — all public.\n\nBuilding in the open because the stuff I figured out the hard way shouldn't take anyone else two years.\n\nIf you're in marketing and you're scared of the technical side — read along. I'll show you what I broke first.\n\n#MarketingAutomation #GTM #BuildInPublic #CareerJourney"
+  },
+  {
+    "id": "post_001",
+    "month": "MAY 2026 — Foundation & Voice",
+    "date": "Wed, May 13 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "The full B2B GTM stack we run",
+    "body": "Our full B2B GTM stack — every tool, what it actually does:\n\n↳ HubSpot — system of record. Deals, contacts, pipelines. Sacred.\n\n↳ Apollo — sourcing. ICP filters first, enrichment later.\n\n↳ Clay — research brain. Two tables: research, action.\n\n↳ n8n — the wiring. 11 flows, 0 Zapier subscriptions.\n\n↳ Claude — writer + researcher. Wired into n8n via API.\n\n↳ Slack — operations channel for every triggered alert.\n\nWhat's missing: a CDP. Don't need one yet.\n\nCounterintuitive bit: most leverage came from n8n, not Clay. The flows that connect tools matter more than the tools.\n\nWhat's in your stack? Curious which tool you'd rip out tomorrow.\n\n#GTM #MarketingAutomation #ClayHQ #n8n #RevOps"
+  },
+  {
+    "id": "post_002",
+    "month": "MAY 2026 — Foundation & Voice",
+    "date": "Thu, May 14 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "The 4 layers of any B2B Clay table",
+    "body": "Save this if you build anything in Clay.\n\nThe 4 layers any B2B table needs:\n\nLayer 1 — IDENTIFY\n\nName, company, role, location. The minimum to know we have a person.\n\nLayer 2 — ENRICH\n\nFirmographics, tech stack, funding, headcount. Trap: enriching everything because you can. Enrich on demand, not by default.\n\nLayer 3 — SCORE\n\nHow relevant is this row, today? Single column, 0-100. Built from Layer 2 + ICP rules.\n\nLayer 4 — ACT\n\nWhat happens next? Send to sequence. Push to HubSpot. Alert in Slack. One column = one decision.\n\nIf a Clay table doesn't have all four layers, it's storage, not a system.\n\nMost tables I see are heavy on Layer 2, missing Layer 3 and 4 entirely.\n\nDiagram in the comments.\n\n#ClayHQ #RevOps #Frameworks #MarketingOps"
+  },
+  {
+    "id": "post_003",
+    "month": "MAY 2026 — Foundation & Voice",
+    "date": "Fri, May 15 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "B2B doesn",
+    "body": "*'**t need more leads*\n\nHot take from someone in the trenches:\n\nMost B2B teams don't need more leads.\n\nThey need ten of the right ones.\n\nThe temptation in modern outbound is to scale the list. With Clay you can build a 50,000-row table by Friday.\n\nResist it.\n\nBuild the 800-row table instead. The one where every row has been read, scored, understood.\n\nAdd the column nobody else is adding — the trigger event, the team change, the regulation deadline, the funding stage. Specific to your ICP.\n\nEvery wasted email tells the right buyer you don't understand them.\n\nThe volume game in B2B outbound is over.\n\nThe depth game is the only one left worth playing.\n\nChange my mind in the comments.\n\n#B2BMarketing #Outbound #GTM"
+  },
+  {
+    "id": "post_004",
+    "month": "MAY 2026 — Foundation & Voice",
+    "date": "Tue, May 19 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Working in 3 languages every day",
+    "body": "I work in Arabic, Spanish, and English every day.\n\nSame product. Same value prop. Same target.\n\nThree completely different shapes.\n\nA campaign that converted 8% in English flopped at 1.2% in Spanish last month. Same hook. Same offer. Direct translation.\n\nWhy? Because the English line was urgency-led: 'ship this by Q3 or fall behind.'\n\nSpanish B2B buyers don't respond to that. They respond to certainty: 'companies like yours are already running this. Here's the proof.'\n\nArabic readers want context first — the why before the what.\n\nMost translation tools translate words. The job is to translate intent.\n\nIf your B2B marketing crosses borders and you're using DeepL to ship campaigns — you're leaking pipeline.\n\nRun the message through a human who lives in the language. Or at least through Claude with a 'rewrite for cultural fit' instruction.\n\nCheapest A/B test you'll ever run.\n\n#Multilingual #B2BMarketing #MarketingOps"
+  },
+  {
+    "id": "post_005",
+    "month": "MAY 2026 — Foundation & Voice",
+    "date": "Wed, May 20 2026",
+    "post_type": "PT-01",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "n8n flow — inbound lead enrichment",
+    "body": "Built this in n8n last week. Saving us ~12 minutes per inbound lead.\n\nThe flow:\n\n1. Webhook trigger — HubSpot fires when a form fills\n\n2. Function node — extract domain, drop free providers\n\n3. HTTP node → Clay API — pull company size, tech stack, last funding\n\n4. HTTP node → Claude — summarise the company in 2 lines + flag if ICP\n\n5. Update HubSpot contact + post to #ops Slack channel if hot\n\nTotal nodes: 7. Total time per lead: 11 seconds.\n\nWhat it replaced: an SDR doing it by hand for 12 minutes.\n\nWhat broke first: Clay's rate limit. Added a 2-second delay node, fixed.\n\nWhat I'd do differently: pipe the Claude summary directly into the Slack alert — saves another click.\n\nThis works for any B2B inbound flow with a CRM, an enrichment source, and an LLM. Pattern over tool.\n\nHappy to share the JSON — drop a comment.\n\n#n8n #ClayHQ #MarketingAutomation #RevOps"
+  },
+  {
+    "id": "post_006",
+    "month": "MAY 2026 — Foundation & Voice",
+    "date": "Thu, May 21 2026",
+    "post_type": "PT-15",
+    "pillar": "P3 — Build in Public",
+    "topic": "What shipped this week",
+    "body": "Shipped this week:\n\n→ The lead enrichment n8n flow (yesterday's post)\n\n→ A Clay table that scores trade-show contacts on buying signals\n\n→ A Claude prompt that turns technical specs into one-paragraph buyer-facing copy\n\nTime saved across the team this week: 6-8 hours.\n\nMistakes made: 1 prompt sent the wrong language to the wrong list (caught it in 4 minutes).\n\nStill on the bench: a HubSpot deal-summary field powered by Claude — drafted but not deployed.\n\nI post these every Thursday now.\n\nWhy: it forces me to ship something every week. A screenshot in public is a deadline.\n\nWhat did you ship?\n\n#BuildInPublic #MarketingOps #GTM"
+  },
+  {
+    "id": "post_007",
+    "month": "MAY 2026 — Foundation & Voice",
+    "date": "Fri, May 22 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "AI-written outbound is dead",
+    "body": "AI-written outbound is dead.\n\nAI-researched outbound is just getting started.\n\nThe first wave: 'Use ChatGPT to write 1,000 cold emails.' Reply rates collapsed. Of course they did. Everyone got the same five templates.\n\nThe second wave is different.\n\nUse AI to read.\n\nRead the prospect's last earnings call. Read their job postings. Read the LinkedIn comments their VP left two months ago.\n\nThen write the email yourself. One. Specific. To them.\n\nWe've moved our AI spend from generation to research. Reply rate moved from 4% to 11%.\n\nThe volume game in outbound is over.\n\nThe depth game is the only one left worth playing.\n\nIf you're still spinning up 'personalised at scale' sequences in 2026, you're losing to the operator who sends 30 emails a day with their own hands.\n\n#Outbound #AI #B2BMarketing #RevOps"
+  },
+  {
+    "id": "post_008",
+    "month": "MAY 2026 — Foundation & Voice",
+    "date": "Tue, May 26 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "Clay table teardown — 13 columns, not 30",
+    "body": "Most Clay tables I see are graveyards. 30 columns. 12,000 rows. Nobody's looked at them in a month.\n\nHere's how ours is structured:\n\n→ Identifiers (4): name, email, company, LinkedIn URL\n\n→ Firmographics (3): size, country, industry code\n\n→ Signal layer (5): hiring, funding, leadership change, mentioned tech, recent news\n\n→ The action column (1): what's the next step for this row, today?\n\n13 columns. Not 30.\n\nThe action column is the test. If you can't say what to do with a row, every other column is decoration.\n\nCommon mistake: building enrichments because you can. Pulling Clearbit data on a 12k row table for €0.02 each because Clay makes it cheap. Then doing nothing with it.\n\nRule of thumb: every column should pay for itself in a workflow within two weeks. If it doesn't, delete it.\n\nWhat columns do you keep that you've never used?\n\n#ClayHQ #RevOps #MarketingOps"
+  },
+  {
+    "id": "post_009",
+    "month": "MAY 2026 — Foundation & Voice",
+    "date": "Wed, May 27 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "What I learned my first week as a marketer",
+    "body": "What I learned my first week as a marketing automation specialist that I wish someone had told me:\n\n1. Nobody trusts the CRM. The reports lie. The numbers lie. Everyone has their own spreadsheet. Earn trust by being the person who makes the CRM tell the truth.\n\n2. The best people on the team aren't in marketing. They're in sales, customer success, and engineering. Make friends with them in week one.\n\n3. Every 'simple' request takes 4x longer than estimated. 'Just send a quick email blast' = 3 days of work if done right.\n\n4. The tools you inherit are usually 60% wasted spend. Audit before you onboard new ones.\n\n5. Your job is to make other people look good. Not yourself. Counterintuitive but it compounds.\n\n6. If you can't read an API doc by month 3, your career ceiling drops fast.\n\n7. Your manager doesn't know what they want until they see what they don't want. Ship rough drafts early.\n\nI made all 7 of these mistakes in my first three months. Save the post if you're earlier in your career than that.\n\n#CareerJourney #MarketingOps #LessonsLearned"
+  },
+  {
+    "id": "post_010",
+    "month": "MAY 2026 — Foundation & Voice",
+    "date": "Thu, May 28 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "5 questions before any new automation",
+    "body": "Five questions I ask before I touch n8n, Zapier, or any automation tool.\n\nSave this — it'll save you a graveyard of broken flows.\n\n1. Is this process repeatable enough to deserve code?\n\nIf you do it 5 times a week — yes. Once a month — probably not. Build the muscle of saying no to tiny automations.\n\n2. What does it cost when it breaks silently?\n\nAutomations fail. The question is: what's the worst that happens before someone notices? If the answer is 'we lose pipeline for a week,' you need monitoring.\n\n3. Who owns it when I'm not here?\n\nEvery flow needs a documented owner. We use a 'one-page README' inside the n8n flow itself.\n\n4. Is there a simpler version that's 80% as good?\n\nOften the answer is yes. A Slack reminder beats a 9-node flow.\n\n5. Will this still make sense in 12 months?\n\nIf the underlying tool is brittle (e.g. depends on a HubSpot list ID someone might rename), it'll break and you won't know why.\n\nSkip these and you build a graveyard of half-working flows nobody trusts.\n\nSave it. Run it before your next 'wouldn't it be great if we automated...'\n\n#MarketingAutomation #Frameworks #RevOps"
+  },
+  {
+    "id": "post_011",
+    "month": "MAY 2026 — Foundation & Voice",
+    "date": "Fri, May 29 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "May recap — first month posting",
+    "body": "First month of posting daily. The numbers:\n\n→ 12 posts shipped (out of 12 planned, 100% adherence)\n\n→ ~580 net new followers\n\n→ Top post: the n8n flow walkthrough — 18.4k impressions\n\n→ Worst post: a vague POV — 1.2k impressions\n\nWhat I learned:\n\n1. Specificity wins. The n8n post had screenshots and exact node counts. The vague POV underperformed.\n\n2. The first line is 80% of the post. I rewrote three Tuesday hooks four times each.\n\n3. Comments matter more than I thought. Every reply lifted the post in the feed for hours.\n\nWhat I'm changing in June:\n\n→ Carousels for Tuesday tactical posts (more saves)\n\n→ Engaging on 8 creator posts before posting my own\n\n→ Cutting word count by 20%\n\nThanks for being here. Month 2 starts Monday.\n\n#BuildInPublic #ContentMarketing #LinkedInTips"
+  },
+  {
+    "id": "post_012",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Tue, Jun 2 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "Stack reveal #1 — the HubSpot side",
+    "body": "Stack reveal series — part 1 of 4. The HubSpot side.\n\nMost teams treat HubSpot as a contact database. We treat it as the system of record — and almost nothing else lives there directly.\n\nWhat lives in HubSpot:\n\n→ Companies, contacts, deals (clean, deduped, source-attributed)\n\n→ A small number of properties — 14 on contact, 9 on company\n\n→ Pipeline stages with strict entry/exit criteria\n\n→ Owner assignment rules\n\nWhat does NOT live in HubSpot:\n\n→ Enrichment data (Clay handles that)\n\n→ Outbound sequencing (Apollo + n8n)\n\n→ Scoring logic (computed in Clay, written back as a single field)\n\nWhy: every tool is good at one thing. HubSpot's job is to be reliable, not clever.\n\nThe most useful HubSpot view we have is a single dashboard called 'pipeline truth' — nothing fancy, just deals × stage × age. Most teams over-build their CRM and end up trusting it less.\n\nTomorrow: Wednesday's build-in-public spec.\n\n#HubSpot #RevOps #MarketingOps"
+  },
+  {
+    "id": "post_013",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Wed, Jun 3 2026",
+    "post_type": "PT-15",
+    "pillar": "P3 — Build in Public",
+    "topic": "Spec for Friday",
+    "body": "*'**s flow*\n\nBuilding this in n8n today, shipping Friday. Sharing the spec before I touch a node — feedback welcome.\n\nProblem:\n\nInbound demo requests sit in HubSpot for 14-72 hours before someone reaches out. We're losing intent.\n\nGoal:\n\nEvery demo request gets a Slack alert in <60 seconds, with a one-paragraph briefing on the company, written by Claude.\n\nPlan:\n\n→ Webhook from HubSpot form submit\n\n→ Filter — drop personal emails and obvious junk\n\n→ Clay HTTP — pull company website + LinkedIn\n\n→ Claude HTTP — produce briefing in our voice\n\n→ Slack post to #demo-inbound, owner tagged\n\nRisks:\n\n→ Claude over-summarising and missing the actual ask in the form (mitigation: include the form's free-text field in the prompt)\n\n→ Clay rate limits at peak hours (mitigation: queue + retry)\n\nIf you've built something similar, what did I miss?\n\n#n8n #BuildInPublic #ClayHQ"
+  },
+  {
+    "id": "post_014",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Thu, Jun 4 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Clay will be in every B2B stack within 18 months",
+    "body": "Hot take.\n\nClay will be in every B2B marketing stack within 18 months.\n\nThree reasons.\n\n1. The data layer of GTM is moving from CRM to a separate place.\n\nYour CRM is for truth. Your enrichment + scoring + research layer needs to be flexible. That's a different shape of tool. Clay won this category.\n\n2. The cost of compute keeps falling.\n\nWhat costs €0.05 per enrichment today will cost €0.005 in 2027. The economics of running 50,000-row tables go from 'maybe' to 'why wouldn't you'.\n\n3. AI agents need a substrate.\n\nEvery agent demo I've seen looks great until you ask 'where does the data live and how does it update?' Clay tables are the answer most operators arrive at.\n\nCounter-argument I'm watching for: a CRM-native version of this gets built and bundled (HubSpot, Salesforce). Possible but unlikely in 18 months — they don't ship that fast.\n\nDisagree? I want to hear it.\n\n#ClayHQ #RevOps #B2BMarketing #GTMStrategy"
+  },
+  {
+    "id": "post_015",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Fri, Jun 5 2026",
+    "post_type": "PT-01",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "Shipped — the inbound demo flow",
+    "body": "Shipped the demo-alert flow this morning. Closing the loop on Wednesday's spec.\n\nWhat works:\n\n→ Slack alert lands in 41 seconds (target was 60)\n\n→ Briefing covers what the company does + likely use case in 3 lines\n\n→ Owner tagged in Slack — first reach-out happening 30 min after submit, down from 14+ hours\n\nWhat broke:\n\n→ Claude over-flattered the prospect on the first three runs ('forward-thinking pioneer in...'). Added an explicit 'no marketing language, just facts' instruction. Fixed.\n\n→ Two false positives from competitor sign-ups. Added a competitor-domain filter.\n\nTotal time built: 3.5 hours. Total time saved per week (estimated): 7-9 hours of SDR triage.\n\nReply-time correlates with close rate. The teams responding fastest to inbound win disproportionately.\n\nJSON in the comments for anyone who wants the skeleton.\n\n#n8n #BuildInPublic #RevOps #MarketingAutomation"
+  },
+  {
+    "id": "post_016",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Tue, Jun 9 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "Stack reveal #2 — the Clay side",
+    "body": "Stack reveal — part 2 of 4. The Clay side.\n\nWe run two main Clay tables. That's it. The discipline of two tables changed everything.\n\nTable 1 — RESEARCH\n\n→ ICP candidates we're investigating\n\n→ Heavy enrichment: tech stack, hiring, leadership change, signals\n\n→ Refreshed weekly\n\n→ ~3,400 rows\n\n→ Output: a confidence score and a 'next move' column\n\nTable 2 — ACTION\n\n→ Only contacts confidence-scored above 70 from research get promoted here\n\n→ Light columns: contact info + sequence stage + last touch\n\n→ Refreshed daily\n\n→ ~640 rows\n\n→ Output: pushed into Apollo sequences and HubSpot deals\n\nOld way: one giant table. Slow, expensive, full of stale rows. Nobody trusted it.\n\nNew way: separation of concerns. Research is patient and rich. Action is fast and lean.\n\nIf you remember one thing: split your Clay into research and action. Tomorrow's framework post explains why.\n\n#ClayHQ #RevOps #MarketingOps"
+  },
+  {
+    "id": "post_017",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Wed, Jun 10 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "First six months in a new country",
+    "body": "Nobody tells you this about moving countries to take a job:\n\nThe first six months are about translation, not work.\n\nTranslation of how meetings actually happen.\n\nTranslation of what 'urgent' means here vs back home.\n\nTranslation of who has authority in a room when nobody says.\n\nTranslation of when 'maybe' means yes and when it means no.\n\nI moved from Cairo to Barcelona to do marketing automation. Day one I could write a campaign brief in three languages. Day one I had no idea how Catalan industrial culture handled disagreement.\n\nThe gap between language fluency and cultural fluency is enormous. And it's where most of your performance review lives.\n\nWhat helped:\n\n→ One person who'd done the move before me, willing to translate the unspoken stuff\n\n→ Saying 'I might be misreading this — can you walk me through it?' often\n\n→ Accepting that month 1 was for listening, not building\n\nIf you're hiring someone from another country: give them six months to translate before you measure them.\n\nIf you're making the move: give yourself the same.\n\n#CareerJourney #Multilingual #Leadership"
+  },
+  {
+    "id": "post_018",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Thu, Jun 11 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "Research table vs Action table",
+    "body": "The single most useful Clay framework I've found:\n\nSplit your tables into RESEARCH and ACTION.\n\nResearch table:\n\n→ Rich. Slow. Patient.\n\n→ Heavy enrichments, web scraping, signal columns\n\n→ Updated weekly or on schedule\n\n→ Cost: high per row, but on a small number of rows\n\n→ Job: figure out who's worth talking to\n\nAction table:\n\n→ Lean. Fast. Strict.\n\n→ Contact info, sequence state, owner — that's it\n\n→ Updated daily, sometimes hourly\n\n→ Cost: low per row, runs constantly\n\n→ Job: move the right people through a sequence\n\nThree rules:\n\n1. Rows only flow research → action, never the other way\n\n2. Anything that's an enrichment lives in research, never in action\n\n3. Action table never exceeds 1,500 rows. If it does, your filter from research is too loose\n\nWhy this works: research and action have different update frequencies and different costs. Mixing them in one table is why most Clay setups stall.\n\nSave this if it helps. Diagram in the comments.\n\n#ClayHQ #Frameworks #RevOps"
+  },
+  {
+    "id": "post_019",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Fri, Jun 12 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Why most B2B segmentation is broken",
+    "body": "Most B2B segmentation is broken.\n\nTypical setup:\n\n→ Industry (manufacturing, software, finance...)\n\n→ Company size (SMB / mid-market / enterprise)\n\n→ Geography (NA / EMEA / APAC)\n\n→ Maybe a 'tech stack' tag if you're fancy\n\nSame campaign goes to all of them. Same hook. Same offer.\n\nWhat's missing: the segmentation that actually predicts buying behaviour.\n\n→ Trigger event (new VP, funding, regulation deadline)\n\n→ Pain stage (not aware → aware → searching → comparing → deciding)\n\n→ Decision shape (single buyer vs committee, top-down vs bottom-up)\n\n→ Budget season (most B2B has predictable annual spend cycles)\n\nThe fix isn't more data. It's smarter columns.\n\nScore each prospect on those four dimensions. Run different campaigns at each combination. Reply rates climb.\n\nTook us 6 months to figure this out. Sharing so it takes you less.\n\n#B2BMarketing #ABM #GTMStrategy"
+  },
+  {
+    "id": "post_020",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Tue, Jun 16 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "Stack reveal #3 — the n8n side",
+    "body": "Stack reveal — part 3 of 4. The n8n side.\n\nWe run 11 production n8n flows today. Quick tour:\n\n→ Inbound demo alerter (Slack briefing in <60s)\n\n→ Lead enrichment trigger (HubSpot ↔ Clay ↔ Claude)\n\n→ Daily Clay → HubSpot score sync\n\n→ Apollo sequence health monitor\n\n→ Form-submit deduper\n\n→ Trade-show contact intake (CSV → Clay → HubSpot)\n\n→ Claude-powered deal summary refresher (overnight)\n\n→ Slack-to-HubSpot note logger\n\n→ Customer onboarding alerter\n\n→ Weekly KPI digest to leadership (auto-generated Friday 5pm)\n\n→ The 'failure case' digest (what bounced, what sequenced wrong)\n\nWhy n8n, not Zapier:\n\n1. Self-hosted, no per-task pricing — we run thousands of executions/day\n\n2. Native HTTP, function nodes, code blocks — flexibility ceiling is much higher\n\n3. Version control through Git — flows are real artefacts\n\nCost: €5/month VPS. Time saved: ~25 hours/week across the team.\n\nTomorrow: build-in-public — what I'm rebuilding next.\n\n#n8n #MarketingAutomation #RevOps"
+  },
+  {
+    "id": "post_021",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Wed, Jun 17 2026",
+    "post_type": "PT-15",
+    "pillar": "P3 — Build in Public",
+    "topic": "Rebuilding the deal-summary refresher",
+    "body": "Rebuilding one of our oldest n8n flows this week.\n\nCurrent flow:\n\nEvery night, Claude rewrites the summary field on every open deal in HubSpot, based on the last 30 days of activity.\n\nWhat works: AEs love it. Saves them rereading 2 weeks of notes before a call.\n\nWhat doesn't:\n\n→ Runs on EVERY open deal, including dead ones\n\n→ Costs us ~€40/month in Claude tokens for summaries nobody opens\n\n→ Tone drifts month to month — sometimes punchy, sometimes formal\n\nRebuild plan:\n\n→ Filter: only deals with activity in the last 14 days\n\n→ Style sample: pin a 200-word example summary, instruct Claude to match\n\n→ Output: one 'what's the next conversation about' field, separate from the summary itself\n\nEstimated savings: ~70% token cost, better consistency, more useful field.\n\nShipping Friday. Will post the receipt either way.\n\n#BuildInPublic #n8n #HubSpot"
+  },
+  {
+    "id": "post_022",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Thu, Jun 18 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "The MQL is dead",
+    "body": "The MQL is dead. The B2B teams still chasing them are competing for last place.\n\nWhat an MQL was supposed to mean:\n\n'A lead that has shown enough interest to be passed to sales.'\n\nWhat it actually means in 2026:\n\n'Someone who downloaded a PDF, attended a webinar, or hit a 47-point lead score threshold based on website visits.'\n\nWhy it broke:\n\n→ Buyers do 80% of their research anonymously now\n\n→ Webinar attendance correlates negatively with intent in some segments\n\n→ Lead scoring models are gamed by buyers, vendors, and competitors\n\n→ AEs ignore MQLs because most of them are noise\n\nWhat replaces it:\n\n→ Account-level intent signals (multiple people from same company researching)\n\n→ Trigger-based outbound (funding, leadership change, tech adoption)\n\n→ Direct AE-led prospecting on a small, well-researched list\n\n→ Inbound qualification via real conversation, not form-fills\n\nIf your marketing team is still optimising for MQL volume, you're optimising the wrong number.\n\nOptimise for AE-accepted leads. The number that survives sales reality.\n\n#B2BMarketing #DemandGen #RevOps"
+  },
+  {
+    "id": "post_023",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Fri, Jun 19 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Same campaign, three languages",
+    "body": "We ran the same campaign in English, Spanish, and Arabic last quarter.\n\nSame target persona. Same product. Same offer.\n\nReply rates:\n\n→ English (UK + Nordics): 6.8%\n\n→ Spanish (Iberia + LATAM): 1.4%\n\n→ Arabic (MENA): 9.1%\n\nSame content. Five-fold gap.\n\nWhat we found when we dug in:\n\nThe English version was urgency-led: 'Your competitors are already running this. Don't get left behind.' Nordic + UK buyers responded.\n\nTranslated to Spanish, urgency reads as pushy and presumptuous. We rewrote it to lead with social proof and certainty: 'Empresas como la tuya ya están operando esto. Aquí está cómo.' Reply rate climbed to 7.2%.\n\nArabic worked first time because the opening was already context-first: explaining the WHY before the offer. That cultural pattern matched.\n\nTranslation tools translate words.\n\nOperators translate intent.\n\nIf your B2B is multilingual, please don't run it through DeepL and call it done.\n\n#Multilingual #B2BMarketing #Outbound"
+  },
+  {
+    "id": "post_024",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Tue, Jun 23 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "Stack reveal #4 — the Claude side",
+    "body": "Stack reveal — part 4 of 4. The Claude side.\n\nWhere Claude sits in our stack today:\n\n→ Inbound briefings (1-paragraph summaries on demo requests)\n\n→ Outbound research (reads a prospect's last 5 LinkedIn posts before I write)\n\n→ Deal summary fields in HubSpot (overnight)\n\n→ Form copy variants (3 versions per landing page)\n\n→ Translation pass on multilingual campaigns (after a human does the first cut)\n\n→ Internal knowledge: pulls from our Notion to answer GTM team questions in Slack\n\nWhat I've learned running Claude in production for ~14 months:\n\n1. The system prompt does most of the work. We have ~200 lines of standing instructions per use case. Spend the time.\n\n2. Pin examples. 2-3 'this is what good looks like' examples beat any amount of abstract instruction.\n\n3. Don't hide the model. Tell users when they're reading Claude output. Trust collapses fast otherwise.\n\n4. Separate generation from research. The model is much better at reading and summarising than at inventing.\n\nCost: ~€220/month across all use cases. Time saved: 30+ hours/week of human work.\n\nSeries wraps next week — full stack diagram.\n\n#Claude #AI #MarketingAutomation #RevOps"
+  },
+  {
+    "id": "post_025",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Wed, Jun 24 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "The job that taught me to write",
+    "body": "Before marketing, I translated contracts.\n\nBoring work. Repetitive. Sometimes 12-hour days reading the same legal phrases in three languages.\n\nIt taught me three things that turned out to be the most useful skills in marketing:\n\n1. Sentence structure matters more than vocabulary.\n\nA clear short sentence in the buyer's language beats a clever long one. Always.\n\n2. Intent is harder to translate than words.\n\n'Best regards' in English ≠ 'saludos' in Spanish ≠ 'تحياتي' in Arabic. They all signal different relationships. Marketing is the same — translating intent across personas, not just channels.\n\n3. Repetition is a teacher.\n\nDoing the same task 10,000 times reveals patterns no theory class will. Marketing has the same property: write 100 emails before you optimise. The pattern emerges.\n\nMy career path looked random for a while. Translator → marketer → automation specialist. From inside, every role taught the next one.\n\nIf your background looks 'unrelated' — list what it actually taught you. Half the things you think aren't transferable, are.\n\n#CareerJourney #Multilingual #LessonsLearned"
+  },
+  {
+    "id": "post_026",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Thu, Jun 25 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "5-question diagnostic for any B2B campaign",
+    "body": "Before you ship a B2B campaign, the 5-question diagnostic.\n\nSave it. Run every campaign through it.\n\nQ1 — WHO is this for?\n\nNot 'mid-market manufacturers'. ONE persona you can name. Title, daily pain, internal incentive, what they Google at 11pm.\n\nQ2 — WHAT do you want them to think after consuming this?\n\nNot 'be impressed by us'. Specific: 'these people understand my problem better than I do'.\n\nQ3 — WHAT'S the only-you angle?\n\nIf a competitor could publish the same content, the content isn't doing the job. Find the angle ONLY you can credibly take.\n\nQ4 — WHERE will it land?\n\nLinkedIn vs cold email vs landing page vs sales conversation. Each demands different shape.\n\nQ5 — HOW will you know it worked?\n\nONE metric. Not five. Define it before launch, measure it 14 days after.\n\nIf you can't pass all 5 in 90 seconds, the brief isn't ready.\n\nHalf the time this sends me back to rewrite. The discipline pays.\n\n#B2BMarketing #Frameworks #ContentMarketing"
+  },
+  {
+    "id": "post_027",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Fri, Jun 26 2026",
+    "post_type": "PT-15",
+    "pillar": "P3 — Build in Public",
+    "topic": "What shipped this week",
+    "body": "Shipped this week:\n\n→ Deal-summary refresher v2 (filtered to 14-day-active deals, ~70% token saving)\n\n→ Trade-show CSV intake flow (auto-cleans 4 common formats from event vendors)\n\n→ A Slack /command (/research) that triggers a Clay row + Claude briefing on demand\n\nTime saved across the team this week: probably 10+ hours.\n\nTwo AEs told me unprompted that the new deal summaries are 'actually useful'.\n\nMistake of the week:\n\nDeployed the trade-show flow without testing the malformed-CSV case. Two rows broke. 14 minutes to find, 4 minutes to fix.\n\nLesson: always test the bad-input path. Happy path is easy. Bad path is where production lives.\n\nOn the bench for July:\n\n→ A Claude-powered ICP scoring rebuild\n\n→ Public 'flow of the week' series — 4 deep dives in July\n\nWhat did you ship?\n\n#BuildInPublic #n8n #MarketingOps"
+  },
+  {
+    "id": "post_028",
+    "month": "JUNE 2026 — The Stack Reveal",
+    "date": "Tue, Jun 30 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "Stack reveal — full diagram",
+    "body": "Stack reveal series — wrap. Here's the full diagram. (Carousel — 8 slides.)\n\nFive tools, three flows, one truth.\n\nTOOLS:\n\nApollo — sourcing\n\nClay — research + scoring\n\nn8n — wiring\n\nHubSpot — system of record\n\nClaude — language layer\n\nFLOWS:\n\n→ Inbound: form → n8n → Clay enrich → Claude brief → Slack alert + HubSpot update\n\n→ Outbound: Apollo → Clay research → Clay action (filtered) → Apollo sequence → HubSpot write-back\n\n→ Knowledge: Notion → Claude → Slack /commands for the team\n\nTRUTH:\n\nAnything anyone needs to act on is in HubSpot. Everything else is a layer that feeds it.\n\nSeries recap:\n\nJun 2 — HubSpot side\n\nJun 9 — Clay side\n\nJun 16 — n8n side\n\nJun 23 — Claude side\n\nToday — full diagram\n\nSaving this for new GTM hires from now on. Steal it for yours.\n\n#GTM #RevOps #MarketingAutomation #ClayHQ #n8n"
+  },
+  {
+    "id": "post_029",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Wed, Jul 1 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "June recap — the receipts",
+    "body": "Two months of posting. The numbers from June:\n\n→ 17 posts shipped\n\n→ ~1,040 net new followers\n\n→ Top post: 4-Layer Industrial Marketing Map carousel — 31.4k impressions, 920 saves\n\n→ Worst post: a Friday personal that hit during a public holiday — 2.1k impressions\n\n→ Three creator reposts I didn't ask for\n\nWhat I learned in June:\n\n1. Series posts compound. The 4-part stack reveal pulled people back week-on-week. Single posts don't.\n\n2. Carousels save more than text. Saves were 2x text on the same audience.\n\n3. Posting on EU public holidays is a waste. Check the calendar.\n\nJuly theme: Build in Public — n8n.\n\nI'll ship one production-grade n8n flow per week, in the open. Spec on Tuesday, ship on Friday.\n\nFollowing along is free. Building along is more fun.\n\n#BuildInPublic #LinkedInTips"
+  },
+  {
+    "id": "post_030",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Thu, Jul 2 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Most automation content online is theatre",
+    "body": "Most automation content online is either theatre or homework.\n\nTheatre: cherry-picked screenshots, 'look at my beautiful flow', everything works first time, no broken bits visible.\n\nHomework: tutorial content built for a perfect example case, never tested at the messy edge of production.\n\nAlmost nobody shows the messy version.\n\nWhat I'll show this month:\n\n→ The actual problem (boring, often)\n\n→ The spec on Tuesday — including the bits I'm not sure about\n\n→ The build on Friday — including what broke and what I had to redo\n\n→ The cost (real money) and the time saved (real numbers)\n\nWhy this matters: most people fail at automation because they copy demos, not production. Demos hide the failure modes.\n\nIf you're tempted to automate something next week, pick a real problem and build it alongside me. Comments are open the whole month.\n\nFriday's first flow: rebuilding our ICP scoring engine.\n\n#BuildInPublic #n8n #MarketingAutomation"
+  },
+  {
+    "id": "post_031",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Fri, Jul 3 2026",
+    "post_type": "PT-01",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "Flow #1 — ICP scoring rebuild",
+    "body": "Flow #1 of 4. Shipped today.\n\nRebuilt our ICP scoring engine from a Clay-only scoring column to a Claude-augmented n8n flow.\n\nWhy rebuild:\n\n→ Old score was 5 numerical inputs, weighted. Predictable. Too rigid.\n\n→ Missed 'soft' signals — recent leadership changes, partnership announcements, hiring patterns\n\n→ AEs trusted it less and less, was becoming decoration\n\nNew flow (8 nodes):\n\n1. Trigger: Clay row update\n\n2. Function: pull company + last 30 days of public signals\n\n3. HTTP → Claude with explicit rubric ('rate 0-100 on these 4 dimensions')\n\n4. Function: weight + combine into single score + write back to Clay\n\n5. Conditional: if score >70, push to action table\n\n6-8. Notification + logging + alert if Claude returns malformed output\n\nCost: ~€0.014 per row × ~3,400 rows weekly = ~€48/month.\n\nAE-reported usefulness went from 4/10 to 8/10 in week 1.\n\nThis pattern (numerical rubric + LLM grader) works for scoring almost anything in B2B GTM. Pattern over tool.\n\nSpec for next week's flow drops Tuesday.\n\n#n8n #ClayHQ #Claude #BuildInPublic"
+  },
+  {
+    "id": "post_032",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Tue, Jul 7 2026",
+    "post_type": "PT-15",
+    "pillar": "P3 — Build in Public",
+    "topic": "Flow #2 spec — re-engagement detector",
+    "body": "Flow #2 of the July series. Spec today, ship Friday.\n\nProblem:\n\nCold deals in HubSpot don't auto-resurrect. Sometimes a buyer goes quiet for 4 months, then their company announces something we should react to.\n\nRight now we have no system for that. AEs miss it. Sometimes a deal walks away because we were silent at the wrong moment.\n\nGoal:\n\nDetect public signals on companies with paused or stalled deals, and surface them to the deal owner the same day.\n\nPlan:\n\n→ Daily cron — pull all HubSpot deals in 'paused' or 'stalled' stages\n\n→ For each: look up company in Clay, fetch last 7 days of news/funding/hiring signals\n\n→ Claude: judge whether any signal materially changes our angle\n\n→ If yes: Slack DM the deal owner with a 2-line briefing + suggested next move\n\nRisks:\n\n→ Noise. Most days, most signals are not actionable. Mitigation: Claude's first job is to filter, not summarise.\n\n→ Missed signals. We're trusting Clay's news endpoint. If they miss it, we miss it.\n\nFriday: receipt.\n\n#BuildInPublic #n8n #ClayHQ"
+  },
+  {
+    "id": "post_033",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Wed, Jul 8 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "The skill nobody taught me",
+    "body": "The most useful skill I have, nobody taught me in school, in any of three languages.\n\nReading API documentation.\n\nSounds like a developer skill. It isn't.\n\nOnce you can read an API doc, you can:\n\n→ Wire any tool to any other tool\n\n→ Stop waiting for engineering to build that integration you need\n\n→ Understand what's actually possible with the software you're paying for\n\n→ Build a marketing system that does what your team needs, not what the tool's UI happens to expose\n\nMost marketing roles still hire for experience inside specific tools. HubSpot, Marketo, Pardot.\n\nThe roles paying double are looking for people who can read a Clay or n8n or Claude doc and wire something useful before the end of the day.\n\nIf you're a marketer who hasn't read an API reference yet — start with the simplest tool you know. Pick one endpoint. Make a single curl request that does something real.\n\nOnce it clicks, your career trajectory bends.\n\nTook me about 8 weekends to get past the fear. Best 8 weekends I've spent.\n\n#CareerJourney #MarketingAutomation #MarketingOps"
+  },
+  {
+    "id": "post_034",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Thu, Jul 9 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "3-layer mental model for any data table",
+    "body": "Three layers I think through before I add a column to ANY data table — Clay, HubSpot, Notion, Airtable, doesn't matter.\n\nLAYER 1 — IDENTITY\n\nWhat does this column tell me about the row's existence?\n\nExamples: company name, domain, country, headcount band.\n\nTest: would I refuse to act without it? If yes, it's identity.\n\nLAYER 2 — SIGNAL\n\nWhat does this column tell me about the row's relevance, today?\n\nExamples: recent funding, hiring, leadership change, mentioned tech.\n\nTest: does this change month-to-month? If yes, it's signal — and it needs a refresh schedule.\n\nLAYER 3 — ACTION\n\nWhat does this column tell me about what to do next?\n\nExamples: ICP score, sequence stage, owner, last touch date.\n\nTest: would I write to a sequencing tool from this column? If yes, it's action.\n\nThe mistake almost everyone makes: mixing layers. Identity columns that update weekly. Signal columns that never refresh. Action columns calculated by formulas nobody can read.\n\nTag the columns. Refresh accordingly. The table tells you what it's for.\n\nSave this. Diagram in the comments.\n\n#Frameworks #RevOps #MarketingOps #ClayHQ"
+  },
+  {
+    "id": "post_035",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Fri, Jul 10 2026",
+    "post_type": "PT-01",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "Flow #2 shipped — re-engagement detector",
+    "body": "Flow #2 shipped. Re-engagement detector is live.\n\nWhat's running:\n\n→ Daily 7am cron, scans 280-ish stalled deals\n\n→ Pulls Clay signal data on each company\n\n→ Claude judges 'actionable yes/no'\n\n→ Slack DM to deal owner if yes\n\nFirst week's results:\n\n→ Deals scanned: 1,940 over 7 days\n\n→ Actionable signals surfaced: 23\n\n→ AEs reopened conversations on: 7 of those 23\n\n→ One deal silent for 4 months is back in active stage\n\nWhat broke:\n\nDay 2, Claude returned actionable=true on 38 deals. Investigated — the prompt was reading 'minor news' as actionable. Tightened the rubric. Down to ~3-4 per day now.\n\nWhat's next:\n\n→ Flow #3 spec on Tuesday — Apollo handoff cleanup\n\n→ Flow #4 — meta-flow that monitors all our flows and alerts on anomalies\n\nHalf the value of building in public is the comments. Keep them coming.\n\n#n8n #BuildInPublic #ClayHQ #Claude"
+  },
+  {
+    "id": "post_036",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Tue, Jul 14 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "Apollo + Clay handoff teardown",
+    "body": "Most teams running Apollo and Clay together do the handoff badly.\n\nHere's how ours works.\n\nThe wrong way:\n\n→ Apollo is the source of truth. Anything you find in Apollo gets shipped to a sequence.\n\n→ Clay is bolted on for enrichment, scattered, inconsistent.\n\n→ HubSpot fills up with low-quality contacts.\n\nOur way:\n\n→ Apollo finds candidates only. Filtered by ICP.\n\n→ Candidates are pushed to a Clay 'research' table — never directly to a sequence.\n\n→ Clay enriches, scores, decides who graduates to the action table.\n\n→ Only graduates get pushed back to Apollo for sequencing.\n\nResult: Apollo holds maybe 4-5% of what we found. The other 95% sat in Clay and either got promoted later or didn't.\n\nReply rate: 11.2% on contacts that go through this pipeline.\n\nIndustry average for cold B2B: under 3%.\n\nThe handoff is where most teams leak. Don't let your sourcing tool be the gate.\n\n#ClayHQ #Outbound #RevOps"
+  },
+  {
+    "id": "post_037",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Wed, Jul 15 2026",
+    "post_type": "PT-15",
+    "pillar": "P3 — Build in Public",
+    "topic": "Flow #3 spec — Apollo handoff cleanup",
+    "body": "Flow #3 of the July series. Tuesday's post described the handoff. Today: cleaning up where it breaks in practice.\n\nProblem:\n\nApollo sometimes pushes contacts that are duplicates, ex-employees, or in the wrong country. Cleanup eats 2 hours a week of someone's time.\n\nPlan:\n\n→ n8n watches Apollo's output webhook\n\n→ Function node: deduplication check against existing Clay rows (by email + company)\n\n→ Function node: company-country sanity check\n\n→ HTTP → Claude: 'is this person likely still at this company based on their LinkedIn last activity?' (only fires if uncertainty flag is set)\n\n→ If clean: write to Clay. If flagged: write to a quarantine table for human review.\n\nEdge cases I'm worried about:\n\n→ Multinationals where the country guess is genuinely ambiguous\n\n→ False quarantines piling up if review never happens\n\nMitigation for #2: weekly reminder Slack ping if quarantine is non-empty.\n\nFriday: receipt.\n\n#BuildInPublic #n8n #ClayHQ"
+  },
+  {
+    "id": "post_038",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Thu, Jul 16 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "B2B sales is a two-decision problem",
+    "body": "Most B2B sales conversations are framed as one decision: 'should we buy this?'\n\nThey're actually two decisions:\n\n1. Is this problem worth solving now?\n\n2. Are these the people to solve it with?\n\nReps lose deals all the time at #1, thinking they lost at #2.\n\nHow to tell the difference:\n\n→ If the buyer asks about pricing, timing, contracts — you're winning #2 but losing #1. They believe in you, not the urgency.\n\n→ If the buyer asks about case studies, references, alternatives — you're winning #1 but losing #2. They believe in the problem, not yet in you.\n\nDifferent problems. Different fixes.\n\nIf they don't believe in the urgency, more references won't help. You need to widen the cost-of-inaction conversation.\n\nIf they don't believe in you yet, more urgency won't help. You need proof.\n\nMost B2B 'objection handling' content treats every stall as the same. It isn't.\n\nDiagnose before you respond.\n\n#B2BSales #SalesProcess #GTM"
+  },
+  {
+    "id": "post_039",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Fri, Jul 17 2026",
+    "post_type": "PT-01",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "Flow #3 shipped — handoff cleanup",
+    "body": "Flow #3 shipped. Apollo → Clay cleanup is live.\n\nReceipts from week 1:\n\n→ 1,180 contacts processed\n\n→ 84 flagged and quarantined\n\n→ 26 of those were duplicates\n\n→ 41 were country-mismatched\n\n→ 17 were Claude-flagged 'probably no longer at company' (10 of which were correct)\n\nTime saved: ~90 minutes/week on cleanup.\n\nCost: €6/month in Claude calls.\n\nWhat broke:\n\nDay 1 we quarantined 200 contacts because the country normalisation function didn't handle 'United States of America' vs 'USA' vs 'US'. Embarrassing. Fixed.\n\nWhat's next:\n\nFlow #4 — meta-flow. A monitor that watches every other n8n flow we run and alerts if anything looks anomalous. Spec Tuesday, ship Friday — last of the July series.\n\n#n8n #BuildInPublic #ClayHQ"
+  },
+  {
+    "id": "post_040",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Tue, Jul 21 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "Outbound copy × Claude prompt teardown",
+    "body": "Sharing one of our outbound prompts that actually works. Anonymised but real.\n\nThe prompt (system-level, simplified):\n\nYou are writing a cold email from Saleh, a B2B marketing operator. Style: short, specific, no marketing language. Open with one observation about the prospect's company. Ask one question that costs them <90 seconds to answer. Maximum 75 words. No 'I hope this finds you well'. Avoid 'just wanted to'.\n\nPer-email input:\n\n→ Their last 3 LinkedIn posts (truncated)\n\n→ Their company's last news mention\n\n→ Their job posting (if hiring)\n\n→ A trigger event specific to their situation\n\nThree rules I add to every prompt:\n\n1. If you don't have enough data to be specific, say so — don't invent.\n\n2. Refuse to write if the prospect's role doesn't match the ICP given.\n\n3. Output the email AND a one-line 'why this should work' justification, separately.\n\nRule #3 is the killer. Because Claude has to justify the angle, the email gets sharper.\n\nHand-edit time per email: ~90 seconds. Reply rate on this stream: 13.4%.\n\nSteal the structure, not the wording.\n\n#Outbound #Claude #AI #B2BMarketing"
+  },
+  {
+    "id": "post_041",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Wed, Jul 22 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "The thing about imposter syndrome",
+    "body": "Two years into marketing automation. I still feel like an imposter every Monday.\n\nPosting this because most career advice tells you imposter syndrome 'fades with experience'.\n\nMine hasn't. I've just learned to work with it.\n\nWhat changed:\n\n→ I stopped trying to feel competent and started trying to BE useful. Different metric.\n\n→ I stopped comparing myself to senior creators with 80k followers. I compare myself to me, six months ago.\n\n→ I stopped treating 'I don't know how to do this' as a confession. It's just data. The next move is finding out.\n\n→ I stopped pretending in meetings. 'Walk me through it slowly' has saved my career more than any technical skill.\n\nImposter syndrome doesn't go away. The relationship with it changes.\n\nIf you're 6 months into a new role and feel underwater — you're probably not actually drowning. You're just learning faster than your confidence is updating.\n\nSave this if you needed it today.\n\n#CareerJourney #MentalHealth #ImposterSyndrome"
+  },
+  {
+    "id": "post_042",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Thu, Jul 23 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "Outbound diagnostic — data, copy, or targeting",
+    "body": "60-second diagnostic for outbound that isn't working.\n\nSave this. Run through it next time your outbound stalls.\n\nReply rate under 2%? You have ONE of three problems.\n\n1. DATA problem\n\nSymptom: high bounce rate (>4%), low open rate (<35%).\n\nCause: stale contact data, wrong people on the list.\n\nFix: enrichment refresh + ICP filter tightening, before you touch copy.\n\n2. COPY problem\n\nSymptom: opens are fine (>40%) but replies are silent.\n\nCause: the email reads like every other email they got this week.\n\nFix: rewrite with one specific observation per email. Cut sentences. Cut your name. Cut the CTA boilerplate.\n\n3. TARGETING problem\n\nSymptom: opens fine, replies happen, but they're 'wrong person, please redirect'.\n\nCause: persona is misaligned to who actually buys.\n\nFix: walk through your last 5 closed-won deals. Who did the first call? That's the persona.\n\nThe mistake everyone makes: assuming it's a copy problem because copy is the most fun to fix.\n\nDiagnose before you rewrite.\n\n#Outbound #Frameworks #RevOps"
+  },
+  {
+    "id": "post_043",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Fri, Jul 24 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "We sell outcomes, not features",
+    "body": "Reframe I'm coming back to lately:\n\nMost B2B teams sell features.\n\nThe companies that win sell what the features unlock.\n\nWhen you sell features, conversations are about:\n\n→ Spec sheets\n\n→ Pricing per seat\n\n→ Integration depth\n\n→ Roadmap promises\n\nAll real. All important. All commodity-able once you have a competitor.\n\nWhen you sell outcomes, conversations change:\n\n→ The buyer becomes a leader, not just a user\n\n→ The deal size grows because we're solving an organisational problem\n\n→ The reference customer is a peer who already cleared the goal\n\n→ The competitor isn't another vendor — it's the cost of inaction\n\nSame product. Different sale.\n\nThe reframe is uncomfortable internally — engineers and product managers prefer to talk about the thing they built.\n\nBut buyers buy outcomes. Always have.\n\nIf your sales conversations sound like spec comparisons — that's the gap.\n\n#B2BSales #B2BMarketing #GTMStrategy"
+  },
+  {
+    "id": "post_044",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Tue, Jul 28 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "July recap — what shipped, what didn",
+    "body": "*'**t*\n\nJuly recap. Build-in-public month wraps.\n\nWhat I said I'd ship: 4 production n8n flows.\n\nWhat actually shipped:\n\n→ Flow #1 — ICP scoring rebuild ✓\n\n→ Flow #2 — re-engagement detector ✓\n\n→ Flow #3 — Apollo→Clay cleanup ✓\n\n→ Flow #4 — meta-flow monitor ✓ (shipped Sunday, off-week)\n\nAll four live.\n\nWhat surprised me:\n\n→ Flow #4 was the smallest scope, the hardest to ship. Monitoring is genuinely tricky.\n\n→ The re-engagement detector is the one AEs talk about most. Smallest tool change, biggest behaviour change.\n\n→ Total tokens spent across the 4 flows: ~€140 in Claude calls. Time saved across the team: ~18 hours/week.\n\nProcess lessons:\n\n1. Public spec on Tuesday changes the build. People comment what I missed before I write it.\n\n2. Shipping on Friday is non-negotiable. Slipping once kills the rhythm.\n\n3. The receipt post is the most credibility-building post in the cycle. Honesty about what broke matters more than success.\n\nAugust arrives Saturday. Push mode. 20 posts pre-written.\n\n#n8n #BuildInPublic #MarketingAutomation"
+  },
+  {
+    "id": "post_045",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Wed, Jul 29 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Pre-launching August — Q3 GTM Playbook",
+    "body": "Three months building this account in public. Time to pay it back.\n\nAugust theme: the Q3 GTM Playbook. Two weeks of push posts (Aug 4-15), 2 per day, 5 days a week. 20 posts total, all pre-written.\n\nWhat the playbook covers:\n\n→ The full outbound stack we run (with screenshots and costs)\n\n→ How to structure Clay tables for any B2B buyer\n\n→ Claude prompts that actually work in cold outreach\n\n→ How we handle multilingual Q3 campaigns\n\n→ The mistakes I made in Q1 and Q2 that cost real pipeline\n\n→ A reusable Q3 quarterly review template\n\nWhy now:\n\n→ Q3 is when most B2B teams panic. Summer slowdown, October targets looming.\n\n→ I've been collecting real numbers for 18 months. Time to share them.\n\nFollowing along is free. Building along is more useful.\n\nFirst post drops Tuesday Aug 4 at 8:00 CET.\n\n#GTM #BuildInPublic #B2BMarketing"
+  },
+  {
+    "id": "post_046",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Thu, Jul 30 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "The cost of consistency",
+    "body": "Three months posting 5 days a week. Honest reflection on what it costs.\n\nThe work:\n\n→ ~6 hours/week of writing\n\n→ ~4 hours/week of engagement\n\n→ ~2 hours/week of planning + review\n\nTotal: 12 hours/week. About 1.5 days.\n\nWhat I gave up:\n\n→ Most of my Sunday afternoons\n\n→ Some weekday gym sessions\n\n→ The luxury of inconsistency — once you commit publicly, missing a day feels worse than it should\n\nWhat I gained:\n\n→ Sharper thinking. Forcing myself to write a clear sentence about what I built clarifies what I built.\n\n→ A network. Real conversations with operators I'd never have met otherwise.\n\n→ Compound returns. Posts from May still get views in July.\n\n→ Career optionality. I haven't asked, but inbound DMs are different now.\n\nWas it worth it? Yes. But only because I picked a niche I genuinely care about.\n\nIf you're considering this — pick something you'd write about for free. Otherwise it'll feel like work and you'll quit by month two.\n\n#BuildInPublic #ContentMarketing #LinkedInTips"
+  },
+  {
+    "id": "post_047",
+    "month": "JULY 2026 — Build in Public (n8n)",
+    "date": "Fri, Jul 31 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical Stack",
+    "topic": "Q3 Playbook — what",
+    "body": "*'**s coming*\n\nTuesday Aug 4, 8:00 CET. The Q3 GTM Playbook starts.\n\nSneak preview of the 20 posts:\n\nWeek 1:\n\n→ The full Q3 outbound architecture\n\n→ Claude prompts that close (5 templates)\n\n→ Multilingual Q3 — the workflow\n\n→ The summer slowdown myth\n\n→ Building a Q3 ICP refresh\n\n→ One mistake that cost us €120k in Q3 last year\n\n→ The trade-show data intake flow\n\n→ How to handle 'I'll get back to you in September'\n\n→ HubSpot field hygiene before EOY\n\n→ The end-of-week Slack digest that runs itself\n\nWeek 2:\n\n→ Outbound copy that beats AI-detection filters\n\n→ Account-based vs. contact-based — when to switch\n\n→ The €40 stack that runs our Q3\n\n→ Pricing conversations: structured vs. free-form\n\n→ Reading buyer signals at conferences\n\n→ Q3 dashboard AEs actually use\n\n→ Customer-success handoff at quarter-close\n\n→ When to kill a campaign mid-quarter\n\n→ October prep, in August\n\n→ Q3 retrospective template\n\nSave the post if you want the index. Two weeks of receipts incoming.\n\n#GTM #B2BMarketing #BuildInPublic"
+  },
+  {
+    "id": "post_048",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Mon, Aug 3 2026 — AM",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "Q3 Playbook 1/20 — full outbound architecture",
+    "body": "Q3 GTM Playbook — post 1 of 20.\n\nOur full B2B outbound architecture, top-to-bottom.\n\nSOURCING — Apollo (filtered to ICP + region only)\n\n↓\n\nRESEARCH TABLE — Clay (~3,400 rows, weekly enrichment)\n\n↓\n\nSCORING — Claude via n8n (rubric-based, written back to Clay)\n\n↓\n\nACTION TABLE — Clay (~640 rows, contacts >70 score)\n\n↓\n\nSEQUENCING — Apollo (4-step, manual gate at step 3)\n\n↓\n\nREPLIES — HubSpot deal created on positive reply\n\n↓\n\nBACKFEED — Closed-won outcomes update the ICP rubric monthly\n\nThree things most teams miss:\n\n→ The action table never goes above 1,500 rows. Quality, not quantity.\n\n→ Manual gate at step 3 — a human reads every email at deeper stages.\n\n→ Backfeed loop — closed-won data improves scoring monthly.\n\nPM today: 5 Claude prompts that close.\n\n#GTM #Outbound #ClayHQ #RevOps"
+  },
+  {
+    "id": "post_049",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Mon, Aug 3 2026 — PM",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "Q3 Playbook 2/20 — 5 Claude prompts",
+    "body": "Q3 Playbook 2/20 — five Claude prompts in production right now.\n\n1. The OPENER PROMPT\n\nReads prospect's last 3 LinkedIn posts → outputs ONE specific observation. Hard rule: refuses if no specific signal exists.\n\n2. The BRIEFING PROMPT\n\nTriggered on demo request. Outputs: company in 2 lines, likely use case, 'red flag' if any. Never marketing language.\n\n3. The OBJECTION-PRE PROMPT\n\nPre-call: takes the deal's last 3 emails + LinkedIn → predicts top 2 objections + one-sentence rebuttals.\n\n4. The MULTILINGUAL PROMPT\n\nTakes English source + target language + 'cultural fit' instruction. Outputs not translation but cultural rewrite.\n\n5. The DEAL-SUMMARY PROMPT\n\nOvernight job. Reads last 14 days of activity per active deal → 'next conversation is about X' field.\n\nAll five travel. Steal the structure, change the inputs to fit your ICP.\n\n#Claude #AI #Outbound #B2BMarketing"
+  },
+  {
+    "id": "post_050",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Tue, Aug 4 2026 — AM",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "Q3 Playbook 3/20 — multilingual workflow",
+    "body": "Q3 Playbook 3/20 — the multilingual workflow.\n\nWe run B2B campaigns in English, Spanish, Arabic, occasionally German. The workflow we landed on:\n\nSTEP 1 — Source language draft\n\nAlways English. Written by a human (me, an AE, or a contractor).\n\nSTEP 2 — Cultural rewrite, not translation\n\nClaude with explicit cultural instructions. Not 'translate this'. The instruction is: 'rewrite for a [Spanish/Arabic/German] B2B reader, preserving intent but adapting tone and structure.'\n\nSTEP 3 — Native review pass\n\nA human native speaker reviews. Always. No exception.\n\nSTEP 4 — A/B against direct translation\n\nCultural rewrites outperform DeepL translation by 3-7x reply rate every quarter we've tested.\n\nMost B2B teams either ship English everywhere, or translate via tool and call it done. The middle path costs more time. It also wins.\n\nPM: the summer slowdown myth.\n\n#Multilingual #B2BMarketing #Outbound"
+  },
+  {
+    "id": "post_051",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Tue, Aug 4 2026 — PM",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Q3 Playbook 4/20 — summer slowdown myth",
+    "body": "Q3 Playbook 4/20 — the summer slowdown is mostly a myth.\n\nEvery July-August, B2B teams blame the calendar.\n\n'Buyers are on holiday. Pipeline always dies in summer.'\n\nI've now run three Q3s. Pipeline doesn't die. Activity dies — and only some of it.\n\nWhat actually happens:\n\n→ Decision committees thin out for 2-3 week windows\n\n→ Email reply rates drop 15-25%\n\n→ But discovery calls hold steady — the people on calls are the ones not on holiday\n\n→ Closed-won rates on deals that move are HIGHER than Q2\n\nThe opportunity:\n\n→ Buyers who ARE working in August are doing real work, with less internal noise\n\n→ A genuinely thoughtful email lands in a quieter inbox\n\n→ Discovery calls that get booked tend to convert\n\nWhat we do differently:\n\n→ Don't drop volume. Increase specificity.\n\n→ Move review-heavy steps to early September. Move outreach to August.\n\nDon't pause the pipeline. Refine it.\n\n#GTM #B2BMarketing #Outbound"
+  },
+  {
+    "id": "post_052",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Wed, Aug 5 2026 — AM",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "Q3 Playbook 5/20 — 2-hour ICP refresh",
+    "body": "Q3 Playbook 5/20 — refreshing your ICP for Q3.\n\nMost teams set ICP in January and forget. By August it's stale.\n\nQuick Q3 refresh, takes ~2 hours:\n\n1. Pull last 6 months of closed-won deals.\n\n2. List each deal's: industry sub-segment, company size, decision-maker title, deal size, sales cycle length.\n\n3. Cluster: are 70% of wins coming from a tighter sub-segment than you'd expect? (Almost always yes.)\n\n4. Re-write the ICP definition with that tighter sub-segment as primary.\n\n5. Update your Clay scoring rubric to weight that sub-segment higher.\n\n6. Run the new score on existing rows; promote the new top-scorers to action table.\n\nWhat we found doing this in August 2025:\n\n→ 70% of our wins were a sub-segment we hadn't formally targeted\n\n→ Updating the rubric surfaced ~80 contacts we hadn't prioritised\n\n→ Three of those 80 became deals by Q4\n\nThe data already lives in your CRM. The job is to listen to it.\n\n#GTM #RevOps #B2B"
+  },
+  {
+    "id": "post_053",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Wed, Aug 5 2026 — PM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Q3 Playbook 6/20 — the €120k mistake",
+    "body": "Q3 Playbook 6/20 — the mistake that cost us €120k last Q3.\n\nWe had a strong campaign running into August 2025. Strong reply rate, strong booking rate, three deals at proposal stage.\n\nI made a decision that felt smart at the time: pause the sequencing engine for 'summer'. Reduce noise, save credits.\n\nWhat that meant:\n\n→ New leads stopped getting nurtured for 3 weeks\n\n→ Re-engagement on 4-month-cold deals didn't trigger\n\n→ The pipeline I'd built lost momentum at the wrong time\n\nTwo of the three proposal-stage deals went cold. We didn't reach back fast enough when they returned in September. Both went to a competitor whose marketing didn't pause.\n\nReal cost: ~€120k in lost revenue, by the most generous attribution.\n\nSoft cost: an AE quit partly because of how the quarter felt.\n\nLesson:\n\nDon't pause your engine in summer. Refine it. Reduce volume IF you must, but never stop nurture and re-engagement.\n\nI've never made the mistake again. Sharing it so you don't either.\n\n#GTM #LessonsLearned #B2BMarketing"
+  },
+  {
+    "id": "post_054",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Thu, Aug 6 2026 — AM",
+    "post_type": "PT-01",
+    "pillar": "P1 — Tactical",
+    "topic": "Q3 Playbook 7/20 — trade-show intake flow",
+    "body": "Q3 Playbook 7/20 — the trade-show data intake flow.\n\nConference season heats up in autumn. Every event vendor sends a CSV with a different schema.\n\nOur intake flow (n8n):\n\n1. Watched folder — drop the CSV\n\n2. Function node: detect schema (4 known formats, anything else routes to manual)\n\n3. Normalise columns: name, email, company, title, country, event, booth, conversation note\n\n4. Validate: drop rows with no email or no company\n\n5. Push to Clay 'event' research table — tagged with event name and date\n\n6. Trigger enrichment cycle on the new rows\n\n7. Slack post to #events with stats: rows in, rows kept, rows quarantined\n\nTotal time per event: 4 minutes (vs 90+ minutes manual).\n\nThe trick that took longest to figure out:\n\nEvent-specific tagging. Without it, conference contacts get lost in the general flow. Tag by event + booth, then run conference-specific follow-up sequences in October.\n\nWorks for any B2B team running event marketing. The CSV is the universal constant.\n\nPM: handling 'I'll get back to you in September'.\n\n#n8n #ClayHQ #Events #RevOps"
+  },
+  {
+    "id": "post_055",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Thu, Aug 6 2026 — PM",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Q3 Playbook 8/20 — handling",
+    "body": "*'**see you in September**'*\n\nQ3 Playbook 8/20 — what to do with 'I'll get back to you in September'.\n\nEvery August, every B2B team gets some version of this email.\n\nMost teams handle it badly.\n\nBad way:\n\n→ Move the deal to 'paused'\n\n→ Set a calendar reminder for Sept 1\n\n→ Send the same 'just circling back' email everyone else sends\n\nBetter way:\n\n→ Reply same day with a SHORT, low-pressure note: 'Sounds good — when you're back, the question I'll want to ask is X. No rush.'\n\n→ The X is a specific small question, not 'how does the rest of the year look'\n\n→ Mid-August: send ONE useful thing — a relevant news item, a competitor mention — without asking anything\n\n→ Early September: open with the X you flagged, not 'circling back'\n\nWhy this works:\n\nYou've planted a specific question they can prepare for, given them context to come back to, and avoided the generic September inbox flood.\n\nReopen rate on deals we handle this way: ~64%.\n\nReopen rate when we just send 'circling back': ~22%.\n\nPlant your flag in August.\n\n#Outbound #B2BSales #GTM"
+  },
+  {
+    "id": "post_056",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Fri, Aug 7 2026 — AM",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "Q3 Playbook 9/20 — HubSpot hygiene before EOY",
+    "body": "Q3 Playbook 9/20 — HubSpot field hygiene, before the EOY rush.\n\nMost CRMs accumulate fields like a closet accumulates clothes. By August you're scared to touch anything.\n\nQ3 hygiene checklist (do this once a year):\n\n→ Audit contact properties. Anything not used in a workflow, sequence, view, or report in the last 90 days = candidate for archive.\n\n→ Same for company properties.\n\n→ Find duplicate fields (we had 'industry', 'industry_v2', 'sub_industry'). Consolidate.\n\n→ Required fields review: are sales reps fighting them? They will skip them. Make required fields the truly necessary ones.\n\n→ Workflow audit: list every active workflow. For each: 'does anyone trust the output?' If no, pause it.\n\n→ Clean enum values: dropdowns drift. We had 5 spellings of 'United States'. Standardise.\n\nTime investment: ~half a day.\n\nTime saved later: every report you run for the next 6 months becomes more trustworthy.\n\nStale fields are silent revenue killers. They're why your forecasts feel off.\n\nPM: the EOW digest that runs itself.\n\n#HubSpot #RevOps #MarketingOps"
+  },
+  {
+    "id": "post_057",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Fri, Aug 7 2026 — PM",
+    "post_type": "PT-01",
+    "pillar": "P1 — Tactical",
+    "topic": "Q3 Playbook 10/20 — auto-running EOW digest",
+    "body": "Q3 Playbook 10/20 — the end-of-week digest that runs itself.\n\nFriday 5pm. n8n cron fires.\n\nWhat it does:\n\n1. Queries HubSpot: deals created, deals closed-won, deals closed-lost (this week, last week, MoM trend)\n\n2. Queries Clay: rows added to research, rows promoted to action\n\n3. Queries Apollo: emails sent, replies, reply rate vs prior week\n\n4. Queries our n8n monitoring flow: any flow errors this week, top 3\n\n5. Claude reads all of the above and writes a 250-word digest in our voice. Honest, includes negative trends. No spin.\n\n6. Posts to #leadership Slack channel + emails to the 4 leaders who don't live in Slack.\n\nCost: €0.04 per digest in Claude tokens.\n\nTime saved: ~90 minutes/week of someone (me) writing the same email.\n\nBonus: leadership reads it. Because it's short and honest, not a marketing-team puff piece.\n\nFriday digest is the highest-leverage piece of marketing infrastructure I've ever built. Not because it's complex. Because it gives leadership the truth on a schedule.\n\nWeek 1 of push wraps. 10 down, 10 to go.\n\n#n8n #Claude #RevOps #MarketingOps"
+  },
+  {
+    "id": "post_058",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Mon, Aug 10 2026 — AM",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Q3 Playbook 11/20 — outbound copy that beats AI filters",
+    "body": "Q3 Playbook 11/20 — outbound copy that gets read in 2026.\n\nBuyers are tuned to the LLM-template style. Generic openers, perfect grammar, three-bullet middle, soft CTA.\n\nIf your email looks like that, it gets archived in 1.4 seconds.\n\nWhat works now:\n\n→ Specifics that no template could have produced. A line about their actual job posting. A reference to their actual conference talk.\n\n→ Imperfect grammar (genuinely). One short sentence. A fragment.\n\n→ A claim that requires courage. 'I think your competitor is about to do X — happy to be wrong.'\n\n→ Brevity that almost feels rude. 60 words. No 'hope this finds you well.'\n\nWhat kills replies in 2026:\n\n→ 'I came across your profile and was impressed by...'\n\n→ Three bullet points listing benefits\n\n→ Calendar links in the first email\n\n→ Anything starting with 'Quick question'\n\nIf your email could be sent to 100 people unchanged, it shouldn't be sent at all.\n\nPM: account-based vs contact-based.\n\n#Outbound #B2BMarketing #ColdEmail"
+  },
+  {
+    "id": "post_059",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Mon, Aug 10 2026 — PM",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Q3 Playbook 12/20 — when to switch ABM ↔ contact-based",
+    "body": "Q3 Playbook 12/20 — account-based vs contact-based outbound. When to use which.\n\nACCOUNT-BASED (target the company, multi-thread):\n\nUse when…\n\n→ Deal size > €100k\n\n→ Buying committee is 5+ people\n\n→ Sales cycle is 3+ months\n\n→ Decision is structural, not personal\n\nCONTACT-BASED (target the individual, fast loop):\n\nUse when…\n\n→ Deal size < €50k\n\n→ Single decision-maker exists\n\n→ Sales cycle under 60 days\n\n→ Decision is personal preference\n\nWe run BOTH — and most teams running both run them poorly.\n\nThe split:\n\n→ 80% of pipeline volume, 20% of revenue: contact-based for early-stage smaller deals\n\n→ 20% of pipeline volume, 80% of revenue: account-based for the strategic deals\n\nMost teams accidentally run an ABM motion on small deals (overkill) and a contact-based motion on huge deals (under-resourced).\n\nQ3 fix: take a hard look at your last 10 closed-lost deals. Did they need a different motion than you ran? Probably yes.\n\n#ABM #Outbound #B2BMarketing #GTM"
+  },
+  {
+    "id": "post_060",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Tue, Aug 11 2026 — AM",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "Q3 Playbook 13/20 — the €40 stack",
+    "body": "Q3 Playbook 13/20 — the €40/month stack that runs our Q3 outbound.\n\nYes, €40. Itemised:\n\n→ n8n: self-hosted on a €5/month VPS. Total cost: €5\n\n→ Clay: shared workspace, ~€0/month at our usage in this stack slice\n\n→ Apollo: existing seat, no incremental cost\n\n→ Claude API: ~€20/month for the outbound-specific use cases\n\n→ HubSpot: existing seat\n\n→ A small custom dashboard hosted on a €5 VPS\n\n→ Domain + minor things: ~€10\n\nTotal: €40/month for the engine that runs the outbound layer.\n\nWhat's NOT in this number:\n\n→ Apollo + HubSpot seat costs (would be there with or without this stack)\n\n→ My salary (the actual scarce resource)\n\nWhy this matters:\n\nMost teams overspend on tools because they're afraid to wire them themselves.\n\nWire it yourself once and tools become commodity. Leverage moves to your judgement.\n\nPM: pricing conversations.\n\n#GTM #RevOps #MarketingOps"
+  },
+  {
+    "id": "post_061",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Tue, Aug 11 2026 — PM",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Q3 Playbook 14/20 — pricing conversations",
+    "body": "Q3 Playbook 14/20 — structured pricing vs free-form.\n\nB2B deals don't have a pricing page. Custom configurations, financing options. The question is whether to share structure early or keep it loose.\n\nWe've tested both. Structured wins.\n\nSTRUCTURED:\n\nAfter the second discovery call, we share a one-page 'pricing structure' document. Not a quote. The structure: what the base costs, what the modules add, what services include.\n\nWhy this works:\n\n→ Buyers can socialise it internally without us in the room\n\n→ Procurement gets fewer surprises later, which means fewer last-minute deal blocks\n\n→ It signals confidence — we know what we're worth\n\nFREE-FORM (what we used to do):\n\nCustom quote per buyer, only after extensive discovery, often surprising procurement.\n\n→ Felt safer. Was actually slower.\n\n→ Lost deals to competitors who were clearer about price upfront.\n\nCounter-intuitive bit: sharing pricing structure earlier shortened our average sales cycle by ~3 weeks.\n\nConfidence converts.\n\n#B2BSales #Pricing #GTM"
+  },
+  {
+    "id": "post_062",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Wed, Aug 12 2026 — AM",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Q3 Playbook 15/20 — reading buyer signals at events",
+    "body": "Q3 Playbook 15/20 — reading buyer signals at conferences.\n\nConference floors are noisy. Your booth gets 200 visitors over 3 days. 90% are window-shopping. 10% are buyers. Your job is to tell them apart in 90 seconds.\n\nSignals that say 'buyer':\n\n→ Asks about specific use cases within the first 60 seconds\n\n→ References a pain ('our current setup struggles with X')\n\n→ Shows up with one or two colleagues, not alone\n\n→ Comes back to the booth a second time on day 2\n\nSignals that say 'student / consultant / curious':\n\n→ 'Tell me about what you do' (open-ended)\n\n→ Wants the brochure but no business card exchange\n\n→ Photos of the booth without the demo\n\nWhat we do:\n\n→ Two-question filter at the booth: 'what's the bottleneck?' + 'who else is involved in solving it?'\n\n→ Buyers get a 20-min demo. Others get a brochure + email follow-up if they want it.\n\n→ Day 3 morning: 30-min team huddle ranking all leads. Top 20% get a personal email by Saturday.\n\nPM: Q3 dashboard that AEs use.\n\n#Events #B2BSales #FieldMarketing"
+  },
+  {
+    "id": "post_063",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Wed, Aug 12 2026 — PM",
+    "post_type": "PT-01",
+    "pillar": "P1 — Tactical",
+    "topic": "Q3 Playbook 16/20 — Q3 dashboard AEs use",
+    "body": "Q3 Playbook 16/20 — building a Q3 dashboard that AEs actually use.\n\nMost AE dashboards are designed for managers. AEs ignore them.\n\nOurs is the opposite. Built for the AE's morning.\n\nWhat's on it (one screen, no scrolling):\n\n→ Top: deals at proposal stage with no activity in 5+ days. Sorted by deal size. Click → opens HubSpot to that deal.\n\n→ Middle-left: deals waiting on me (action required from buyer). Tagged with last-touch date.\n\n→ Middle-right: deals waiting on buyer (action required from us). Tagged with deadline.\n\n→ Bottom-left: re-engagement signals from this week (the n8n flow output).\n\n→ Bottom-right: my upcoming calls today + briefings (Claude-generated).\n\nWhat's NOT on it:\n\n→ Pipeline coverage ratios\n\n→ Forecast charts\n\n→ Anything that requires interpretation\n\nWhy it works: it tells the AE the next move. It doesn't make them think about the next move.\n\nAEs open it 4-6 times a day. Manager dashboards live 2 weeks before being abandoned.\n\nBuild for the user, not the role above the user.\n\n#RevOps #B2BSales #Dashboards"
+  },
+  {
+    "id": "post_064",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Thu, Aug 13 2026 — AM",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Q3 Playbook 17/20 — sales-to-CS handoff",
+    "body": "Q3 Playbook 17/20 — the sales-to-CS handoff at quarter-close.\n\nQ3 → Q4 transition is where deals get handed from sales to CS. It's also where most companies leak retention.\n\nBad handoff:\n\n→ Sales closes deal Friday Sept 26\n\n→ CS picks it up Monday Oct 6 (10 days later)\n\n→ CS doesn't know the buyer's politics, the technical edge cases, or the promise made at close\n\n→ Customer's first 30 days feel like starting over\n\nGood handoff:\n\n→ Three-way kickoff call within 5 business days of close, every time\n\n→ A standardised handoff doc the AE writes (Claude-assisted template, AE edits before sending)\n\n→ The AE stays involved as escalation path for 60 days\n\n→ 30/60/90 customer health check-ins, owned by CS, surfaced to the AE\n\nWhat we wrote into our process this year: the AE's compensation has a 60-day clawback if onboarding stalls due to a scope mismatch from close. Painful for the AE, sharpens close-side scoping enormously.\n\nThe handoff is where customer experience starts. Plan it.\n\n#B2BSales #CustomerSuccess #RevOps"
+  },
+  {
+    "id": "post_065",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Thu, Aug 13 2026 — PM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Q3 Playbook 18/20 — when to kill a campaign",
+    "body": "Q3 Playbook 18/20 — knowing when to kill a campaign mid-quarter.\n\nHardest decision in marketing.\n\nMost teams keep losing campaigns alive too long because killing them feels like admitting failure.\n\nOur internal rule (took two quarters of bad calls to land here):\n\nKill the campaign if, by week 4 of an 8-week run, AT LEAST TWO of these are true:\n\n→ Reply rate is <60% of forecast\n\n→ Booked-call rate is <50% of forecast\n\n→ AEs are reporting low-quality conversations even on the booked calls\n\n→ Cost-per-meaningful-conversation is >2x baseline\n\nWhy all four matter:\n\n→ Reply rate alone can mislead (high replies, all 'wrong person')\n\n→ Quality input from AEs catches what numbers miss\n\n→ The cost lens forces honesty about whether we're learning enough\n\nThe post-mortem is non-negotiable. Within 5 days of killing, we write a 1-page 'what we learned' doc. Most of those become next quarter's better campaign.\n\nKilling a campaign well is a skill. Build it deliberately.\n\n#GTM #B2BMarketing #LessonsLearned"
+  },
+  {
+    "id": "post_066",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Fri, Aug 14 2026 — AM",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "Q3 Playbook 19/20 — October prep, in August",
+    "body": "Q3 Playbook 19/20 — October prep, in August.\n\nOctober is the most expensive month in B2B if you arrive at it unprepared. Conferences are running, EOY budgets get talked about, every team you sell to is closing their own quarters.\n\nPrep checklist, mid-August:\n\n→ AUDIENCE: refresh ICP scoring. Done by end-August.\n\n→ CONTENT: lock the October content calendar today. 8 weeks of theme + 3 carousels in draft.\n\n→ CAMPAIGNS: pick the ONE big campaign for Q4. By August 20, the brief is written.\n\n→ EVENTS: register for any October conference now. Booth materials ordered Aug 25.\n\n→ TEAM: every AE has a Q4 plan in writing by Aug 31. Number, account list, two strategic moves.\n\n→ TOOLS: any new platform you're considering? Choose by Aug 31, set up in September. Don't onboard during October.\n\n→ DASHBOARDS: build the Q4 dashboard now while volume is lower.\n\nHardest one: holding the line on the August 31 deadline. Stuff slips. People are away. Hold it anyway.\n\nTeams that arrive at October prepared spend October running. Teams that arrive unprepared spend October explaining.\n\nPM tomorrow: the Q3 retrospective template. Final post.\n\n#GTM #B2BMarketing #Quarterly"
+  },
+  {
+    "id": "post_067",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Fri, Aug 14 2026 — PM",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "Q3 Playbook 20/20 — quarterly retrospective template",
+    "body": "Q3 Playbook 20/20 — quarterly retrospective template. Last post.\n\nMost retrospectives turn into either victory laps or blame sessions. Neither is useful.\n\nOur template (one page, takes 90 minutes with the team):\n\n1. NUMBERS (15 min, no commentary)\n\nPipeline created, deals closed-won, closed-lost, average cycle time, win rate, CAC. Vs forecast and last quarter. Read aloud, no analysis yet.\n\n2. WHAT WE BET ON (15 min)\n\nList the bets we explicitly made entering Q3. For each: did it pay off? How would we know?\n\n3. WHAT BROKE (20 min)\n\nThree things that broke that we didn't predict. NOT 'the market was hard' — operational specifics.\n\n4. WHAT WORKED (15 min)\n\nThree things that worked better than expected. Brutal about ranking in honesty order, not enthusiasm order.\n\n5. THREE BETS FOR Q4 (20 min)\n\nWhat we'll do differently. Each bet has a measurement criterion before we leave the room.\n\n6. THE SINGLE BET (5 min)\n\nIf we could only do ONE thing differently in Q4, what? Vote. Discuss. Land.\n\nSeries wraps. 20 posts, 2 weeks. Recovery starts Monday.\n\n#GTM #Retrospective #Frameworks"
+  },
+  {
+    "id": "post_068",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Tue, Aug 18 2026",
+    "post_type": "PT-15",
+    "pillar": "P3 — Build in Public",
+    "topic": "Push #1 numbers",
+    "body": "Push mode wrapped Friday. Some numbers, since I said I would:\n\n→ 20 posts, 2 weeks, no missed days\n\n→ Total impressions across the 20: ~340k\n\n→ Followers gained: 1,420 (target was 1,200)\n\n→ Top post: the €40 stack post (Aug 11 AM) — 47k impressions\n\n→ Worst post: the customer-success handoff one — 6k impressions (too internal-process for the audience)\n\n→ DM inbound: 14 unprompted, 5 from ICP-relevant buyers\n\nWhat I'd do differently next push:\n\n→ Less internal-process content. Audience cares about externally-visible work.\n\n→ More carousels. Text-only push posts hit a ceiling around 12k.\n\n→ Pre-write all 20 with one week buffer (I had 4 days). Recovery is real.\n\nNow: 1 week of recovery. Base mode (3 posts). Then back to Growth through September.\n\nHardest part of push wasn't writing. It was not panicking when the third post in a row didn't pop.\n\n#BuildInPublic #ContentMarketing #LinkedInTips"
+  },
+  {
+    "id": "post_069",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Thu, Aug 20 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Things you learn about yourself in push mode",
+    "body": "Things you learn about yourself when you publish 2 posts a day for two weeks:\n\n1. You have more to say than you think — but only after the polished stuff runs out.\n\nDay 4 the easy posts are gone. Day 8 you're writing things you didn't know you believed.\n\n2. Your worst post is usually the one you spent the most time on.\n\nPolish covers up confused thinking. Roughness reveals it.\n\n3. Comments are louder than analytics.\n\nOne thoughtful comment beats 10k impressions for energy. Numbers and morale don't track the same way.\n\n4. The audience can smell exhaustion.\n\nAround day 9 my writing got tighter, not because I planned it, but because tired people write fewer adjectives. Engagement went up.\n\n5. You become more honest under volume.\n\nWhen you have to publish daily, the energy to perform runs out. What's left is the actual you.\n\nNobody told me this before push mode #1. Sharing in case you try one yourself.\n\nRecovery week. Easy posts only.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_070",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Sat, Aug 22 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Recovery — what one push taught me",
+    "body": "Saturday morning post. Recovery week thoughts.\n\nTwo weeks of 2 posts a day taught me something I didn't expect:\n\nVolume is a stress test for sincerity.\n\nWhen you post once a week, every post can be polished. Themed. Performed.\n\nWhen you post twice a day for two weeks, the polish runs out. The themed angle runs out. What's left is what you actually think.\n\nHalfway through the push, my posts shifted. Less 'how to' and more 'here's what I'm uncertain about'. Less playbook, more honest.\n\nEngagement followed. The two highest-performing posts of the push were the two most uncertain ones — the €120k mistake post, and the cost-of-consistency post.\n\nLesson: an audience can smell when you're performing. Volume is what burns the performance off.\n\nThree more push modes to come. I'm going into them with that lesson held tight.\n\nBack to Growth mode (5/week) Monday.\n\n#BuildInPublic #ContentMarketing #LinkedInTips"
+  },
+  {
+    "id": "post_071",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Mon, Aug 24 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "September theme — Industry POV",
+    "body": "September theme: Industry POV.\n\nAfter three months of 'how I do it' content, time to take some positions.\n\nThe plan:\n\n→ 5 posts/week throughout September\n\n→ At least one strong public position per week — modern B2B GTM, outbound, multilingual marketing, AI in revenue ops\n\n→ Mid-month: a 'state of B2B GTM' carousel\n\nWhat I'm trying to earn:\n\nCitations. Reposts from senior creators. The kind of position-having that makes someone tag you in a debate.\n\nRisk:\n\nStrong positions get pushback. I'm OK with that — positions without disagreement aren't positions.\n\nConstraint I'm setting myself: every POV post has to include either real numbers from my work, or an honest reason I might be wrong. No naked opinion.\n\nFollowing along is free. Disagreeing in the comments is encouraged.\n\n#GTM #B2BMarketing #BuildInPublic"
+  },
+  {
+    "id": "post_072",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Tue, Aug 25 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "Content infrastructure — how I post 5/week",
+    "body": "Quick stack post — the infrastructure I use to post 5x a week without losing my mind.\n\n→ A Notion table of 'post ideas' (currently 47 entries). Anything I see in conversation, in a metric, in a customer story — goes here. Most never become posts.\n\n→ A 'drafts' page in Notion. ~10-15 posts in flight at any time, in various states of doneness.\n\n→ Scheduled-post buffer of 5 days minimum. If buffer dips below 5, I prioritise writing over engagement that week.\n\n→ Buffer or LinkedIn native scheduling.\n\n→ A weekly Sunday review: read last week's metrics, kill 1 post idea, draft 2 new ones.\n\nTotal time on infrastructure: ~60 minutes per week.\n\nWithout it, posting daily is impossible. With it, it's just a habit.\n\nMost people who quit posting after a month quit because of infrastructure friction, not lack of ideas. Build the system before you need it.\n\n#ContentMarketing #LinkedInTips #BuildInPublic"
+  },
+  {
+    "id": "post_073",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Wed, Aug 26 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Why most B2B content sounds the same",
+    "body": "Why most B2B content sounds the same — and how to break out:\n\nMost B2B teams write content the same way:\n\n→ Topic chosen by SEO keyword research\n\n→ Outline written by junior marketer\n\n→ Draft written by content agency or AI\n\n→ Edited to remove anything 'too opinionated'\n\n→ Published with three CTAs\n\nResult: a beige internet of indistinguishable B2B blog posts.\n\nWhat stands out:\n\n→ Topic chosen by what your team actually thinks about\n\n→ Outline argued out in a meeting, not pulled from search\n\n→ Draft written by the person who has the opinion\n\n→ Edited to make the opinion SHARPER, not safer\n\n→ Published with one specific question for readers\n\nIf a competitor could publish your content with their logo swapped in, your content has nothing to defend.\n\nB2B content's enemy isn't AI. It's safe-by-committee.\n\nOperator-led content is the answer.\n\n#ContentMarketing #B2BMarketing #ThoughtLeadership"
+  },
+  {
+    "id": "post_074",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Thu, Aug 27 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Marketing operations is the hidden bottleneck",
+    "body": "Marketing operations is the hidden bottleneck in most B2B revenue orgs.\n\nSales gets the spotlight. Product gets the budget. Marketing gets the brief.\n\nBut marketing OPS — the people wiring the systems together — is where revenue actually scales or stalls.\n\nSymptoms of broken marketing ops:\n\n→ AEs don't trust the CRM\n\n→ Reports take 2 hours to pull and still feel approximate\n\n→ Tools that don't talk to each other\n\n→ Lead routing that breaks every quarter\n\n→ Nobody knows which campaigns drove which deals\n\nWhen marketing ops works:\n\n→ AEs check the dashboard before their morning coffee\n\n→ Reports auto-generate Friday afternoon\n\n→ The stack is small, integrated, and trusted\n\n→ Lead routing runs untouched for months\n\n→ Closed-won attribution is honest, not optimised\n\nCompanies that invest in marketing ops 6 months before they need to don't outgrow the problem. Companies that delay it spend years catching up.\n\nIf your CMO doesn't have a marketing-ops lead in their direct reports, you have a future problem.\n\n#MarketingOps #RevOps #GTM"
+  },
+  {
+    "id": "post_075",
+    "month": "AUGUST 2026 — Push Mode #1 (Q3 GTM Playbook)",
+    "date": "Fri, Aug 28 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "August recap",
+    "body": "August recap. Three months of posting.\n\nNumbers:\n\n→ 28 posts shipped (push + recovery + normal)\n\n→ Net new followers: ~2,100\n\n→ Total following: ~12,400 (up from ~9,000 in May)\n\n→ Best month for engagement rate (~6.4%)\n\n→ First inbound DM from a Fortune 500 lead\n\nWhat worked:\n\n→ The push mode. Burned me out a bit but the audience grew measurably.\n\n→ Carousels. 4x the saves of text posts.\n\n→ Frameworks with diagrams (4-Layer Clay Map still getting saves 3 months later).\n\nWhat didn't:\n\n→ Internal-process posts (handoffs, dashboards) — too inside-baseball.\n\n→ Late-afternoon posts. Reach drops noticeably after 11am CET.\n\nSeptember: 5/week, theme is Industry POV. Strong positions, stronger backup data. Less 'how I do it', more 'here's what I think'.\n\nWe're 25% of the way to the 25k follower target. Steady.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_076",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Tue, Sep 1 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "B2B segmentation is broken",
+    "body": "Most B2B segmentation is broken. We've been doing it the same way for 15 years.\n\nStandard segmentation:\n\n→ Industry\n\n→ Company size\n\n→ Geography\n\n→ Maybe a tech-stack tag\n\nSame campaign goes to all of them. Same hook. Same offer.\n\nWhat's missing — the segmentation that actually predicts buying behaviour:\n\n→ TRIGGER (new VP, funding, regulation deadline, partner announcement)\n\n→ STAGE (not aware → aware → searching → comparing → deciding)\n\n→ SHAPE (single buyer vs committee, top-down vs bottom-up)\n\n→ SEASON (most B2B has predictable budget cycles)\n\nScore every prospect on those four dimensions. Run different campaigns at each combination. Reply rates climb.\n\nThe segmentation revolution everyone's been promising doesn't need new data. It needs smarter columns and the courage to act on them differently.\n\nWhat's the most useful column you've added to your segmentation in the last 12 months?\n\n#B2BMarketing #ABM #GTM #Segmentation"
+  },
+  {
+    "id": "post_077",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Wed, Sep 2 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "What I do when I have no idea what to post",
+    "body": "What I do when I sit down to write and have nothing.\n\nIt happens at least once a week.\n\nMy process:\n\n1. Open my Notion 'observations' file. (Things I noticed in the last 7 days that bothered me, surprised me, or confused me. Just bullet points.)\n\n2. Pick the one that still bothers me 3 days later. That's the post.\n\n3. Write the headline first. The headline is the post. If the headline isn't sharp, the body won't save it.\n\n4. Write the worst possible draft. 5-10 minutes. Ugly, rambly, unedited.\n\n5. Cut 40% of it. Almost always the right move.\n\n6. Find the ONE specific number, name, or example I can add. Without it, the post is forgettable.\n\n7. Read it aloud. If it sounds like marketing copy, rewrite.\n\nTotal time: ~45 minutes per post. Some take 90.\n\nThe trick isn't inspiration. It's a system that makes 'no ideas' impossible.\n\nSave this if you're trying to start writing.\n\n#ContentMarketing #LinkedInTips #BuildInPublic"
+  },
+  {
+    "id": "post_078",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Thu, Sep 3 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "AI agents won",
+    "body": "*'**t replace GTM ops*\n\nAI agents won't replace GTM ops.\n\nThey'll replace the GTM ops people who don't use them.\n\nTwo years ago the role was Salesforce admin + a few HubSpot workflows.\n\nToday it's wiring Clay tables to LLM outputs into n8n flows that update a CRM and trigger Slack alerts.\n\nIf your day still looks like list-cleaning and report-pulling — you're at risk.\n\nIf you can wire an API, write a prompt, and ship an n8n flow that saves 8 hours/week — your trajectory just bent up sharply.\n\nSkills that compound:\n\n→ Reading API docs\n\n→ Prompt engineering as a real discipline\n\n→ Workflow design — what to automate, what to leave manual\n\n→ Light coding (functions, conditionals, transforms)\n\nNone requires a CS degree. Requires curiosity and 8-12 weekends.\n\nThe roles paying double in 2027 are looking now.\n\n#RevOps #MarketingOps #CareerJourney"
+  },
+  {
+    "id": "post_079",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Fri, Sep 4 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "The B2B content equation",
+    "body": "The B2B content equation that explains why most posts flop:\n\nREACH = SPECIFICITY × COURAGE\n\nSpecificity = real numbers, named tools, dated experiences, traceable claims.\n\nCourage = positions that cost you something, opinions you'd defend in a 1:1, things your competitors can't copy.\n\nIf specificity is low: nobody saves the post (it's vague).\n\nIf courage is low: nobody comments (it's safe).\n\nIf both are low: silence.\n\nBoth high: the post that compounds for months.\n\nHow to test your draft:\n\n→ Specificity test: count the numbers, named tools, dates. Less than 3? Add more.\n\n→ Courage test: would you say this in a 1:1 with someone you respect? If you'd hedge, hedge less in the post too.\n\nWhat kills B2B content:\n\n→ Generic advice (low specificity)\n\n→ 'Industry trend' observations (low courage)\n\n→ Anything that sounds like a press release (zero × zero)\n\nSave this. Run your next draft through it.\n\n#ContentMarketing #B2BMarketing #Frameworks"
+  },
+  {
+    "id": "post_080",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Mon, Sep 7 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "What I post about, what I skip",
+    "body": "Three months in. People keep asking what I won't post about.\n\nWILL POST:\n\n→ Stack details, numbers, screenshots\n\n→ Mistakes, killed campaigns, failed flows\n\n→ Frameworks I've built and tested\n\n→ B2B GTM positions I'd defend in a 1:1\n\n→ BTS work cleared by my team\n\n→ Honest reflections on what's hard\n\nWON'T POST:\n\n→ Customer details without permission\n\n→ Internal politics or hiring/firing\n\n→ Vague motivational content\n\n→ 'Hot takes' I wouldn't say to my CEO\n\n→ Other people's bad work\n\n→ Predictions I have no skin in\n\nYour list doesn't have to match. But having one helps when you're tempted to post in the wrong moment.\n\nToday's the start of Industry POV month — week 2.\n\n#BuildInPublic #LinkedInTips"
+  },
+  {
+    "id": "post_081",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Tue, Sep 8 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "Clay column we deleted that nobody missed",
+    "body": "Last week we deleted a Clay column that had been there for 7 months.\n\nNobody noticed for 4 days.\n\nThe column: 'last website visit date'.\n\nSounded useful. Pulled from a tracking pixel, refreshed daily, ~640 rows.\n\nCost: ~€18/month + ~5 minutes per refresh.\n\nProduced: zero workflow triggers, zero AE conversations, zero reports.\n\nIt existed because someone (me, six months ago) said 'we should track this'. We never built the workflow.\n\nRule: every Clay column should justify its presence with a workflow within 30 days. If not, archive.\n\nI do this audit quarterly. Every quarter I delete 3-5 columns nobody misses.\n\nMost B2B GTM ops have the same accumulation problem. Tools, fields, automations, dashboards. Half of them are decoration.\n\nAudit before you add. What's hiding in your tables?\n\n#ClayHQ #RevOps #MarketingOps"
+  },
+  {
+    "id": "post_082",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Wed, Sep 9 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "The conversation that changed my career",
+    "body": "The conversation that changed my career, in 4 sentences:\n\nI was complaining to a senior colleague about a manual marketing task that ate 6 hours a week.\n\nShe said: 'have you Googled the API for that tool?'\n\nI had not. I assumed APIs were for engineers.\n\nThree weekends later I'd automated the whole thing in n8n and saved myself most of a working day every week.\n\nWhat I learned that month:\n\n→ The line between 'marketer' and 'developer' is thinner than your title suggests\n\n→ Most marketing tools have public APIs and almost nobody on the marketing side uses them\n\n→ The willingness to look at a docs page is what separates compounding marketers from stuck ones\n\n→ One conversation with the right person can reframe an entire career\n\nI've since had that exact conversation with at least 5 junior marketers. Most of them now ship n8n flows.\n\nIf you're a marketer reading this and you've never opened an API doc — open one this week. The career you have in 2027 starts with that page.\n\n#CareerJourney #MarketingOps #Mentorship"
+  },
+  {
+    "id": "post_083",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Thu, Sep 10 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Trade shows aren",
+    "body": "*'**t dead*\n\nTrade shows aren't dead. Trade-show marketing is dead.\n\nI keep hearing 'we're cutting the conference budget' because last year produced no measurable pipeline.\n\nPipeline didn't fail to show up. Marketing failed.\n\nWhat kills conference ROI:\n\n→ Booth designed for browsing, not buying\n\n→ Lead capture as a CSV in someone's inbox\n\n→ Generic follow-up to everyone, treated identically\n\n→ No content angle that lasts beyond the event\n\nWhat works:\n\n→ Targeted invites 4 weeks before\n\n→ Two-question filter at the booth\n\n→ Same-day intake into your CRM\n\n→ Personalised follow-up within 5 days, NOT a templated 'great meeting you'\n\n→ Conference becomes a content cluster — before, during, AFTER\n\nReal number from us: of €2.4M Q4 pipeline last year, 38% touched a conference somewhere in the journey.\n\nIf your conference is broken, fix the marketing around it. Don't kill the channel.\n\n#Events #B2BMarketing #FieldMarketing"
+  },
+  {
+    "id": "post_084",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Fri, Sep 11 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Why marketing teams ship slow",
+    "body": "Why marketing teams ship slow — and what to do about it.\n\nThe five reasons I see most often:\n\n1. TOO MANY APPROVERS\n\nEvery campaign needs sign-off from CMO, legal, brand, product, sales. Each one adds days. Fix: name a single 'campaign owner' empowered to ship; others give input, not approval.\n\n2. TOO MUCH POLISH\n\nFirst draft → 3 review cycles → designer → review → final. Most of those cycles add nothing. Fix: ship version 0.7 in public; iterate live.\n\n3. TOO MUCH STRATEGY UPFRONT\n\n30-page strategy decks before the first campaign launches. Fix: ship one campaign in week 1, learn, then write strategy informed by reality.\n\n4. TOOL FRICTION\n\nStack so complex that launching anything is a 5-step sequence across 4 tools. Fix: one bigger audit, fewer tools.\n\n5. NO RECURRING CADENCE\n\nEvery campaign is a special event. Fix: a weekly publishing rhythm makes the next thing easier than the last.\n\nSlow marketing teams aren't lazy. They're stuck in process scar tissue.\n\nCut the scar tissue. Don't add another tool.\n\n#MarketingOps #B2BMarketing #GTM"
+  },
+  {
+    "id": "post_085",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Mon, Sep 14 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Mid-month carousel coming Wednesday",
+    "body": "Wednesday I'm posting the biggest carousel of my year so far: 'State of Modern B2B GTM — September 2026'.\n\nWhat it covers:\n\n→ How the GTM stack changed from 2022 to 2026\n\n→ The 5 plays that work in 2026 but didn't in 2023\n\n→ Real campaign examples + numbers\n\n→ The 3 mistakes I see most often in modern B2B teams\n\n→ A scoring rubric for evaluating any team's GTM maturity\n\nWhy this:\n\nI keep getting DMs from operators in different sectors asking 'how do we get our GTM stack into 2026?'. The answers are similar enough that one carousel can serve them all.\n\nWednesday 8:00 CET. 14 slides. Will pin as featured.\n\n#GTM #B2BMarketing #BuildInPublic"
+  },
+  {
+    "id": "post_086",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Tue, Sep 15 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "The personal CTO digest",
+    "body": "An n8n flow I usually don't talk about — but it might be the most useful one I run.\n\nEvery Friday 5pm, n8n compiles a 'state of the business' message and sends it to me alone.\n\nWhat it includes:\n\n→ Where each of my 11 flows ran this week (success rate, latency)\n\n→ Token cost on every Claude integration\n\n→ Clay credit usage and burn rate\n\n→ Any flow that errored more than 3 times\n\n→ 'Next week's risk' — deals needing re-touch, sequences with health concerns\n\nBasically a personal CTO digest.\n\nWhy this matters:\n\nMost marketing operators run their own infrastructure blind. They build automations, forget about them, and find out in October that something has been silently failing since August.\n\n11 nodes. Saves quarterly disasters.\n\nIf you run automation and don't have a 'state of my stack' digest — build one before you need it. The week you'll wish you had it is the week you'll find out it broke 3 weeks ago.\n\n#n8n #MarketingOps #RevOps"
+  },
+  {
+    "id": "post_087",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Wed, Sep 16 2026",
+    "post_type": "PT-04",
+    "pillar": "P5 — POV",
+    "topic": "State of Modern B2B GTM — Sept 2026",
+    "body": "The big one. State of Modern B2B GTM — September 2026. (Carousel, 14 slides — first slide in the comments.)\n\nThe argument:\n\nB2B GTM in 2026 looks fundamentally different from 2023, and most teams haven't caught up.\n\nFive things that worked in 2023 but don't anymore:\n\n1. Volume outbound (templates die in spam)\n\n2. MQL-driven funnels (anonymous research broke them)\n\n3. Generic LinkedIn ads (CTR collapsed)\n\n4. Webinar-then-nurture (attention spans changed)\n\n5. Single-language campaigns (multilingual buyers expect more)\n\nFive things that work in 2026:\n\n→ Operator-led content (real people on real platforms)\n\n→ Trigger-based outbound (small lists, big specificity)\n\n→ AI-researched, human-written outreach\n\n→ Cultural rewrite (not translation) for international markets\n\n→ Owned-channel community (smaller, more loyal)\n\nThree mistakes I see:\n\n→ Buying tools instead of skills\n\n→ Treating AI as a generation engine, not a research engine\n\n→ Underinvesting in marketing ops\n\nPlus: a 5-dimension maturity rubric to score your team.\n\nSave. Repost if useful.\n\n#GTM #B2BMarketing #ModernGTM"
+  },
+  {
+    "id": "post_088",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Thu, Sep 17 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Hot take — n8n vs Zapier at scale",
+    "body": "Hot take that'll annoy Zapier fans:\n\nIf you spend more than €200/month on Zapier, you're probably overspending by 10x.\n\nZapier is brilliant for:\n\n→ Tiny teams without engineering capacity\n\n→ Single-step automations\n\n→ Quick prototypes\n\nZapier breaks at:\n\n→ Per-task pricing as you scale (we'd be at €1,200+/month)\n\n→ Multi-step logic with conditionals\n\n→ Custom HTTP integrations\n\n→ Version control\n\nn8n self-hosted runs on a €5/month VPS. Same flows, more flexibility, Git-versioned.\n\nSetup: about a weekend if you're new.\n\nCounter: 'we don't have engineering to maintain it'.\n\nFair. But running n8n self-hosted is closer to running a Notion than a database.\n\nI'm not saying everyone should switch. I'm saying most people running Zapier at scale haven't honestly compared.\n\n#n8n #MarketingAutomation #RevOps"
+  },
+  {
+    "id": "post_089",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Fri, Sep 18 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Carousel reception — 48 hours later",
+    "body": "Wednesday's carousel went up. 48 hours later:\n\n→ ~62k impressions\n\n→ 1,400+ saves\n\n→ ~280 net new followers from this single post\n\n→ DMs from operators in 7 different sectors\n\n→ A repost from a senior creator I respect\n\nWhat surprised me:\n\nMost DMs aren't from one sector. They're from operators in different industries with the same GTM problem. The thesis generalises further than I thought.\n\nWhat I'm now considering:\n\n→ A series of similar 'state of GTM' carousels for adjacent topics (outbound, ABM, marketing ops)\n\n→ An open Notion doc the community can contribute to\n\n→ A small Slack for modern B2B GTM operators, under 50 people\n\nDon't know yet which are good ideas. Marking the moment.\n\nIf you're thinking 'I should do a state-of-something carousel': do it. The audience is bigger and quieter than you think.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_090",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Mon, Sep 21 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "The hardest part of working in 3 languages",
+    "body": "The hardest part of working in three languages every day isn't the languages.\n\nIt's switching between three completely different professional cultures within the same hour.\n\nAn English-speaking call: agenda, time-boxed, decision at the end.\n\nA Spanish-speaking call: relationship first, business in the back half, decision often after the call.\n\nAn Arabic-speaking call: context-heavy opening, indirect disagreement, the actual answer often arrives later by message.\n\nSame person can be in all three calls in one day. The exhausting part is being culturally fluent in all of them, not linguistically fluent.\n\nWhat I've learned:\n\n→ Language fluency is the entry ticket. Cultural fluency is the actual work.\n\n→ 'I'm efficient' in one culture is 'I'm rude' in another.\n\n→ The biggest career compounding I've had is from being able to read the room across cultures, not from any tool I learned.\n\nIf you're hiring multilingual talent — value cultural translation as much as language. They're different skills. The second is rarer.\n\nIf you're considering working across cultures yourself — it's worth it. Just don't underestimate how tiring 'context-switching' is.\n\n#Multilingual #CareerJourney #Leadership"
+  },
+  {
+    "id": "post_091",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Tue, Sep 22 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "5-dimension B2B campaign quality rubric",
+    "body": "We score every campaign on a 5-dimension rubric internally. Sharing it.\n\n1. SPECIFICITY (1-10)\n\nGeneric = low. 'B2B SaaS founders fundraising in Q4' = high. Vague segments are decoration.\n\n2. OPERATOR VOICE (1-10)\n\nWritten like someone doing the work, or in marketing voice? Operator voice always wins on technical content.\n\n3. PROOF DENSITY (1-10)\n\nPer 500 words, how many real numbers, named customers, dated examples? Buyers count proof, not adjectives.\n\n4. CHANNEL FIT (1-10)\n\nChannels your buyers actually inhabit (LinkedIn, podcasts, conferences) — not display ads.\n\n5. ONLY-YOU ANGLE (1-10)\n\nIf a competitor could publish the same content, you score zero here.\n\nTotal: 50 points. Below 35, we redo.\n\nUse it on yours. Lowest dimension tells you where the next 90 days of work goes.\n\nSave the post. Run it on your last campaign honestly.\n\n#B2BMarketing #Frameworks #ContentMarketing"
+  },
+  {
+    "id": "post_092",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Wed, Sep 23 2026",
+    "post_type": "PT-08",
+    "pillar": "P3 — BTS",
+    "topic": "What I don",
+    "body": "*'**t put in posts*\n\nHonest BTS — the things I deliberately leave out of my posts.\n\n→ Customer names. Even when I have permission, I usually anonymise. Future-me wants flexibility.\n\n→ Exact deal sizes. I'll say 'mid-six figures'. I won't say 'this specific deal was €387,420'.\n\n→ Internal team conflict. Real, frequent, never my story to tell.\n\n→ My boss's decisions, even when I disagree. Loyalty is private; disagreement is private.\n\n→ Specific competitor weaknesses. I'll critique a CATEGORY, not a named company.\n\n→ Numbers I can't reproduce. If I can't show the dashboard, I don't claim the number.\n\n→ My salary. (I get asked surprisingly often.)\n\n→ Anything that would surprise my CEO if she read it Sunday morning.\n\nWhy post about what I don't post about?\n\nBecause the scariest part of building publicly isn't writing — it's deciding what's off-limits. Most people overshare or undershare. Both fail.\n\nBuild your own list before you need it. Know your line.\n\n#BuildInPublic #ContentMarketing #LinkedInTips"
+  },
+  {
+    "id": "post_093",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Thu, Sep 24 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Why most B2B",
+    "body": "*'**thought leadership**'** fails*\n\nMost B2B 'thought leadership' fails the same way.\n\nThe author is senior. The post sounds like:\n\n→ 'In today's rapidly evolving landscape...'\n\n→ Trend observation + inspirational tone\n\n→ Three things readers 'should consider'\n\n→ Soft CTA suggesting a conversation\n\nNobody learns. Nobody cites. Nobody saves.\n\nWhat works instead:\n\n1. SPECIFICITY\n\nNot 'B2B sales is changing'. 'Cycles in mid-market SaaS moved from 9 months in 2022 to 6.5 months in 2025.'\n\n2. POSITIONS YOU'D DEFEND\n\n'We stopped running ABM for deals under €100k and grew pipeline 40%.'\n\n3. NUMBERS YOU OWN\n\nNot market reports. Numbers from your work.\n\n4. BEING WRONG SOMETIMES\n\nIf you're never publicly wrong, you're never publicly right either.\n\n5. CRAFT\n\nRead it aloud. If it sounds like a press release, rewrite.\n\nThought leadership isn't a tone. It's a discipline of saying things that cost you something.\n\n#ContentMarketing #B2BMarketing #ThoughtLeadership"
+  },
+  {
+    "id": "post_094",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Fri, Sep 25 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "B2B needs more operator-creators",
+    "body": "Closing September with the thesis I've been circling all month:\n\nB2B doesn't need more journalists or marketers. It needs more operator-creators.\n\nAn operator-creator:\n\n→ Does the actual work\n\n→ Writes about it publicly, often\n\n→ Connects practical detail to broader pattern\n\n→ Names things they don't have permission to name\n\nIn SaaS, they're everywhere. Read any week of LinkedIn posts about Clay, n8n, HubSpot — operators teaching operators.\n\nIn most other B2B sectors (finance ops, supply chain, fintech, healthcare tech, manufacturing tech), they're still rare.\n\nWhy it matters:\n\n→ Talent flows toward visible categories\n\n→ Capital follows visible categories\n\n→ Customers learn from visible categories\n\nThe fix isn't a marketing campaign. It's individual operators choosing to write.\n\nIf you're a B2B operator reading this — write something. The category you work in is waiting.\n\nOctober: Frameworks month.\n\n#B2BMarketing #ContentMarketing #BuildInPublic"
+  },
+  {
+    "id": "post_095",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Mon, Sep 28 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "September recap",
+    "body": "September recap. Industry POV month closes.\n\nNumbers:\n\n→ 21 posts shipped\n\n→ Net new: ~1,580\n\n→ Total following: ~14,000\n\n→ Best post: state of modern B2B GTM carousel — ~64k impressions, 1,520 saves\n\n→ Reposts from senior creators: 4 (target was 3)\n\n→ Featured in 2 niche newsletters\n\nWhat worked:\n\n→ Strong positions with backup data\n\n→ Mid-month carousel as anchor\n\n→ Less internal-process content\n\nWhat didn't:\n\n→ The Zapier hot take generated heat but not depth\n\n→ Tactical Tuesdays felt slightly disconnected from POV theme\n\nOctober: Frameworks & Teaching. Two named frameworks shipping with diagrams. Saves are the priority metric.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_096",
+    "month": "SEPTEMBER 2026 — Industry POV",
+    "date": "Tue, Sep 29 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "Stack update — what changed in Q3",
+    "body": "Quick stack update. What changed in Q3:\n\nADDED:\n\n→ Second Clay action table for re-engagement (separate from new outbound)\n\n→ Small Postgres for storing reusable Claude outputs\n\n→ Slack /commands wired to Claude prompts (e.g. /briefing for any LinkedIn URL)\n\nREMOVED:\n\n→ The 'last website visit' Clay column\n\n→ One n8n flow that hadn't fired in 6 weeks\n\n→ A Zapier seat someone forgot was active. €19/month back.\n\nREWORKED:\n\n→ Deal-summary refresher (token cost dropped 30% more)\n\n→ ICP rubric (added sub-segment dimension)\n\nTotal active: 5 SaaS tools + 11 n8n flows + Postgres + 1 dashboard.\n\nMonthly cost (excluding existing seats): ~€48.\n\nStacks are gardens. Prune quarterly.\n\n#GTM #RevOps #MarketingAutomation"
+  },
+  {
+    "id": "post_097",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Thu, Oct 1 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Why frameworks beat POV posts long-term",
+    "body": "Most B2B content is one-off. A post is a post.\n\nFrameworks are different. A framework is reusable mental architecture.\n\nWhy operators should think in frameworks:\n\n→ Compounds in the audience's memory\n\n→ Becomes cite-able by others\n\n→ Forces clarity in your own thinking\n\n→ Creates language teams can adopt internally\n\nThree rules I follow when naming a framework:\n\n1. The name fits in one tweet\n\n2. It comes from production, not theory\n\n3. The diagram is one image, not a slide deck\n\nExamples I keep close:\n\n→ The 4-Layer Clay Map (mine, May)\n\n→ April Dunford's positioning canvas\n\n→ The Bowtie Funnel (Winning by Design)\n\n→ Jobs-to-Be-Done (Christensen)\n\nFrameworks aren't decoration. They're how operators teach each other at scale.\n\n#Frameworks #B2BMarketing #ContentMarketing"
+  },
+  {
+    "id": "post_098",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Fri, Oct 2 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Q4 starts — what most teams get wrong",
+    "body": "Q4 in B2B is where most teams get the calendar wrong.\n\nTwo common mistakes:\n\n1. Treating Q4 as a sales push month\n\nIt's actually a positioning month. Buyers are scoping NEXT year's budgets. Q4 deals often close in Q1. Push too hard for Q4 closes and you'll get stalled deals.\n\n2. Pausing marketing 'for the holidays'\n\nMid-December gets quiet. Late November and early December are some of the best engagement periods of the year. Inboxes are calmer, attention is higher, decision-makers are reflecting.\n\nWhat we do differently:\n\n→ Q4 marketing is biased toward 'plant the flag for Q1' — content for next year's budget conversations\n\n→ Heavy outbound through mid-December, paused only Dec 22-Jan 5\n\n→ January 5 is treated as a major launch moment, not a 'restart from cold'\n\nRun your Q4 calendar like the start of next year, not the end of this one.\n\n#GTM #B2BMarketing #Quarterly"
+  },
+  {
+    "id": "post_099",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Mon, Oct 5 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Saleh Stack — coming Tuesday",
+    "body": "Tomorrow I post the first named framework of October: The Saleh Stack.\n\nWhat it is:\n\nA 5-component mental model for any modern B2B GTM stack. Names what each component is FOR, not which tool sits there.\n\nWhy this matters:\n\nMost stack posts are 'we use X, Y, Z'. Useful for one company. Useless if your tools differ.\n\nA stack framework names the FUNCTIONS, so you can map any toolset.\n\nI've been refining it for 18 months. Time to make it a thing.\n\nDrops at 8:00 CET tomorrow. Carousel + diagram.\n\n#GTM #Frameworks #BuildInPublic"
+  },
+  {
+    "id": "post_100",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Tue, Oct 6 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "The Saleh Stack — 5 components of any modern B2B GTM stack",
+    "body": "The Saleh Stack. Five components every modern B2B GTM stack needs. Diagram in the comments.\n\n1. SOURCE\n\nWhere new candidates enter your world. Apollo, ZoomInfo, scraping, referrals, conferences. NOT a destination — only an inflow.\n\n2. RESEARCH\n\nWhere candidates get evaluated, enriched, scored. Patient and rich. Updates weekly. Clay sits here for most of us. Output: a confidence score and a 'next move'.\n\n3. ACTION\n\nWhere the worthy candidates get worked. Lean. Fast. Strict. Apollo sequences, manual reach-outs, 1:1 emails. Output: replies, calls, meetings.\n\n4. RECORD\n\nThe system of record. Reliable, not clever. HubSpot or Salesforce. Holds deals, owners, dates, dollars.\n\n5. INTELLIGENCE\n\nWhere the loop closes. Dashboards, weekly digests, ICP rubric updates. Reads from RECORD, writes back to RESEARCH. Most teams skip this layer.\n\nMost stacks are missing #5. That's why they don't compound.\n\nSave the diagram. Map your stack. Find the gaps.\n\n#GTM #Frameworks #ClayHQ #RevOps"
+  },
+  {
+    "id": "post_101",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Wed, Oct 7 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "What customers teach you that strategy decks never will",
+    "body": "Most useful marketing input doesn't come from strategy decks.\n\nIt comes from 30 minutes on a call with a customer who's struggling.\n\nLast week I sat in on a discovery call. The buyer used a phrase I'd never have invented in a brief:\n\n'We don't have a tooling problem. We have a coordination problem.'\n\nEight words. Re-framed our entire next-quarter messaging.\n\nMost B2B teams treat customer feedback as a CS problem. We treat it as a marketing input.\n\nWhere it enters our stack:\n\n→ Every won deal: a 30-min call between AE and CS, recorded, transcribed\n\n→ Every lost deal: a short async survey + AE notes\n\n→ Every QBR: a structured 'what's working / what's not' review\n\nWhere it goes:\n\n→ Notion 'voice of customer' database, tagged by industry, deal size, theme\n\n→ Quarterly: read-through with the marketing team, find 3 patterns\n\n→ Patterns become content angles, ICP refinements, sometimes product feedback\n\nMarketing without a feedback loop is just guessing in public. The strategy deck doesn't fix it. The customer call does.\n\n#B2BMarketing #CustomerVoice #MarketingOps"
+  },
+  {
+    "id": "post_102",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Thu, Oct 8 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "Outbound diagnostic v2 — 60-second triage",
+    "body": "Updated version of the outbound diagnostic I posted in July.\n\nReply rate under 2%? You have one of three problems.\n\nRun this 60-second triage:\n\nQ1: What's your bounce rate?\n\n→ >4% = DATA problem. Stop. Fix data before anything else.\n\n→ <4% = continue.\n\nQ2: What's your open rate?\n\n→ <35% = DATA or DELIVERABILITY. Check from-domain warmup, subject lines.\n\n→ 35-50% = continue.\n\nQ3: When replies happen, are they 'wrong person'?\n\n→ More than 30% wrong-person = TARGETING. Persona is misaligned.\n\n→ Less = continue.\n\nQ4: When AEs read 5 sample emails aloud, do they cringe?\n\n→ Yes = COPY problem. Rewrite with one specific observation per email.\n\n→ No = it's something deeper (offer, timing, market).\n\nMost teams jump to copy because copy is fun to fix. Diagnose first.\n\nSave this. Run it next time outbound stalls.\n\n#Outbound #Frameworks #RevOps"
+  },
+  {
+    "id": "post_103",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Fri, Oct 9 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "The 7 lines of code in our most-loved n8n flow",
+    "body": "The most-loved n8n flow on our team has 7 lines of custom code in it. That's it.\n\nFunction node:\n\nconst meeting = $input.item.json.meeting_notes;\n\nconst summary = await callClaude(`Summarise this customer meeting in 3 bullets, all action items separately. No marketing language. ${meeting}`);\n\nconst actions = summary.actions || [];\n\nfor (const action of actions) {\n\n  await createHubSpotTask(action.owner, action.text, action.due);\n\n}\n\nreturn summary;\n\nWhat it does:\n\n→ Reads meeting notes from Notion (when an AE pastes them in)\n\n→ Sends to Claude for summary + action extraction\n\n→ Creates HubSpot tasks with owners and due dates\n\n→ Posts the summary to a Slack thread\n\nWhy AEs love it: the action items get assigned automatically. They never have to remember.\n\n7 lines of code. ~6 hours/week saved across a 5-person sales team.\n\nMost leverage in B2B GTM automation isn't in big platforms. It's in tiny, specific flows that remove a single point of friction.\n\n#n8n #Claude #RevOps #MarketingAutomation"
+  },
+  {
+    "id": "post_104",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Mon, Oct 12 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Frameworks week 2",
+    "body": "Week 2 of Frameworks month.\n\nLast week: The Saleh Stack (5 components of a GTM stack), the Outbound Diagnostic v2.\n\nThis week:\n\n→ Tuesday: a teaching post on writing for technical buyers\n\n→ Wednesday: BTS — what 30 operators told me about the Saleh Stack in DMs\n\n→ Thursday: framework #3 — the 4-Layer Modern B2B Marketing Map\n\n→ Friday: the 3-Question Briefing Test\n\nOctober numbers so far:\n\n→ Saleh Stack post: 38k impressions, 940 saves\n\n→ Diagnostic v2: 22k impressions, 510 saves\n\n→ Total Oct net new follower count: ~720 in week 1\n\nSaves are running ~3x text-only post saves. Diagrams matter. Naming matters.\n\n#Frameworks #BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_105",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Tue, Oct 13 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "How to write for technical buyers",
+    "body": "How to write content for technical B2B buyers (engineers, RevOps, security, IT). A short framework.\n\nTechnical buyers DON'T want:\n\n→ Inspirational tone\n\n→ Vague trend observation\n\n→ 'Future of X' framing\n\n→ More than 3 adjectives in any sentence\n\nTechnical buyers DO want:\n\n→ Specifics with units (€, %, ms, GB, hours)\n\n→ Pre-conditions and edge cases stated\n\n→ Tradeoffs acknowledged\n\n→ Failure modes listed\n\n→ A diagram, ideally\n\n5-rule writing test:\n\n1. Could this sentence have a number in it?\n\n2. Did I name a tradeoff?\n\n3. Did I tell them when this approach DOESN'T work?\n\n4. Is there a unit attached to every claim?\n\n5. Would another technical person steelman this?\n\nIf you can't pass 4 of 5, rewrite.\n\nTechnical buyers don't read most marketing because most marketing fails this test. The marketing they DO read passes it.\n\n#B2BMarketing #ContentMarketing #TechnicalMarketing"
+  },
+  {
+    "id": "post_106",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Wed, Oct 14 2026",
+    "post_type": "PT-08",
+    "pillar": "P3 — BTS",
+    "topic": "What 30 operators told me about the Saleh Stack",
+    "body": "After last week's Saleh Stack post, ~30 operators DM'd me with what their stack looks like. Patterns:\n\n→ 90% are missing layer 5 (INTELLIGENCE / closing the loop). Most know it's missing.\n\n→ 60% confuse SOURCE and ACTION (using Apollo as both, no separation).\n\n→ 40% use HubSpot as RESEARCH (over-burdening the CRM with enrichment data).\n\n→ Only 2 had a working backfeed loop (closed-won data improving ICP scoring).\n\nMost common question: 'how do I add layer 5 without rebuilding everything?'\n\nPragmatic answer:\n\n→ Start small. A weekly digest auto-generated from your CRM is layer 5 in its simplest form.\n\n→ Add a manual quarterly: walk through last quarter's wins/losses, update one ICP attribute.\n\n→ Once that's habitual, automate the quarterly into the digest.\n\nFrameworks expose gaps. The Saleh Stack post wasn't 'here's our stack' — it was a mirror. Most teams don't have layer 5.\n\nIf yours doesn't, you're not alone. The gap is real and worth closing.\n\n#GTM #RevOps #Frameworks"
+  },
+  {
+    "id": "post_107",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Thu, Oct 15 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "The 4-Layer Modern B2B Marketing Map",
+    "body": "Framework drop. The 4-Layer Modern B2B Marketing Map. (Carousel, 10 slides.)\n\nHow to evaluate any B2B marketing function in 2026.\n\nLAYER 1 — VOICE\n\nWho's writing? Marketing agency? Internal marketer? Operator? Engineer? Operator + practitioner voices outperform pure marketing voice ~3x on technical content.\n\nLAYER 2 — SUBSTANCE\n\nHow dense is the proof? Numbers, units, named examples, customer references. B2B buyers count proof, not adjectives.\n\nLAYER 3 — DEPTH\n\nHow many layers down can a buyer go? Carousel → article → case study → demo. Buyers like rabbit holes when the surface intrigued them.\n\nLAYER 4 — REACH\n\nWhere does this content live? LinkedIn, podcasts, conferences, YouTube. Reach is increasingly multi-channel.\n\nMost B2B marketing fails at layer 1 (wrong voice) or layer 2 (insufficient proof). Layers 3 and 4 follow naturally if 1 and 2 are right.\n\nScore yourself 1-10 on each. Lowest layer = next 90 days of work.\n\nSave the carousel. Use it for your 2027 planning.\n\n#Frameworks #B2BMarketing #ContentMarketing"
+  },
+  {
+    "id": "post_108",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Fri, Oct 16 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "What",
+    "body": "*'**AI in marketing**'** will mean in 2027*\n\nWhat 'AI in marketing' will mean in 2027 — versus 2024.\n\n2024 version:\n\n→ ChatGPT to draft content\n\n→ AI tools to scale outbound generation\n\n→ Automation of existing workflows\n\n→ Mostly about productivity\n\n2027 version (where I see it heading):\n\n→ Research, not generation. AI reads more than it writes.\n\n→ Smaller, sharper output. Volume game ended.\n\n→ Customer-facing AI experiences (auditable, explainable, controlled).\n\n→ AI-augmented operators, not AI-replaced operators.\n\n→ Stack consolidation. Fewer tools, deeper integrations.\n\n→ Local + privacy-first models for sensitive data.\n\nWhat this means for marketers planning 2027:\n\n→ Don't budget for 'AI tools' as a line item. Budget for capabilities the AI unlocks.\n\n→ Hire people who can wire AI into existing workflows, not people who can prompt-engineer.\n\n→ Reduce dependence on AI-generated content. Increase dependence on AI-researched insight.\n\nThe next year is going to look different from the last. Plan accordingly.\n\n#AI #MarketingAutomation #GTM"
+  },
+  {
+    "id": "post_109",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Mon, Oct 19 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-year approaching",
+    "body": "Five and a half months in. The half-year recap is coming early November.\n\nHeadline numbers I'm tracking:\n\n→ Followers: ~14,800 (up from ~9,000 in May)\n\n→ Avg engagement: 5.8% (target 5%+)\n\n→ Posts shipped: 117 / 120 planned (98% adherence)\n\n→ Inbound DMs from ICP buyers: ~27 over the period\n\n→ Speaking inquiries: 1 (didn't expect any in year 1)\n\n→ Consulting inquiries: 6 (politely declined, focused on the day job)\n\nWhat I underestimated:\n\n→ How much business inbound posting attracts even when you're not asking\n\n→ How much consistency itself becomes proof\n\n→ How much community vs broadcast matters\n\nWhat I overestimated:\n\n→ The cost of negative reactions to hot takes\n\n→ The volume of posts needed to grow (specificity beats volume)\n\nPush #2 starts Nov 2. Pre-writing the 20 posts now.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_110",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Tue, Oct 20 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "Building reliable LLM workflows",
+    "body": "After 14 months running Claude in production for marketing automation, the rules I'd give my younger self:\n\n1. THE SYSTEM PROMPT IS 80% OF THE WORK\n\nSpend an hour writing it. Re-read it weekly. Pin examples. Dictate output structure.\n\n2. NEVER TRUST FREE-FORM JSON\n\nDefine the schema. Validate. Have a fallback for malformed responses.\n\n3. SEPARATE READ FROM WRITE\n\nAI summarising customer notes = great. AI writing customer-facing content unedited = still risky in 2026. Write for human review.\n\n4. LOG EVERYTHING\n\nEvery input, every output, every cost. Without logs you can't debug a regression.\n\n5. RATE-LIMIT YOURSELF\n\nAdd delays between calls. The bug you didn't predict will burn $400 of credits before you notice.\n\n6. PIN THE MODEL VERSION\n\nDon't use 'latest'. Pin the version. Re-evaluate quarterly.\n\n7. WRITE A TEST PROMPT FILE\n\n10-20 test inputs. Run after every prompt change. The discipline saves regressions.\n\nSave this if you're building anything LLM-powered for B2B GTM.\n\n#AI #Claude #MarketingAutomation"
+  },
+  {
+    "id": "post_111",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Wed, Oct 21 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "What changed when I stopped trying to be impressive",
+    "body": "An honest reflection. What changed when I stopped trying to be impressive in posts.\n\nEarly posts: I tried to sound senior. Strategic. Like someone you'd hire as VP marketing.\n\nReach: medium.\n\nConversations: shallow.\n\nNow: I try to sound like the operator I am. I write about what I broke this week. The number that surprised me. The mistake I'm correcting. The framework I built and refined three times.\n\nReach: 4x higher.\n\nConversations: real.\n\nWhat changed in my head:\n\n→ I realised audiences don't reward 'impressive'. They reward 'specific'.\n\n→ The operator voice I was hiding is the voice the audience actually trusted.\n\n→ Trying to sound senior dilutes both seniority and authenticity.\n\nIf you're early in your B2B marketing career and tempted to write like the SVP of demand gen — don't.\n\nWrite like you, with three months less experience than you had last year. Showing the climb is more useful than performing the summit.\n\nSave this if you're hesitating to post.\n\n#CareerJourney #ContentMarketing #BuildInPublic"
+  },
+  {
+    "id": "post_112",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Thu, Oct 22 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "The 3-question briefing test",
+    "body": "Quick framework for any new piece of marketing work.\n\nBefore you ship a campaign, page, or post, the 3-Question Briefing Test:\n\nQ1: WHO is this for?\n\nNot 'CMOs at mid-market SaaS'. ONE person you can name. ONE buyer or one persona archetype with detail. If you can't name them, the work is too vague.\n\nQ2: WHAT do you want them to think after they consume this?\n\nOne sentence. Not 'be impressed by our brand'. Something specific: 'their ICP-scoring approach is one I should evaluate against ours'.\n\nQ3: WHAT'S the thing only this content can prove?\n\nIf a competitor could publish the same content, your content isn't doing the job. Find the angle ONLY you can credibly take.\n\nIf you can't pass all three in 90 seconds, the brief isn't ready.\n\nI run this on every post before I publish. Half the time it sends me back to rewrite.\n\nSave it. Pin it above your desk. The discipline pays.\n\n#ContentMarketing #B2BMarketing #Frameworks"
+  },
+  {
+    "id": "post_113",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Fri, Oct 23 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Why most B2B marketing budgets are wrong",
+    "body": "Most B2B companies allocate marketing budget wrong.\n\nTypical split I see:\n\n→ 30% paid digital\n\n→ 25% events\n\n→ 20% content / website\n\n→ 15% brand / PR\n\n→ 10% tools\n\nWhat I'd argue it should be:\n\n→ 30% content (especially long-form, technical, operator-led)\n\n→ 25% events (still highest-converting B2B channel)\n\n→ 20% community + creator support (build a network of voices)\n\n→ 15% paid digital (LinkedIn ads on tight ICP only)\n\n→ 10% tools\n\nThe big shift: from paid digital to content + community.\n\nWhy:\n\n→ Paid digital ROI in B2B has been declining for years\n\n→ Content compounds. Year 2 of consistent content = real pipeline contribution\n\n→ Community is the dark matter of B2B — peer recommendations beat any ad\n\nReallocate slowly. Start with 5-10% shift this quarter. Measure honestly. Adjust.\n\n#B2BMarketing #GTM #DemandGen"
+  },
+  {
+    "id": "post_114",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Mon, Oct 26 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "October closing — push #2 prep",
+    "body": "Final week of October. Push #2 starts Monday Nov 2.\n\nTheme for the push: 'How I doubled my followers in 6 months — receipts'.\n\nWhy this theme:\n\n→ Half-year mark is a natural recap moment\n\n→ Meta-arc content (the journey itself) tends to attract NEW followers, not just retain existing\n\n→ The receipts (numbers, screenshots, lessons) are the hardest content to fake\n\nPre-writing all 20 posts this week + next weekend. Each one ready before push starts.\n\nWhat's in the push:\n\n→ Numbers (real ones, dashboard screenshots)\n\n→ Top 5 posts dissected\n\n→ The post that flopped (and what I learned)\n\n→ The frameworks shipped — index\n\n→ The flows shipped — index\n\n→ Behavioural changes I made\n\n→ What I'd do differently\n\n→ What's coming in the next 6 months\n\nToday: starting the writing. Will share the index when push begins.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_115",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Tue, Oct 27 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "Stack consolidation — Q4 cleanup",
+    "body": "End of October. Doing a final stack cleanup before the EOY rush.\n\nWhat I'm looking at this week:\n\n→ Every n8n flow: when did it last error? When did it last fire? Anything stale gets archived.\n\n→ Every Clay column: workflow attached or archive (running the September discipline again).\n\n→ Every HubSpot view: used in the last 60 days or archive.\n\n→ Every Slack channel I created for ops alerts: still relevant or close.\n\n→ Every Notion page tagged 'GTM': owner attached or move to archive.\n\nTime investment: probably 4-5 hours over the week.\n\nTime saved next quarter: probably 3-4x that, in 'what's this for?' confusion.\n\nQ4 isn't about new tools. It's about making sure the existing stack stays clean enough to actually run during conference season + year-end.\n\nIf you haven't pruned this year, this is the week.\n\n#GTM #RevOps #MarketingOps"
+  },
+  {
+    "id": "post_116",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Wed, Oct 28 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "The mentor I never met",
+    "body": "A mentor I never met has shaped my career more than any I have.\n\nApril Dunford. I've never spoken to her. I've read every word she's written, watched every talk, listened to every podcast.\n\nWhat she taught me through her work:\n\n→ Positioning isn't messaging. It's the deliberate choice of context that makes your strengths matter.\n\n→ Your competitors aren't always other companies. Sometimes they're 'do nothing' or 'build it yourself'.\n\n→ The questions buyers ask reveal which positioning they're using to evaluate you.\n\n→ Strong positioning makes some buyers love you and others say 'not for us'. That's the goal.\n\nI haven't met her. But every campaign I write, every messaging doc I edit, every demo question I help an AE prep for — has her thinking embedded.\n\nThe internet made one-way mentorship possible at scale.\n\nPick yours. Read everything they've made. Apply it. Cite them when you do.\n\nWho's your one-way mentor?\n\n#CareerJourney #B2BMarketing #Mentorship"
+  },
+  {
+    "id": "post_117",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Thu, Oct 29 2026",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "The Q4-to-Q1 bridge — 4 things to plan now",
+    "body": "Q4 is the wrong frame. Q4-to-Q1 is the right frame.\n\nEvery year, teams spend Q4 chasing closes and arrive at Q1 unprepared. Then Q1 becomes panic + planning instead of execution.\n\nPlan these 4 things in November:\n\n1. ICP REFRESH\n\nPull last 12 months of closed-won. Cluster by industry sub-segment, deal size, sales cycle. Update the ICP definition for next year.\n\n2. CONTENT THEMES\n\nPick 4 quarterly themes for next year, not 12 monthly themes. Quarterly themes give content room to breathe.\n\n3. CHANNEL BETS\n\nLast year's channel mix isn't next year's. Look at what compounded vs what stalled. Reallocate 10-20% of budget.\n\n4. ONE BIG CAMPAIGN\n\nPick the ONE campaign for Q1. Brief written by mid-December. Nothing else gets a campaign-level brief until Q1 ends.\n\nIf you do this in November, January feels different. Calm. Focused.\n\nIf you skip it, January feels like every other January. Hectic. Reactive.\n\nI'd rather have one calm January than five panicked ones.\n\n#GTM #B2BMarketing #Frameworks"
+  },
+  {
+    "id": "post_118",
+    "month": "OCTOBER 2026 — Frameworks & Teaching",
+    "date": "Fri, Oct 30 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "October recap",
+    "body": "October recap. Frameworks month.\n\nNumbers:\n\n→ 22 posts shipped\n\n→ Net new: ~1,640\n\n→ Total following: ~15,640\n\n→ Best post: The Saleh Stack — 41k impressions, 1,180 saves\n\n→ Second-best: 4-Layer Modern B2B Marketing Map — 33k impressions, 980 saves\n\n→ Frameworks named in total: 8 (across May-October)\n\nWhat worked:\n\n→ Naming + diagramming. Saves are now consistently 3-4x text-only.\n\n→ Real-number proof in every framework post.\n\n→ The 'what 30 operators told me' follow-up post (Oct 14) was the highest-engagement post of the month.\n\nWhat didn't:\n\n→ The technical-buyer writing post was good but didn't travel — too inside-baseball.\n\n→ October was the first month I hit a content fatigue moment in week 3. Pre-writing helped me push through.\n\nNovember starts Monday. Push #2 — half-year recap. 20 posts ready and waiting.\n\nThe flywheel keeps turning.\n\n#BuildInPublic #Frameworks"
+  },
+  {
+    "id": "post_119",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Mon, Nov 2 2026 — AM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 1/20 — kickoff + index",
+    "body": "Push #2 starts. Half-Year Recap series, 20 posts over 2 weeks.\n\nIndex of what's coming:\n\n1. This post — kickoff\n\n2. The headline numbers (real screenshots)\n\n3. Top 5 posts dissected\n\n4. The post that flopped\n\n5. Frameworks shipped — index\n\n6. n8n flows shipped — index\n\n7. The behaviour change that mattered most\n\n8. Engagement strategies that worked\n\n9. Engagement strategies that didn't\n\n10. The first inbound deal\n\n11. What I underestimated about content\n\n12. What I overestimated\n\n13. Time spent vs leverage gained\n\n14. The compounding effect\n\n15. Cost of consistency, in numbers\n\n16. Mistakes I'd correct\n\n17. What's coming in months 7-12\n\n18. Advice for someone starting now\n\n19. Thank-you to the people who helped\n\n20. The single most important lesson\n\nAM posts go out at 8:00 CET, PM at 16:30 CET. Two weeks. Strap in.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_120",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Mon, Nov 2 2026 — PM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 2/20 — headline numbers",
+    "body": "Half-Year Recap 2/20 — the headline numbers. Real screenshots in the comments.\n\nMay 11 → Nov 1 (~6 months):\n\n→ Followers: 9,012 → 15,640 (+6,628 net new, +73%)\n\n→ Posts shipped: 117 (target was 120; missed 3 to public holidays)\n\n→ Total impressions: ~1.94M\n\n→ Total reactions: ~64k\n\n→ Total comments: ~9,200\n\n→ Total saves: ~14,800\n\n→ Avg engagement rate: 5.8%\n\n→ Top post: Sept 16 (state of modern B2B GTM) — 64k impressions\n\nOperational outcomes:\n\n→ Inbound DMs: ~640\n\n→ ICP-buyer DMs: ~31\n\n→ Speaking invites: 1\n\n→ Podcast invites: 3 (declined 2, accepted 1)\n\n→ Recruiting inbounds: 14 (politely declined)\n\n→ Direct pipeline contribution: 2 deals sourced from LinkedIn DMs\n\nCaveat: attribution is messy. Some inbound says 'I saw your LinkedIn'. Some doesn't say but probably should.\n\nNext: top 5 posts dissected.\n\n#BuildInPublic #ContentMarketing #LinkedInTips"
+  },
+  {
+    "id": "post_121",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Tue, Nov 3 2026 — AM",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "Half-Year Recap 3/20 — top 5 posts dissected",
+    "body": "Half-Year Recap 3/20 — top 5 posts dissected.\n\n1. State of Modern B2B GTM carousel (Sep 16) — 64k impressions\n\nWhy: a strong category claim + 14-slide depth. Carousels with a thesis travel.\n\n2. The full Q3 outbound stack post (Aug 11 AM) — 47k impressions\n\nWhy: specificity (€40 stack, real numbers). People save what they can copy.\n\n3. The Saleh Stack framework (Oct 6) — 41k impressions\n\nWhy: named + diagrammed framework. Saves compounded the post.\n\n4. The €120k mistake post (Aug 5 PM) — 38k impressions\n\nWhy: vulnerability + specific number. Honesty travels in B2B.\n\n5. What 30 operators told me about the Saleh Stack (Oct 14) — 36k impressions\n\nWhy: synthesised audience input. The audience seeing themselves in the post drives shares.\n\nPattern across all 5:\n\n→ Specific numbers\n\n→ Named concept or framework\n\n→ Took a position\n\n→ Made it copy-able\n\nPattern is more useful than the rankings. If you remember one thing: SPECIFIC + NAMED + POSITION + COPYABLE.\n\n#ContentMarketing #LinkedInTips"
+  },
+  {
+    "id": "post_122",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Tue, Nov 3 2026 — PM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 4/20 — the post that flopped",
+    "body": "Half-Year Recap 4/20 — the post that flopped.\n\nAugust 13 evening: 'Customer-success handoff at quarter-close'.\n\nGenuinely useful content. ~6,200 impressions (vs my ~22k average that week). One of my worst-performing posts.\n\nWhy it flopped:\n\n1. Too internal-process\n\nHandoffs between sales and CS are real, but the audience reading my account is mostly marketers and operators, not sales managers. Wrong audience.\n\n2. No specific number\n\nI made it abstract instead of concrete. No 'we changed X and saw Y'. The post was advice, not proof.\n\n3. PM post in push mode\n\nPM posts in push mode are supposed to be lighter / more personal. This was a heavy operational post in a personal slot. Tone-mismatch.\n\n4. No diagram\n\nIf a process is worth posting, it's worth diagramming. Pure text on a process post tanks reach.\n\nWhat I'd do differently:\n\n→ Reframe as 'a marketer's view of the sales-to-CS handoff' (different angle for the audience I have)\n\n→ Add a concrete number from a real handoff\n\n→ Add a diagram\n\n→ Save it for an AM tactical slot\n\nFlops are data. The post taught me as much as the wins.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_123",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Wed, Nov 4 2026 — AM",
+    "post_type": "PT-05",
+    "pillar": "P4 — Framework",
+    "topic": "Half-Year Recap 5/20 — frameworks shipped (index)",
+    "body": "Half-Year Recap 5/20 — every framework I shipped in 6 months. Save this — it's the framework index.\n\n1. The 4-Layer Clay Map (May 14)\n\nIdentify → Enrich → Score → Act. How to structure any B2B Clay table.\n\n2. 5 Questions Before Any Automation (May 28)\n\nRepeatability, failure cost, ownership, simpler version, future-proofing.\n\n3. Research vs Action Tables (Jun 11)\n\nTwo-table separation for Clay. The discipline that fixes most pipelines.\n\n4. 5-Question Campaign Diagnostic (Jun 25)\n\nWho / What / Only-You / Where / How-measure. Ship-readiness check.\n\n5. The 3-Layer Mental Model for Data Tables (Jul 9)\n\nIdentity / Signal / Action. Tag your columns. Refresh accordingly.\n\n6. The B2B Content Equation (Sep 4)\n\nReach = Specificity × Courage. Why most posts flop.\n\n7. The Outbound Diagnostic v2 (Oct 8)\n\nData / Copy / Targeting. 60-second triage when reply rate stalls.\n\n8. The Saleh Stack (Oct 6)\n\n5 components every modern B2B GTM stack needs.\n\n9. The 4-Layer Modern B2B Marketing Map (Oct 15)\n\nVoice / Substance / Depth / Reach.\n\n10. The 3-Question Briefing Test (Oct 22)\n\nWho / What / Only-You. Brief-readiness check.\n\nSave this index. The frameworks compound on each other.\n\n#Frameworks #GTM #B2BMarketing"
+  },
+  {
+    "id": "post_124",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Wed, Nov 4 2026 — PM",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "Half-Year Recap 6/20 — n8n flows shipped (index)",
+    "body": "Half-Year Recap 6/20 — every n8n flow shipped in 6 months. The flow index.\n\n1. Lead enrichment trigger (May 20)\n\nWebhook → Clay → Claude → HubSpot + Slack. ~12 min saved per inbound.\n\n2. Inbound demo alerter (Jun 5)\n\nSlack briefing in <60s with company context.\n\n3. Trade-show CSV intake (Aug 6)\n\n4 known formats normalised + Clay event tagging.\n\n4. Slack /research command (Jun 26)\n\nTriggers Clay row + Claude briefing on demand.\n\n5. ICP scoring rebuild (Jul 3)\n\nClaude-augmented rubric scoring.\n\n6. Re-engagement detector (Jul 10)\n\nDaily scan of stalled deals + signal-based AE alerts.\n\n7. Apollo→Clay handoff cleanup (Jul 17)\n\nDedup + country normalisation + 'still at company' flag.\n\n8. Meta-flow monitor (Jul 27)\n\nWatches all flows, alerts on anomalies.\n\n9. Friday EOW digest (Aug 7)\n\nAuto-written leadership digest, Claude-composed.\n\n10. Personal CTO digest (Sep 15)\n\nMy private state-of-the-stack message every Friday.\n\n11. Meeting-notes-to-tasks flow (Oct 9)\n\n7 lines of code. Saves ~6 hours/week across 5 AEs.\n\nTotal cost of running these monthly: ~€48.\n\nTotal time saved across the team weekly: ~25 hours.\n\nBuild small, build often.\n\n#n8n #MarketingAutomation #RevOps"
+  },
+  {
+    "id": "post_125",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Thu, Nov 5 2026 — AM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 7/20 — the behaviour change that mattered most",
+    "body": "Half-Year Recap 7/20 — the behaviour change that mattered most.\n\nIt wasn't the posting itself.\n\nIt was the Sunday review.\n\nEvery Sunday for 26 weeks I've spent 60-90 minutes:\n\n→ Reading last week's metrics\n\n→ Killing one post idea that's gone stale\n\n→ Drafting 2 new posts for the week ahead\n\n→ Writing a 3-bullet 'lessons from last week' note in Notion\n\nThis habit, more than any individual post, is what made consistency possible.\n\nBefore this habit:\n\n→ Mondays felt panicky (no plan)\n\n→ Posts were last-minute\n\n→ Quality was inconsistent\n\n→ I wasn't learning from each week\n\nAfter this habit:\n\n→ Mondays feel calm (5 posts already in some draft state)\n\n→ Posts get edited multiple times before publishing\n\n→ Quality is consistent\n\n→ Each week genuinely teaches me something\n\nIf you're considering posting consistently — the calendar habit is more important than any individual post technique.\n\nSundays are sacred now. They're when next week happens.\n\n#BuildInPublic #Productivity #ContentMarketing"
+  },
+  {
+    "id": "post_126",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Thu, Nov 5 2026 — PM",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Half-Year Recap 8/20 — engagement that worked",
+    "body": "Half-Year Recap 8/20 — engagement strategies that worked.\n\n1. Tier-1 daily engagement\n\nComment substantively on 5-7 senior creators every day, in the first hour after their post. Algorithm rewards proximity. Audience overlap follows.\n\n2. Reply to every comment within 60 minutes of posting\n\nLifts the post in the feed. Builds relationship with the commenter. Most teams skip this.\n\n3. DM 3-5 people after every post\n\nNot 'pls engage'. A real message: 'Wrote this — curious what you think because of [specific reason].'\n\n4. Public reposts of others' work\n\nOnce a week, share someone else's post with my own added angle. Builds reciprocity.\n\n5. Show up in someone else's comments before posting yourself\n\nBe visible in the broader conversation, not just on your own real estate.\n\nWhat I tracked:\n\n→ Days where I engaged > 60 minutes vs days where I just posted\n\n→ Engagement-heavy days drove ~40% more reach the same week\n\n→ Posts on days I'd engaged for 60+ min that week outperformed by ~25%\n\nPosting alone is not enough. Engagement is the second half of growth.\n\n#BuildInPublic #LinkedInTips"
+  },
+  {
+    "id": "post_127",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Fri, Nov 6 2026 — AM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 9/20 — engagement that didn",
+    "body": "*'**t*\n\nHalf-Year Recap 9/20 — engagement strategies that didn't work.\n\n1. Engagement pods\n\nJoined two during May. Left both by July. The engagement was hollow — same 8 people commenting on each other's posts. Algorithm sees through it eventually. Quality of comments was low.\n\n2. Generic comments at scale\n\nTried 30+ short comments per day in June. Reach didn't improve. Author replies didn't happen. Quality matters more than volume.\n\n3. Tagging large creators in posts\n\nDid this 3-4 times early. None of them engaged. Signals desperation more than respect.\n\n4. Posting in 5+ niche groups\n\nJoined ~12 LinkedIn groups in May. Cross-posted to several. Reach was minimal. Most B2B groups are quiet now.\n\n5. 'Agree?' bait at the end of posts\n\nTried it. Felt cheap. Engagement marginally up but the wrong type — quick agreements, no depth. Stopped.\n\nWhat I learned:\n\nEngagement gimmicks have a half-life of weeks. Real conversation has a half-life of years.\n\nIf you're starting now: skip the gimmicks. Spend the time on substantive comments and DMs instead.\n\n#BuildInPublic #LinkedInTips"
+  },
+  {
+    "id": "post_128",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Fri, Nov 6 2026 — PM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 10/20 — first inbound deal",
+    "body": "Half-Year Recap 10/20 — the first inbound deal.\n\nAugust 14. A DM from a sustainability lead at a mid-size European company.\n\nDirect quote (paraphrased with permission):\n\n'Been reading your stuff for two months. Curious whether your team could fit our use case. Open to a 30-min call.'\n\nWhat I noticed:\n\n→ They had read multiple posts before reaching out (mentioned three specifically)\n\n→ They'd done internal research first\n\n→ The DM was specific, not generic\n\n→ They asked for a call, not a pitch\n\nWhat happened:\n\n→ Discovery call within a week\n\n→ Technical demo with engineering 3 weeks later\n\n→ Proposal in early October\n\n→ Currently at procurement stage\n\nCaveat: not closed yet. May or may not close. But the pipeline is real.\n\nWhat I'd do differently if I were starting:\n\nDon't expect inbound for 3-6 months. The first inbound for me happened at month 4. The audience needs to trust you before they DM you about a serious budget.\n\nPatience compounds.\n\n#BuildInPublic #B2BSales #InboundMarketing"
+  },
+  {
+    "id": "post_129",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Mon, Nov 9 2026 — AM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 11/20 — what I underestimated",
+    "body": "Half-Year Recap 11/20 — what I underestimated about content.\n\n1. How much business inbound posting attracts even when you're not asking\n\nRecruiting offers. Speaking invites. Consulting requests. People want to work with operators who post.\n\n2. How much consistency itself becomes proof\n\nShowing up every week is a credential. Not a brilliant post. The posting itself.\n\n3. How much community vs broadcast matters\n\nI thought I was building an audience. I was actually building a network. Different thing. Network is who replies. Audience is who scrolls.\n\n4. How transferable the lessons are across sectors\n\nI assumed my niche was its own thing. Turns out the patterns generalise across B2B. The DMs from different industries proved this.\n\n5. How much my own work improves because I write about it\n\nForcing myself to articulate what I built clarified what I built. Some of my most useful internal decisions came from drafting a post and realising the rationale didn't hold.\n\n6. How fast trust forms when you're public + specific + honest\n\nPeople I've never met DM me with real questions. Forms in months what private networking forms in years.\n\nUnderestimating these is normal. They're the kind of thing you can't believe until you've done six months.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_130",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Mon, Nov 9 2026 — PM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 12/20 — what I overestimated",
+    "body": "Half-Year Recap 12/20 — what I overestimated.\n\n1. The cost of negative reactions to hot takes\n\nI worried about backlash on opinionated posts. The truth: audiences are mostly indifferent. The few who disagree do so respectfully. The fear is bigger than the reality.\n\n2. The volume needed to grow\n\nI thought I'd need to push hard to grow. Specificity beat volume every time. A small audience of right people compounds faster than a large audience of indifferent people.\n\n3. The need for elaborate visuals\n\nSpent hours on the first few carousel designs. Later carousels with simpler visuals performed equally well. Substance > polish.\n\n4. The importance of optimal posting times\n\nTested 6 different time slots in May-June. Reach varied <15%. The post itself matters 10x more than when it goes out.\n\n5. The importance of hashtags\n\nReach with hashtags vs without was within noise. I now use 2-3 minimal ones, mostly for brand discoverability.\n\n6. The career risk of posting opinions publicly\n\nWorried about how my CEO would feel about each post. Reality: she reads them, occasionally comments privately. Has only ever been supportive. The career risk is mostly imaginary.\n\nIf you're delaying posting because of any of these — you're overcorrecting. Start.\n\n#BuildInPublic #ContentMarketing #LinkedInTips"
+  },
+  {
+    "id": "post_131",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Tue, Nov 10 2026 — AM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 13/20 — time vs leverage",
+    "body": "Half-Year Recap 13/20 — time spent vs leverage gained.\n\nHonest hours over 6 months:\n\n→ Writing posts: ~150 hours total\n\n→ Engagement: ~100 hours total\n\n→ Planning + Sunday reviews: ~50 hours total\n\n→ Pre-writing for push modes: ~40 hours total\n\n→ DM conversations: ~30 hours\n\nTotal: ~370 hours over 6 months. ~14 hours/week average.\n\nWhat that produced:\n\n→ ~6,600 net new followers\n\n→ ~640 inbound DMs\n\n→ ~31 ICP-qualified buyer DMs\n\n→ 2 deals in active pipeline\n\n→ A network in modern B2B GTM that didn't exist for me before\n\n→ A first-time speaking invite\n\n→ Career optionality I didn't have in May\n\nHourly rate analysis (rough):\n\nIf I value the network alone at 500 hours of equivalent networking effort, this was 1.4x ROI on time.\n\nIf I count career optionality, the math is essentially impossible to compute.\n\nBetter question than ROI: would I do it again?\n\nYes. Twice over. The leverage is real. Just slower than people advertise.\n\n#BuildInPublic #CareerJourney"
+  },
+  {
+    "id": "post_132",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Tue, Nov 10 2026 — PM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 14/20 — the compounding effect",
+    "body": "Half-Year Recap 14/20 — the compounding effect, in numbers.\n\nMay posts after one month: avg 1,200 impressions each.\n\nMay posts after six months: avg 2,800 impressions each.\n\nSame posts. ~2.3x more reach over time. Why?\n\n→ Algorithm surfaces them when new followers join (they read backwards)\n\n→ Search and saves keep them alive\n\n→ Other creators reference them, driving residual traffic\n\n→ I sometimes link back in newer posts, lifting old ones\n\nThe 4-Layer Clay Map (May 14) is now the post that has saved me the most onboarding effort with new operators in DMs. I just send the link.\n\nWhat this means practically:\n\n→ Don't write to perform on day 1. Write to compound over years.\n\n→ Frameworks compound better than POVs (which are timely).\n\n→ Specific tactical posts compound better than abstract advice.\n\nCompounding is invisible week-to-week. Visible quarter-to-quarter.\n\nIf you can hold consistency for 12 months, the back half of year 1 starts paying you for the front half.\n\nI'm at the inflection point right now.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_133",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Wed, Nov 11 2026 — AM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 15/20 — cost of consistency",
+    "body": "Half-Year Recap 15/20 — cost of consistency, in honest numbers.\n\nWhat 14 hours/week of content work costs me, weekly:\n\n→ ~3 evenings of personal time (instead of family/friends/gym/reading)\n\n→ Sunday afternoons (planning + drafting)\n\n→ ~1 hour of weekday morning time (engagement)\n\n→ ~30 min of weekday lunch time (post-publish engagement window)\n\n→ Mental load of always thinking 'is this a post?'\n\nMonthly:\n\n→ 1 weekend day per push month (pre-writing)\n\n→ ~1 social event skipped (writing time)\n\n→ ~€60 in tools (Buffer / Notion / occasional design help)\n\nLess measurable:\n\n→ Slight constant background hum of 'should I be writing right now?'\n\n→ Occasional comparisons to creators with bigger numbers\n\n→ Sleep on push-mode Sunday nights (genuine)\n\nWhy I keep doing it anyway:\n\n→ The compounding (yesterday's post)\n\n→ The network (Tuesday's post)\n\n→ The clarification of my own thinking\n\n→ The career optionality\n\n→ The fact that the work itself genuinely interests me\n\nIf you don't enjoy at least the writing or the engagement, the cost will outpace the benefit. Pick something you'd write about for free.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_134",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Wed, Nov 11 2026 — PM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 16/20 — mistakes I",
+    "body": "*'**d correct*\n\nHalf-Year Recap 16/20 — mistakes I'd correct if starting now.\n\n1. I wrote too long for the first month\n\nMay posts averaged 240 words. Audience attention drops fast. June onward I tightened to ~140 average. Engagement immediately improved.\n\n2. I didn't have a hook bank ready\n\nFirst-line hooks made or broke posts. I rewrote some hooks 5+ times. Should have built the bank first, then drafted posts against it.\n\n3. I treated all 5 weekdays the same\n\nTook two months to learn that Tue/Wed/Thu outperform Mon/Fri for my audience. Could have learned this in week 2 by just looking.\n\n4. I delayed carousels for too long\n\nFirst carousel was Aug. Should have been in May. Carousels are the highest-saves format and would have grown the audience faster.\n\n5. I underused video\n\nAlmost no video in 6 months. The 1-2 short videos I posted got disproportionate reach. Wasted opportunity.\n\n6. I overthought push modes\n\nFirst push felt like a launch event. Second push (this one) felt routine. The first one would have been less stressful with the same playbook.\n\nIf you're starting now — fix all 6 in week 1. Save yourself the curve.\n\n#BuildInPublic #LinkedInTips"
+  },
+  {
+    "id": "post_135",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Thu, Nov 12 2026 — AM",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Half-Year Recap 17/20 — what",
+    "body": "*'**s coming*\n\nHalf-Year Recap 17/20 — what's coming in months 7-12.\n\nDecember: deepen, not broaden. Slower cadence (3/week). Reflection content. End-of-year predictions. Quality over quantity.\n\nJanuary 2027: the biggest month of year 1. Predictions, year-ahead playbooks, '7 plays I'm betting on for 2027'. Match the proven January pattern in this space.\n\nFebruary: customer & case stories. With permission, real cases — first long-form B2B GTM cases I'll publish.\n\nMarch: push #3 — conference season. The European business circuit runs deep into spring. Live conference posts + recaps + hot takes.\n\nApril: year-one receipts. The big arc — 9k → 25k+. The post becomes the case study.\n\nBeyond month 12: I don't know yet.\n\nPossibilities I'm thinking about:\n\n→ A small podcast for B2B GTM operators\n\n→ A community Slack (operator-focused)\n\n→ More category-build, less personal-build\n\nWhat I'm certain about: the pace continues. The compounding compounds. And the niche I'm in (modern B2B GTM + marketing automation) gets less invisible every month.\n\n#BuildInPublic #Roadmap"
+  },
+  {
+    "id": "post_136",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Thu, Nov 12 2026 — PM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 18/20 — advice for someone starting now",
+    "body": "Half-Year Recap 18/20 — advice for someone starting now.\n\nThe 10 things I wish someone had told me on May 11:\n\n1. Pick a niche you'd write about for free.\n\n2. Build the hook bank before you write the posts.\n\n3. Default to ~120-160 words. Tighten ruthlessly.\n\n4. Carousels from week 1, not month 4.\n\n5. Engagement = 2x more time than writing, for the first 3 months.\n\n6. Sundays are sacred. Plan + draft.\n\n7. Track 5 numbers monthly. Ignore everything else.\n\n8. Reply to every comment within 60 min for the first month.\n\n9. Don't expect inbound business for 3-6 months.\n\n10. Don't quit at month 2. The compounding starts at month 4.\n\nAnd one more — the most important:\n\n11. Write things that cost you something. Vague posts are safe; specific posts are credible. Real numbers, real mistakes, real opinions. The posts that scared me to publish are the ones that built the account.\n\nSave this if it helps.\n\n#BuildInPublic #LinkedInTips #ContentMarketing"
+  },
+  {
+    "id": "post_137",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Fri, Nov 13 2026 — AM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 19/20 — thank-yous",
+    "body": "Half-Year Recap 19/20 — thank-yous.\n\nThis account exists because of specific people. Owed in public:\n\n→ Anthropic (and the Claude team) — Claude is wired into roughly half of what I do. Tools shape outputs. This was a gift.\n\n→ Clay (the team + community) — for being patient with the operators who teach themselves. The Barcelona meetup was a turning point.\n\n→ My engineering colleagues — every BTS post owes them. I just translate.\n\n→ My CEO and leadership — for not interfering with what I post. Trust is the rarest gift.\n\n→ Alex Vacca, April Dunford, Pawel Nical, Joe Wilde, Adam Robinson — creators whose work I learned from. None of them know they were teachers.\n\n→ My partner — for the Sunday afternoons I disappeared into Notion.\n\n→ The 30+ DMs that turned into ongoing conversations — many of you read this account weekly. I read your replies more carefully than you'd think.\n\n→ Every commenter who disagreed publicly — you sharpened my thinking more than the agreers did.\n\n→ My past self at month 1, who almost quit at month 2 because nothing was happening.\n\nI'm one operator with a stack. The account is the result of a network.\n\nThank you, all.\n\n#BuildInPublic #Gratitude"
+  },
+  {
+    "id": "post_138",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Fri, Nov 13 2026 — PM",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Half-Year Recap 20/20 — the most important lesson",
+    "body": "Half-Year Recap 20/20 — the single most important lesson. Last post of the push.\n\nIf I had to keep one sentence from six months of posting:\n\nSpecificity is the only true differentiator.\n\nNot voice. Not personality. Not aesthetic. Not 'authenticity'.\n\nSpecificity.\n\nReal numbers. Real mistakes. Real tools. Real trade-offs. Real customers (with permission). Real failure modes. Real costs. Real time savings. Real reasons you might be wrong.\n\nWhen you're specific, you can't be replaced by an LLM. You can't be copied by a competitor. You can't be drowned out by louder accounts. The specifics ARE you.\n\nSix months of testing produced this single conviction.\n\nPosts I wrote at general-advice level: middling reach, no compounding.\n\nPosts I wrote at the granular operator level (€40 stack, the 7-line code, the €120k mistake, what 30 operators told me): the ones that built the account.\n\nIf you remember nothing else: BE SPECIFIC. Aggressively. Uncomfortably. With numbers and units and dates and tradeoffs.\n\nPush wraps. Recovery week starts Monday.\n\nOnwards to month 7.\n\n#BuildInPublic #ContentMarketing #LinkedInTips"
+  },
+  {
+    "id": "post_139",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Tue, Nov 17 2026",
+    "post_type": "PT-15",
+    "pillar": "P3 — Build in Public",
+    "topic": "Push #2 numbers",
+    "body": "Push #2 wrapped Friday. Numbers:\n\n→ 20 posts, 2 weeks, no missed days\n\n→ Total push-period impressions: ~410k\n\n→ Followers gained during push: 1,920 (target was 1,500)\n\n→ Top post: Half-Year Recap 2/20 (the headline numbers post) — 58k impressions\n\n→ Worst post: Recap 4/20 (the post that flopped) — 9k impressions, ironic because it was about a flop\n\n→ DM inbound: 38 unprompted, 8 from ICP buyers\n\nDifference vs Push #1 (August):\n\n→ Better followers conversion (1,920 vs 1,420)\n\n→ Less burnout (pre-writing 2 weeks ahead vs 4 days)\n\n→ Higher consistency in tone across the 20 posts\n\n→ More inbound, especially in the recovery week (lag effect again)\n\nRecovery week now. Base mode (3 posts). Then back to Growth through Dec 5, then slow down for the December reflection theme.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_140",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Thu, Nov 19 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "What I",
+    "body": "*'**ve learned about feedback after 6 months posting*\n\nSix months of posting publicly. What I've learned about feedback:\n\n1. Public feedback is mostly noise.\n\nLikes, reactions, even comment volume — most are reflexive. Useful but not signal.\n\n2. DMs are signal.\n\nWhen someone DMs me with a specific reaction, that's data. People don't take time to DM unless something landed.\n\n3. Saves are deeper signal.\n\nSaves mean someone wants to come back. They're voting with their bookmarks.\n\n4. Silence on a post you thought was great is data too.\n\nTwo of my best-edited posts went silent. Lesson: maybe 'great' was a craft judgement, not a value judgement.\n\n5. The same post lands differently in different weeks.\n\nTiming, context, audience mood matter more than I thought.\n\n6. Negative feedback is rarer and more valuable than positive.\n\nMost people don't take time to disagree. The ones who do are usually right about something.\n\nThe biggest mistake I see new creators make: treating likes as feedback. They aren't. They're reflexes.\n\nTrack DMs, saves, and the silence on posts you thought were strong.\n\n#BuildInPublic #ContentMarketing #LinkedInTips"
+  },
+  {
+    "id": "post_141",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Sat, Nov 21 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Recovery thoughts",
+    "body": "Saturday post during recovery. Some honest thoughts after pushes #1 and #2.\n\nPush mode is asymmetric.\n\nPre-writing 20 posts feels like a sprint.\n\nPosting them feels like a marathon.\n\nRecovery feels like a long warm bath.\n\nWhat I've learned from doing it twice:\n\n→ The calendar matters more than the content during push. Slipping one day cascades.\n\n→ The pre-writing is 80% of the difficulty. Once written, posting is mechanical.\n\n→ The compounding from push happens in the recovery week, not during the push itself.\n\n→ Two pushes a year would be the right rhythm. Four (per my plan) might be too many. Will recalibrate next year.\n\nGoing into December lighter (3/week, Base mode). Slower, deeper, more reflective.\n\nJanuary will be the biggest month of year 1. December is the calm before that.\n\nIf you're considering a push mode for the first time — pick a 2-week window 4 weeks from now. Start pre-writing now. Don't try to do both at once.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_142",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Mon, Nov 23 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "December plan + theme",
+    "body": "December theme: Reflection + Vision.\n\nCadence: dropping to 3/week (Base mode). Genuinely.\n\nWhy slower in December:\n\n→ My audience scrolls less between Dec 18 and Jan 2\n\n→ Quality > quantity for end-of-year content\n\n→ Recovery from two pushes in 4 months is real\n\n→ Reflection content needs space to breathe\n\nWhat's coming in December (~12 posts):\n\n→ A 'year-in-numbers' post mid-month\n\n→ '5 things I was wrong about' — vulnerable post\n\n→ 2027 predictions for B2B GTM + marketing automation\n\n→ The post I'm most proud of (with backstory)\n\n→ Personal: what next year looks like\n\n→ A few continuation framework / POV posts\n\n→ A single 'predictions' carousel\n\nWon't post Dec 22 - Jan 2. Audience is genuinely offline. I should be too.\n\nJanuary 2027 starts the next chapter.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_143",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Tue, Nov 24 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "Year-end stack audit",
+    "body": "Year-end is a forcing function for stack audits. Doing mine this week.\n\nAudit checklist (annual, not quarterly):\n\n→ TOOLS: list every paid tool. For each: are we using >50% of what we pay for? If not, downgrade or cancel.\n\n→ INTEGRATIONS: which integrations do we use weekly? Anything monthly or less = candidate for removal.\n\n→ DATA: where does customer data live? Is it consistent? Is anyone copying between systems manually?\n\n→ AUTOMATIONS: any flow that hasn't fired in 30+ days. Archive.\n\n→ SECURITY: who has access to what? Especially important for departing team members.\n\n→ CONTRACTS: when do contracts renew? Negotiate before auto-renewal, not after.\n\nWhat I expect to find this year:\n\n→ At least 2 tools we'll cancel\n\n→ At least 1 integration that's silently broken\n\n→ At least 5 stale automations\n\n→ Probably 1 access we should have removed months ago\n\nTime investment: ~1 day for the full audit. ROI: usually 5-10x in saved tool costs alone, before counting clean-data benefits.\n\n#GTM #RevOps #MarketingOps"
+  },
+  {
+    "id": "post_144",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Wed, Nov 25 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "What working with engineers taught me",
+    "body": "Three years of working closely with engineers as a marketer. The lessons that transferred:\n\n1. SHIP THE 'UGLY VERSION' EARLY\n\nEngineers ship MVPs because polishing too early hides design flaws. Marketers should too. The first draft of any campaign should be deliberately rough.\n\n2. WRITE IT DOWN IN ONE PLACE\n\nEngineers obsess over single sources of truth. Marketing teams that fight over 'which doc is current' lose hours per week. Pick one home for each artefact and defend it.\n\n3. POSTMORTEMS WITHOUT BLAME\n\nEvery engineering team I've watched runs blameless postmortems. Marketing teams almost never do. Failed campaigns are taught by the calendar, not by the team.\n\n4. NAMING MATTERS\n\nEngineers spend disproportionate time on variable names. They're right. A campaign named 'Q3-EMEA-NEW-GO-TO-MARKET' lives forever. Naming is design.\n\n5. INSTRUMENT BEFORE YOU OPTIMISE\n\nEngineers measure before they tune. Marketers often optimise emotion-first. Wrong order. Add tracking, then change copy.\n\nIf you're a B2B marketer — find an engineer to lunch with monthly. The transfer of mental models is worth more than any conference.\n\n#CareerJourney #MarketingOps #Engineering"
+  },
+  {
+    "id": "post_145",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Thu, Nov 26 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "What",
+    "body": "*'**AI agents in B2B**'** will actually look like*\n\nEveryone's talking about AI agents in B2B GTM. Here's what I think will actually ship in 2027:\n\nWHAT WON'T HAPPEN:\n\n→ Fully autonomous SDRs (still need human review on outbound that touches buyers)\n\n→ AI-replacing-marketing-teams (replaced ones lacked specialists, the gap is human, not technical)\n\n→ End-to-end campaign agents that 'just work' (orchestration is still hard)\n\nWHAT WILL:\n\n→ Research agents that read 10x more than any human can, summarised on demand\n\n→ Single-purpose tactical agents (e.g. 'monitor this account and alert on signal X')\n\n→ Workflow assistants that propose next steps in CRM, not execute them autonomously\n\n→ 'Co-pilot' style assistance in existing tools (Clay, HubSpot, Apollo) rather than new standalone products\n\nWhy the skeptical take:\n\nB2B sales is high-stakes. Buyers don't want to be sold to by agents. The win zone is augmenting humans, not replacing.\n\nThe teams that win 2027: the ones that wire research agents in well, while keeping humans in the buyer-facing loop.\n\nSave this. Revisit in December 2027.\n\n#AI #GTM #B2BMarketing"
+  },
+  {
+    "id": "post_146",
+    "month": "NOVEMBER 2026 — Push Mode #2 (Half-Year Recap)",
+    "date": "Fri, Nov 27 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "November recap",
+    "body": "November recap.\n\nNumbers:\n\n→ 28 posts shipped (push + recovery + normal)\n\n→ Net new: ~2,400\n\n→ Total following: ~18,000\n\n→ Best post: Half-Year Recap 2/20 — 58k impressions\n\n→ DM inbound: 76 over the month\n\n→ ICP-buyer DMs: 11 (highest month yet)\n\nWhat worked:\n\n→ The recap series structure — narrative arcs perform better than standalone posts\n\n→ Specific number posts dominated reach all month\n\n→ The thank-you post (Recap 19/20) drove the most comments of any post in 6 months\n\nWhat didn't:\n\n→ The 'wrong about' post (Recap 12/20) was low-reach. Hindsight: the framing was too internal. Should have led with the implications for readers.\n\n→ The first recovery week post needed more space — felt rushed.\n\nDecember: 3/week, Reflection theme. The slow month before January's biggest push.\n\nCrossing 18k. 7k more to hit the year-1 target. On track.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_147",
+    "month": "DECEMBER 2026 — Reflection + Vision",
+    "date": "Tue, Dec 1 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "December — slowing down on purpose",
+    "body": "December starts. Slowing down on purpose.\n\n3 posts/week throughout most of December, then nothing Dec 22 - Jan 2.\n\nWhy slower:\n\n→ My audience scrolls less in late December. Pretending otherwise wastes posts.\n\n→ Reflection content needs space. Forcing daily volume against reflection is contradictory.\n\n→ The next push is January 2027 — the biggest content month of year 1. I want to arrive rested.\n\n→ My family deserves a Sunday afternoon back, at least for a few weeks.\n\nWhat's coming this month (~12 posts):\n\n→ Year-in-numbers receipt\n\n→ '5 things I was wrong about' — vulnerable\n\n→ 2027 predictions (B2B GTM + marketing automation)\n\n→ The single post I'm most proud of\n\n→ A holiday/personal touch\n\n→ A few continuation framework / POV posts\n\n→ A 2027 predictions carousel mid-month\n\nThen off until January 5.\n\nSlow on purpose, not by accident. Both versions look the same from the outside; only one of them was a choice.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_148",
+    "month": "DECEMBER 2026 — Reflection + Vision",
+    "date": "Thu, Dec 3 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "Why year-end content lands different",
+    "body": "Why year-end B2B content tends to be the best content of the year.\n\nDecember posts on LinkedIn outperform other months for me by ~25% on engagement, even at lower frequency.\n\nI think it's because:\n\n→ Audience reads more reflectively (less skim, more save)\n\n→ Operators are mentally closing chapters and opening new ones — receptive to lessons-based content\n\n→ Less competition for feed attention from new product launches and event announcements\n\n→ Audiences value honesty more in December than in May\n\nWhat works in year-end content:\n\n→ Real numbers from your year (yours, not industry reports)\n\n→ Clear lessons stated directly\n\n→ Predictions where you commit (not 'X will be important')\n\n→ Acknowledgement of what didn't work\n\n→ A single sentence of intent for next year\n\nWhat doesn't:\n\n→ 'Year-in-review' posts that are thinly-veiled self-promotion\n\n→ 'Top 10 trends' posts that say everything that's already obvious\n\n→ Generic gratitude posts with no specifics\n\nDecember is the most generous month for honest, specific content. Use it.\n\n#ContentMarketing #B2BMarketing"
+  },
+  {
+    "id": "post_149",
+    "month": "DECEMBER 2026 — Reflection + Vision",
+    "date": "Sat, Dec 5 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "The career advice I",
+    "body": "*'**d give my Cairo-self*\n\nThe career advice I'd give my Cairo-self three years ago, knowing what I know now:\n\n1. The boring job is teaching you skills the next job will need.\n\nI dismissed translation work as 'just translation'. It taught me sentence-level discipline that nobody else on my marketing teams has. Don't dismiss boring jobs.\n\n2. Pick a tool, learn it deeply, the rest follows.\n\nI picked n8n in week 2 of marketing. Three years later that single deep skill opened more doors than any general marketing knowledge.\n\n3. Move countries before you feel ready.\n\nWaiting for fluency, savings, perfect job is waiting forever. Move first. The fluency comes from the move.\n\n4. Public work is its own internship.\n\nPosting on LinkedIn for free taught me more about marketing in 6 months than my first 18 months of paid work did.\n\n5. Imposter syndrome doesn't fade — but it stops mattering.\n\nThree languages, two countries, two career pivots in. Still feel like an imposter every Monday. Just don't let it stop the work.\n\n6. The career path you'll have isn't named yet.\n\nI describe what I do differently every 6 months. Marketing automation specialist isn't a final answer. It's a step.\n\nIf you're earlier than me — none of this is wisdom. It's just data from one path.\n\n#CareerJourney #LessonsLearned"
+  },
+  {
+    "id": "post_150",
+    "month": "DECEMBER 2026 — Reflection + Vision",
+    "date": "Tue, Dec 8 2026",
+    "post_type": "PT-04",
+    "pillar": "P1 — Tactical",
+    "topic": "End-of-year HubSpot hygiene checklist",
+    "body": "A practical post during the slow month. End-of-year HubSpot hygiene checklist.\n\nDo these before December 22:\n\n1. CLOSE-LOST CLEANUP\n\nEvery deal in 'closed-lost' from this year — does it have a close-reason populated? If not, fix. This is the data your 2027 ICP refresh runs on.\n\n2. STALE OPEN DEALS\n\nAny deal in 'open' that hasn't had activity in 90+ days — close it (lost-no-decision) or move it to 'paused'. Don't let it ride into 2027.\n\n3. CONTACT OWNERSHIP\n\nDeparting team members' contacts get reassigned. Most teams forget. The person who left in October still has 600 contacts under their name.\n\n4. PIPELINE STAGES\n\nAre your stages still describing reality? If a stage is barely used, archive. If a stage represents two different things, split.\n\n5. PROPERTY USAGE\n\nRun a properties-not-touched-in-90-days report. Archive what you don't use.\n\n6. INACTIVE WORKFLOWS\n\nAny workflow paused or unused for 90+ days — archive. Active stale workflows are worse than no workflow.\n\nTime: ~half a day total.\n\nResult: Q1 2027 starts on cleaner data, and your forecasts are more trustworthy.\n\n#HubSpot #RevOps #MarketingOps"
+  },
+  {
+    "id": "post_151",
+    "month": "DECEMBER 2026 — Reflection + Vision",
+    "date": "Thu, Dec 10 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "5 things I was wrong about in 2026",
+    "body": "5 things I was wrong about in 2026:\n\n1. I thought volume was the lever for growth.\n\nIt's specificity. A 100-word post with one specific number outperforms a 400-word general-advice post every time.\n\n2. I thought engagement gimmicks would work.\n\nEngagement pods, agree/disagree bait, tagging large creators. None of it. Real conversation works. Gimmicks decay in weeks.\n\n3. I thought 'AI-written outbound at scale' was the future.\n\nIt was already over by the time I tested it. AI-RESEARCHED outbound is the future. Different tool, same letters.\n\n4. I thought our ICP was clear.\n\nIt was clear in our heads. Not in our data. Refreshing the ICP in August surfaced 80 contacts we should have prioritised months earlier.\n\n5. I thought I'd peak at month 3.\n\nMost growth happened months 4-6. The compounding is real. The patience is the unlock.\n\nBeing publicly wrong is uncomfortable. It's also the cheapest way to update your map of the world.\n\nI'll be wrong about more things in 2027. Looking forward to writing the same post in December 2027.\n\n#BuildInPublic #ContentMarketing"
+  },
+  {
+    "id": "post_152",
+    "month": "DECEMBER 2026 — Reflection + Vision",
+    "date": "Sat, Dec 12 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Year in numbers — preliminary",
+    "body": "Year-in-numbers — preliminary version (8 months of posting).\n\nAccount growth (May 11 → Dec 12):\n\n→ Followers: 9,012 → 18,140 (+9,128, +101%)\n\n→ Posts shipped: 145\n\n→ Total impressions: ~2.4M\n\n→ Total engagements (reactions + comments): ~88k\n\n→ Total saves: ~21k\n\nOperational impact:\n\n→ Inbound DMs: ~720 (~12 per week avg)\n\n→ ICP buyer DMs: ~42\n\n→ Pipeline contribution: 4 deals sourced via LinkedIn (1 closed, 3 in progress)\n\n→ Speaking invites: 2 (1 accepted)\n\n→ Podcast invites: 5 (1 accepted, recorded last week)\n\nContent impact:\n\n→ Frameworks shipped: 10 (+1 in development for January)\n\n→ Production n8n flows shipped: 11\n\n→ Push modes completed: 2 (third planned for March)\n\nWhat I'm proudest of:\n\n→ Not missing more than 3 posts to public holidays in 8 months\n\n→ Two pushes shipped without a single missed slot\n\n→ The frameworks index becoming a thing operators reference back to\n\nFinal 2026 numbers come in late January, after holiday lag effects settle.\n\nTracking toward the 25k target by April. On pace.\n\n#BuildInPublic #YearInReview"
+  },
+  {
+    "id": "post_153",
+    "month": "DECEMBER 2026 — Reflection + Vision",
+    "date": "Tue, Dec 15 2026",
+    "post_type": "PT-09",
+    "pillar": "P5 — POV",
+    "topic": "2027 predictions — B2B GTM + marketing automation",
+    "body": "2027 predictions. Carousel format. (10 slides, first in the comments.)\n\nB2B GTM — six predictions:\n\n1. Outbound volume keeps shrinking. Reply rates on small targeted lists keep climbing.\n\n2. Clay (or its successor) becomes mid-market default in B2B by Q4 2027.\n\n3. Multilingual cultural-rewrite (not translation) becomes a real category.\n\n4. AI agents in GTM remain mostly research, not execution. Agents that act autonomously stay rare.\n\n5. CRM-as-system-of-record holds. CRM-as-cleverness loses to specialised tools.\n\n6. Operator-creator marketing grows in B2B beyond SaaS. Pulls capital and talent.\n\nMARKETING AUTOMATION — six predictions:\n\n1. n8n + LLMs become the default mid-market wiring layer. Self-hosted matters again.\n\n2. The 'point solution' SaaS market consolidates. Buyers want fewer tools, deeper.\n\n3. Privacy-first / on-prem AI gains share for enterprise B2B with sensitive data.\n\n4. 'AI-native' becomes a meaningless marketing term. Disappears from category names.\n\n5. RevOps absorbs marketing ops at most mid-market companies.\n\n6. Audit logs and explainability become procurement requirements for any AI-touching tool.\n\nI'll be wrong about ~3-4 of these. Pinning to revisit in December 2027.\n\nWhich one do you think is most wrong?\n\n#GTM #B2BMarketing #MarketingAutomation #2027"
+  },
+  {
+    "id": "post_154",
+    "month": "DECEMBER 2026 — Reflection + Vision",
+    "date": "Thu, Dec 17 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "The single post I",
+    "body": "*'**m most proud of*\n\nStepping back this week. The single post I'm most proud of from 2026.\n\nNot the highest-reach. Not the most saved.\n\nAugust 5 PM — 'The €120k mistake'.\n\nWhy that one:\n\n→ It cost me something to publish (real failure, real money)\n\n→ It changed how at least 5 people in DMs handle their summer ops\n\n→ My CEO commented privately that it was the kind of post she didn't expect from a marketing role and was glad I wrote\n\n→ It's the post a junior marketer DM'd me about, saying 'I'm going to make this same mistake. Thank you'\n\nWhat that post taught me:\n\n→ Vulnerability is specific. 'I made mistakes' is generic. '€120k mistake on Aug 8 by pausing nurture' is specific.\n\n→ The posts that scare me most before publishing are usually the ones that move the most readers.\n\n→ Honesty in B2B is rarer than skill, which makes it more valuable.\n\nIf you're looking for the post to write that nobody else can write — write the one that's slightly uncomfortable. Be specific about the discomfort.\n\nThat's the moat.\n\n#BuildInPublic #ContentMarketing #Vulnerability"
+  },
+  {
+    "id": "post_155",
+    "month": "DECEMBER 2026 — Reflection + Vision",
+    "date": "Sat, Dec 19 2026",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Holiday note + what",
+    "body": "*'**s coming*\n\nLast post for ~2 weeks. Off until January 5.\n\nIf you're a B2B GTM operator, marketing automation specialist, RevOps, or anyone in this space reading this — thank you. The audience is what made this account work.\n\nSome house-keeping:\n\n→ I'll keep replying to DMs through the holidays, slower\n\n→ The frameworks index post (Recap 5/20) is the best place to land if you're new\n\n→ I'll repost the year-in-numbers when 2026 closes (early January)\n\nWhat's coming when I'm back:\n\n→ January 4 (Mon): year-end finals + the year-1 anniversary plan\n\n→ January 5 (Tue): the biggest post of January — '7 plays I'm betting on for 2027'\n\n→ Then the rest of January cadence at 5/week\n\nIf you celebrate something this season, enjoy it.\n\nIf you don't, enjoy something else.\n\nSee you in 2027.\n\n#BuildInPublic"
+  },
+  {
+    "id": "post_156",
+    "month": "DECEMBER 2026 — Reflection + Vision",
+    "date": "Mon, Dec 28 2026 [optional/light]",
+    "post_type": "PT-13",
+    "pillar": "P6 — Personal",
+    "topic": "Mid-holiday light post",
+    "body": "Quiet week between Christmas and New Year. Posting only because I have one specific thought worth sharing.\n\nIf you're an operator reading this in the gap-week — use it for one thing:\n\nMake a list of every tool, system, workflow, and decision you'd KEEP from 2026. Not what you'd change. What you'd keep.\n\nMost year-end planning is about what to change. The harder, more useful exercise is naming what's working — so you don't accidentally break it in next year's redesign.\n\nMy keep list for 2026:\n\n→ The Sunday review habit\n\n→ The 11 n8n flows (all of them — none are stale)\n\n→ The Clay research/action split\n\n→ The Friday EOW digest\n\n→ This LinkedIn account, even when it's hard\n\nWhat's on your keep list?\n\nBack to regular cadence Monday Jan 5.\n\n#BuildInPublic #YearEnd"
+  }
+]
