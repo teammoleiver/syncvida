@@ -511,12 +511,13 @@ const STYLE_CHIPS: { key: string; label: string }[] = [
   { key: "casual", label: "More casual" },
 ];
 
-function PostEditorModal({ post, state, onClose, onSetStatus, onSaveEdit, onReset }: {
+function PostEditorModal({ post, state, onClose, onSetStatus, onSaveEdit, onReset, onChangeDate }: {
   post: LinkedInPost; state?: PostState;
   onClose: () => void;
   onSetStatus: (s: PostStatus) => void;
   onSaveEdit: (body: string | null) => void;
   onReset: () => void;
+  onChangeDate: (date: string | null) => void;
 }) {
   const [body, setBody] = useState<string>(state?.edited_body ?? post.body);
   const [customText, setCustomText] = useState("");
@@ -565,6 +566,11 @@ function PostEditorModal({ post, state, onClose, onSetStatus, onSaveEdit, onRese
   }
 
   const pc = pillarColor(post.pillar);
+  const originalIso = parsePostDate(post.date);
+  const currentIso = effectiveDate(post, state);
+  const [dateDraft, setDateDraft] = useState<string>(currentIso ?? "");
+  useEffect(() => { setDateDraft(currentIso ?? ""); }, [currentIso]);
+  const dateChanged = dateDraft && dateDraft !== currentIso;
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -574,10 +580,37 @@ function PostEditorModal({ post, state, onClose, onSetStatus, onSaveEdit, onRese
           <div className="flex flex-wrap items-center gap-2">
             <span className={`text-[11px] px-1.5 py-0.5 rounded border ${pc.chip} ${pc.border} ${pc.text}`}>{post.pillar}</span>
             <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{post.post_type} · {POST_TYPE_LABELS[post.post_type] ?? "Post"}</span>
-            <span className="text-[11px] text-muted-foreground"><Calendar className="w-3 h-3 inline mr-1" />{post.date}</span>
+            <span className="text-[11px] text-muted-foreground">
+              <Calendar className="w-3 h-3 inline mr-1" />
+              {currentIso ? formatLongDate(currentIso) : post.date}
+              {currentIso && originalIso && currentIso !== originalIso && (
+                <span className="ml-1 text-amber-300">(moved from {formatLongDate(originalIso)})</span>
+              )}
+            </span>
           </div>
           <h2 className="text-lg font-semibold leading-tight">{post.topic}</h2>
           <p className="text-xs text-muted-foreground">{post.month}</p>
+          {/* Reschedule control */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Schedule on</span>
+            <input
+              type="date"
+              value={dateDraft}
+              onChange={(e) => setDateDraft(e.target.value)}
+              className="text-xs h-8 px-2 rounded-md border border-border bg-background"
+            />
+            <Button size="sm" variant="outline" disabled={!dateChanged}
+              onClick={() => onChangeDate(dateDraft)} className="h-8">
+              <Save className="w-3.5 h-3.5 mr-1" /> Update date
+            </Button>
+            {currentIso && originalIso && currentIso !== originalIso && (
+              <Button size="sm" variant="ghost" className="h-8 text-muted-foreground"
+                onClick={() => onChangeDate(null)}>
+                <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reset date
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Body editor */}
