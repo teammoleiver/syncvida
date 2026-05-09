@@ -87,7 +87,10 @@ async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: s
 }
 
 type Filter = {
-  search: string; status: "all" | PostStatus; pillar: string; month: string; hideRejected: boolean;
+  search: string; status: "all" | PostStatus; pillar: string;
+  year: number | null;            // selected year (null = all years)
+  monthIdx: number | null;        // 0..11, null = all months in year
+  hideRejected: boolean;
 };
 
 export default function LinkedInReview() {
@@ -96,8 +99,11 @@ export default function LinkedInReview() {
   const [loading, setLoading] = useState(true);
   const [seedUser, setSeedUser] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const nowYear = new Date().getFullYear();
+  const nowMonth = new Date().getMonth();
   const [filter, setFilter] = useState<Filter>({
-    search: "", status: "all", pillar: "all", month: "all", hideRejected: false,
+    search: "", status: "all", pillar: "all",
+    year: nowYear, monthIdx: null, hideRejected: false,
   });
 
   async function reload() {
@@ -109,8 +115,53 @@ export default function LinkedInReview() {
   }
   useEffect(() => { reload(); }, []);
 
-  const months = useMemo(() => Array.from(new Set(posts.map((p) => p.month))), [posts]);
   const pillars = useMemo(() => Array.from(new Set(posts.map((p) => p.pillar))), [posts]);
+
+  // All years that have at least one post (by effective date), plus current year + 1
+  const years = useMemo(() => {
+    const ys = new Set<number>();
+    for (const p of posts) {
+      const d = effectiveDate(p, states[p.id]);
+      if (d) ys.add(parseInt(d.slice(0, 4), 10));
+    }
+    ys.add(nowYear);
+    ys.add(nowYear + 1);
+    return Array.from(ys).sort((a, b) => a - b);
+  }, [posts, states, nowYear]);
+
+  // Auto-pick a year that has posts on first load if current year is empty
+  useEffect(() => {
+    if (!posts.length) return;
+    const hasInYear = posts.some((p) => {
+      const d = effectiveDate(p, states[p.id]);
+      return d && parseInt(d.slice(0, 4), 10) === filter.year;
+    });
+    if (!hasInYear) {
+      const firstWith = years.find((y) => posts.some((p) => {
+        const d = effectiveDate(p, states[p.id]);
+        return d && parseInt(d.slice(0, 4), 10) === y;
+      }));
+      if (firstWith && firstWith !== filter.year) setFilter((f) => ({ ...f, year: firstWith }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posts.length]);
+
+  // Counts per month for the active year
+  const monthCounts = useMemo(() => {
+    const counts = Array.from({ length: 12 }, () => ({ total: 0, kept: 0, rejected: 0 }));
+    for (const p of posts) {
+      const d = effectiveDate(p, states[p.id]);
+      if (!d) continue;
+      const y = parseInt(d.slice(0, 4), 10);
+      if (filter.year !== null && y !== filter.year) continue;
+      const m = parseInt(d.slice(5, 7), 10) - 1;
+      counts[m].total++;
+      const st = states[p.id]?.status;
+      if (st === "kept") counts[m].kept++;
+      else if (st === "rejected") counts[m].rejected++;
+    }
+    return counts;
+  }, [posts, states, filter.year]);
 
   const stats = useMemo(() => {
     let kept = 0, rejected = 0, edited = 0, pending = 0;
@@ -127,7 +178,13 @@ export default function LinkedInReview() {
   const filtered = useMemo(() => {
     const q = filter.search.trim().toLowerCase();
     return posts.filter((p) => {
-      if (filter.month !== "all" && p.month !== filter.month) return false;
+      const d = effectiveDate(p, states[p.id]);
+      if (filter.year !== null) {
+        if (!d || parseInt(d.slice(0, 4), 10) !== filter.year) return false;
+      }
+      if (filter.monthIdx !== null) {
+        if (!d || parseInt(d.slice(5, 7), 10) - 1 !== filter.monthIdx) return false;
+      }
       if (filter.pillar !== "all" && p.pillar !== filter.pillar) return false;
       const status = states[p.id]?.status ?? "pending";
       if (filter.status !== "all" && status !== filter.status) return false;
@@ -144,7 +201,7 @@ export default function LinkedInReview() {
       await upsertState(post_id, { status });
       const post = posts.find((p) => p.id === post_id);
       if (post) {
-        await syncToCalendar(post, status, prev?.edited_body ?? null);
+        await syncToCalendar(post, status, prev?.edited_body ?? null, isIsoDate(prev?.notes) ? prev!.notes : null);
         if (status === "kept") toast.success("Added to Calendar");
       }
     } catch (e: any) { toast.error(e?.message ?? "Save failed"); reload(); }
@@ -156,7 +213,27 @@ export default function LinkedInReview() {
       await upsertState(post_id, { edited_body });
       const post = posts.find((p) => p.id === post_id);
       const cur = states[post_id];
-      if (post && cur?.status === "kept") await syncToCalendar(post, "kept", edited_body);
+      if (post && cur?.status === "kept") await syncToCalendar(post, "kept", edited_body, isIsoDate(cur?.notes) ? cur!.notes : null);
+    } catch (e: any) { toast.error(e?.message ?? "Save failed"); reload(); }
+  }
+
+  async function changeDate(post_id: string, newDate: string | null) {
+    const prev = states[post_id];
+    const next: PostState = {
+      post_id,
+      status: prev?.status ?? "pending",
+      edited_body: prev?.edited_body ?? null,
+      notes: newDate, // store ISO date in notes (or null to clear override)
+      updated_at: new Date().toISOString(),
+    };
+    setStates((s) => ({ ...s, [post_id]: next }));
+    try {
+      await upsertState(post_id, { notes: newDate });
+      const post = posts.find((p) => p.id === post_id);
+      if (post && next.status === "kept") {
+        await syncToCalendar(post, "kept", next.edited_body, newDate);
+      }
+      toast.success(newDate ? `Moved to ${formatLongDate(newDate)}` : "Date reset");
     } catch (e: any) { toast.error(e?.message ?? "Save failed"); reload(); }
   }
 
