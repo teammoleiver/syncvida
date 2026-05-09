@@ -521,18 +521,28 @@ function TaskDetailPanel({
   const [titleValue, setTitleValue] = useState(task.title);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [newTag, setNewTag] = useState("");
+  const [savedSnapshot, setSavedSnapshot] = useState<Task>(initialTask);
+  const isDirty = JSON.stringify(task) !== JSON.stringify(savedSnapshot);
 
   // Push local changes to parent (used for actions that affect the board: column move, complete, delete)
-  const syncToParent = (t: Task) => onUpdate(t);
+  const syncToParent = (t: Task) => {
+    onUpdate(t);
+    setSavedSnapshot(t);
+  };
 
   // Local update — does NOT trigger parent re-render
   const update = (partial: Partial<Task>) => {
     setTask(prev => ({ ...prev, ...partial }));
   };
 
+  // Manual save — commits local changes without closing the panel
+  const saveChanges = () => {
+    syncToParent(task);
+  };
+
   // Sync on close so parent gets all accumulated changes
   const handleClose = () => {
-    syncToParent(task);
+    if (isDirty) syncToParent(task);
     onClose();
   };
 
@@ -935,7 +945,7 @@ function TaskDetailPanel({
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-border flex gap-2 shrink-0">
+      <div className="p-4 border-t border-border flex items-center gap-2 shrink-0">
         {task.status !== "done" && (
           <button
             onClick={completeTask}
@@ -957,8 +967,22 @@ function TaskDetailPanel({
           </button>
         )}
         <button
+          onClick={saveChanges}
+          disabled={!isDirty}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition ml-auto ${
+            isDirty
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "bg-secondary text-muted-foreground cursor-not-allowed opacity-60"
+          }`}
+          title={isDirty ? "Save your changes" : "No unsaved changes"}
+        >
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          {isDirty ? "Save changes" : "Saved"}
+          {isDirty && <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse" />}
+        </button>
+        <button
           onClick={() => { onDelete(task.id); handleClose(); }}
-          className="flex items-center gap-1.5 px-3 py-2 bg-red-500/10 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/20 transition ml-auto"
+          className="flex items-center gap-1.5 px-3 py-2 bg-red-500/10 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/20 transition"
         >
           <Trash2 className="w-3.5 h-3.5" /> Delete
         </button>
