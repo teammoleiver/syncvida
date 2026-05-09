@@ -406,6 +406,7 @@ export default function LinkedInReview() {
           onSetStatus={(s) => setStatus(editingPost.id, s)}
           onSaveEdit={(b) => saveEdit(editingPost.id, b)}
           onReset={() => { reset(editingPost.id); setEditingId(null); }}
+          onChangeDate={(d) => changeDate(editingPost.id, d)}
         />
       )}
     </div>
