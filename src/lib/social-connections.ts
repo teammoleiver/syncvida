@@ -72,3 +72,56 @@ export async function disconnectLinkedIn(): Promise<void> {
 export async function postToLinkedIn(args: { plan_id?: string; text?: string; image_url?: string }) {
   return callEdge<{ ok: true; post_urn: string | null; status: number }>("post-to-linkedin", args);
 }
+
+/* ─── Canva ─── */
+
+export async function getMyCanvaConnection(): Promise<SocialConnectionMeta | null> {
+  const all = await listMyConnections();
+  return all.find((c) => c.provider === "canva") ?? null;
+}
+
+export async function startCanvaAuth(redirectTo?: string): Promise<{ authorize_url: string; state: string }> {
+  return callEdge("canva-oauth-start", { redirect_to: redirectTo ?? null });
+}
+
+export async function exchangeCanvaCode(code: string, state: string) {
+  return callEdge<{ ok: true; provider: "canva"; provider_user_id: string; display_name: string | null; avatar_url: string | null; redirect_to: string | null }>(
+    "canva-oauth-exchange", { code, state },
+  );
+}
+
+export async function disconnectCanva(): Promise<void> {
+  await callEdge<{ ok: true }>("canva-disconnect", {});
+}
+
+export type CanvaTemplate = { id: string; title: string; view_url: string | null; thumbnail_url: string | null; dataset: any | null };
+export async function listCanvaTemplates(): Promise<CanvaTemplate[]> {
+  const r = await callEdge<{ items: CanvaTemplate[] }>("canva-list-templates", {});
+  return r.items ?? [];
+}
+
+export type CanvaDesign = { id: string; title: string; thumbnail_url: string | null; view_url: string | null; edit_url: string | null; updated_at?: string };
+export async function listCanvaDesigns(q?: string): Promise<CanvaDesign[]> {
+  const r = await callEdge<{ items: CanvaDesign[] }>("canva-list-designs", { q });
+  return r.items ?? [];
+}
+
+export async function createCanvaDesign(args: {
+  plan_id?: string;
+  kind: "blank" | "from_design" | "autofill";
+  source_design_id?: string;
+  brand_template_id?: string;
+  fields?: Record<string, any>;
+  design_type?: string;
+  title?: string;
+}) {
+  return callEdge<{ design_id: string | null; edit_url: string | null; view_url: string | null }>(
+    "canva-create-design", args,
+  );
+}
+
+export async function exportCanvaDesign(args: { design_id: string; plan_id?: string; format?: "png" | "pdf" }) {
+  return callEdge<{ ok: true; image_url: string; design_id: string; format: string }>(
+    "canva-export-design", args,
+  );
+}

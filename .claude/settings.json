@@ -14,7 +14,10 @@
       "Bash(node -e \"const fs=require\\('fs'\\);for \\(const f of ['post-to-linkedin','dispatch-due-posts']\\) {const p='e:/GitHub/Syncvida/syncvida/supabase/functions/'+f+'/index.ts';const s=fs.readFileSync\\(p,'utf8'\\);fs.writeFileSync\\('e:/tmp/fn2-'+f+'.json',JSON.stringify\\({content:s}\\)\\);console.log\\(f,s.length\\);}\")",
       "mcp__claude_ai_Supabase__get_logs",
       "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('e:/GitHub/Syncvida/syncvida/supabase/functions/post-to-linkedin/index.ts','utf8'\\);fs.writeFileSync\\('e:/tmp/fn3-post-to-linkedin.json',JSON.stringify\\({content:s}\\)\\);console.log\\(s.length\\);\")",
-      "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('e:/GitHub/Syncvida/syncvida/supabase/functions/post-to-linkedin/index.ts','utf8'\\);fs.writeFileSync\\('e:/tmp/fn4-post-to-linkedin.json',JSON.stringify\\({content:s}\\)\\);console.log\\(s.length\\);\")"
+      "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('e:/GitHub/Syncvida/syncvida/supabase/functions/post-to-linkedin/index.ts','utf8'\\);fs.writeFileSync\\('e:/tmp/fn4-post-to-linkedin.json',JSON.stringify\\({content:s}\\)\\);console.log\\(s.length\\);\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('e:/GitHub/Syncvida/syncvida/supabase/functions/dispatch-due-posts/index.ts','utf8'\\);fs.writeFileSync\\('e:/tmp/fn5-dispatch.json',JSON.stringify\\({content:s}\\)\\);console.log\\(s.length\\);\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);for \\(const f of ['canva-oauth-start','canva-oauth-exchange','canva-disconnect','canva-list-templates','canva-list-designs','canva-create-design','canva-export-design']\\) {const p='e:/GitHub/Syncvida/syncvida/supabase/functions/'+f+'/index.ts';const s=fs.readFileSync\\(p,'utf8'\\);fs.writeFileSync\\('e:/tmp/cv-'+f+'.json',JSON.stringify\\({content:s}\\)\\);console.log\\(f,s.length\\);}\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('e:/GitHub/Syncvida/syncvida/supabase/functions/canva-create-design/index.ts','utf8'\\);fs.writeFileSync\\('e:/tmp/cv2-canva-create-design.json',JSON.stringify\\({content:s}\\)\\);console.log\\(s.length\\);\")"
     ]
   }
 }

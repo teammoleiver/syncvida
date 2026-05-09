@@ -108,23 +108,34 @@ Deno.serve(async (req) => {
   if (single_plan_id) {
     q = q.eq("id", single_plan_id).eq("user_id", userScope!);
   } else {
-    // cron mode: scheduled posts whose date+time <= now
+    // Cron mode: scheduled posts whose moment has arrived. We check both
+    // the new `scheduled_at` (timezone-aware UTC timestamp) and the legacy
+    // date+time pair. Filter loosely here; the per-row check below confirms.
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
-    const hhmm = now.toISOString().slice(11, 19);
-    q = q.eq("status", "scheduled").lte("scheduled_date", today);
+    q = q.eq("status", "scheduled").or(
+      `scheduled_at.lte.${now.toISOString()},scheduled_date.lte.${today}`,
+    );
   }
   const { data: posts, error } = await q;
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   const results: any[] = [];
   for (const post of posts ?? []) {
-    // Cron-only time filter
-    if (!single_plan_id && post.scheduled_time) {
+    // Cron-only time filter — exact moment check.
+    if (!single_plan_id) {
       const now = new Date();
-      const [h, m] = String(post.scheduled_time).split(":").map(Number);
-      const due = new Date(`${post.scheduled_date}T${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:00Z`);
-      if (due.getTime() > now.getTime()) continue;
+      if (post.scheduled_at) {
+        if (new Date(post.scheduled_at).getTime() > now.getTime()) continue;
+      } else if (post.scheduled_time) {
+        // Legacy fallback: assume scheduled_time is in user's local time.
+        // We don't have the user's timezone, so we treat it as UTC (the old
+        // behavior). Users should re-save their scheduled posts to get the
+        // new tz-aware behavior.
+        const [h, m] = String(post.scheduled_time).split(":").map(Number);
+        const due = new Date(`${post.scheduled_date}T${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:00Z`);
+        if (due.getTime() > now.getTime()) continue;
+      }
     }
 
     const platforms: string[] = (post.platforms?.length ? post.platforms : (post.platforms ?? [])) as string[];

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon, Share2 } from "lucide-react";
+import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon, Share2, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { toast } from "sonner";
 import { listContentPlan, createPlannerPost, updatePlanEntry, deletePlanEntry, pushSinglePost, PLANNER_PLATFORMS, generatePostImage, getWriterSettings } from "@/lib/social-queries";
 import { generateDesignFromPrompt } from "@/lib/designer-queries";
-import { getMyLinkedInConnection, postToLinkedIn, type SocialConnectionMeta } from "@/lib/social-connections";
+import { getMyLinkedInConnection, postToLinkedIn, getMyCanvaConnection, exportCanvaDesign, type SocialConnectionMeta } from "@/lib/social-connections";
+import { CanvaDesignPicker } from "@/components/CanvaDesignPicker";
 import { supabase } from "@/integrations/supabase/client";
 import { getProfile } from "@/lib/supabase-queries";
 import LinkedInReview from "./LinkedInReview";
@@ -33,6 +34,34 @@ function statusColor(s: string) {
     : s === "scheduled" ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30"
     : s === "failed" ? "bg-destructive/15 text-destructive border-destructive/30"
     : "bg-muted text-muted-foreground border-border";
+}
+
+function formatScheduled(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    weekday: "short", month: "short", day: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function relativeTime(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso).getTime();
+  if (isNaN(d)) return null;
+  const ms = d - Date.now();
+  const abs = Math.abs(ms);
+  const s = Math.round(abs / 1000);
+  const m = Math.round(s / 60);
+  const h = Math.round(m / 60);
+  const days = Math.round(h / 24);
+  let label: string;
+  if (s < 60) label = `${s}s`;
+  else if (m < 60) label = `${m}m`;
+  else if (h < 24) label = `${h}h`;
+  else label = `${days}d`;
+  return ms > 0 ? `in ${label}` : `${label} ago`;
 }
 
 // Brand colors for posts on the calendar
@@ -158,20 +187,31 @@ export default function ContentPlannerPage() {
 function EntryChip({ e, onClick }: { e: any; onClick: () => void }) {
   const platform = primaryPlatform(e);
   const reviewSourced = isReviewSourced(e);
+  const posted = e?.status === "posted";
+  const failed = e?.status === "failed";
+
   if (platform) {
     const c = PLATFORM_COLORS[platform];
+    // Posted = muted/strikethrough so it visually recedes once it's done.
+    const style: React.CSSProperties = posted
+      ? { background: `${c.bg}55`, color: c.text, borderColor: `${c.border}80`, opacity: 0.65 }
+      : { background: c.bg, color: c.text, borderColor: c.border };
     return (
       <button onClick={onClick}
-        className="w-full text-left px-1.5 py-1 rounded text-[11px] border truncate hover:opacity-90"
-        style={{ background: c.bg, color: c.text, borderColor: c.border }}
-        title={`${platform}${reviewSourced ? " · from review" : ""}`}>
-        {reviewSourced && <span className="mr-1">✓</span>}
+        className={`w-full text-left px-1.5 py-1 rounded text-[11px] border truncate hover:opacity-90 ${posted ? "line-through" : ""} ${failed ? "ring-1 ring-red-500" : ""}`}
+        style={style}
+        title={`${platform}${reviewSourced ? " · from review" : ""}${posted ? " · posted" : failed ? " · failed" : ""}`}>
+        {posted ? <span className="mr-1 no-underline">✓</span>
+          : failed ? <span className="mr-1 text-red-600">!</span>
+          : reviewSourced ? <span className="mr-1">✓</span> : null}
         <span className="font-medium">{e.scheduled_time?.slice(0, 5) ?? ""}</span> {e.hook}
       </button>
     );
   }
   return (
-    <button onClick={onClick} className={`w-full text-left px-1.5 py-1 rounded text-[11px] border truncate hover:opacity-90 ${statusColor(e.status)}`}>
+    <button onClick={onClick}
+      className={`w-full text-left px-1.5 py-1 rounded text-[11px] border truncate hover:opacity-90 ${statusColor(e.status)} ${posted ? "line-through opacity-60" : ""}`}>
+      {posted ? <span className="mr-1 no-underline">✓ </span> : null}
       <span className="font-medium">{e.scheduled_time?.slice(0, 5) ?? ""}</span> {e.hook}
     </button>
   );
@@ -246,13 +286,23 @@ function DayView({ cursor, grouped, onPick, onOpen }: any) {
       </div>
       {items.length === 0 ? <p className="text-sm text-muted-foreground">No posts scheduled.</p> :
         <div className="space-y-2">
-          {items.map((e: any) => (
-            <button key={e.id} onClick={() => onOpen(e)} className={`w-full text-left p-3 rounded-lg border ${statusColor(e.status)}`}>
-              <div className="text-xs">{e.scheduled_time?.slice(0,5) ?? "no time"} · {(e.platforms ?? []).join(", ") || "no platform"}</div>
-              <div className="font-medium mt-1">{e.hook}</div>
-              {e.body && <div className="text-xs opacity-80 mt-1 line-clamp-2">{e.body}</div>}
-            </button>
-          ))}
+          {items.map((e: any) => {
+            const posted = e?.status === "posted";
+            return (
+              <button key={e.id} onClick={() => onOpen(e)}
+                className={`w-full text-left p-3 rounded-lg border ${statusColor(e.status)} ${posted ? "opacity-60" : ""}`}>
+                <div className="text-xs flex items-center gap-1">
+                  {posted && <span className="text-emerald-500">✓ posted</span>}
+                  {posted && <span className="opacity-50">·</span>}
+                  <span>{e.scheduled_time?.slice(0,5) ?? "no time"}</span>
+                  <span>·</span>
+                  <span>{(e.platforms ?? []).join(", ") || "no platform"}</span>
+                </div>
+                <div className={`font-medium mt-1 ${posted ? "line-through" : ""}`}>{e.hook}</div>
+                {e.body && <div className={`text-xs opacity-80 mt-1 line-clamp-2 ${posted ? "line-through" : ""}`}>{e.body}</div>}
+              </button>
+            );
+          })}
         </div>}
     </Card>
   );
@@ -262,9 +312,11 @@ function ListView({ entries, onOpen }: { entries: any[]; onOpen: (e: any) => voi
   if (!entries.length) return <Card className="p-8 text-center text-muted-foreground">No posts yet.</Card>;
   return (
     <div className="space-y-2">
-      {entries.map((e) => (
+      {entries.map((e) => {
+        const posted = e?.status === "posted";
+        return (
         <button key={e.id} onClick={() => onOpen(e)} className="w-full text-left">
-          <Card className="p-4 hover:border-primary/40 transition-colors">
+          <Card className={`p-4 hover:border-primary/40 transition-colors ${posted ? "opacity-60 bg-muted/20" : ""}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5 flex-wrap">
@@ -275,14 +327,15 @@ function ListView({ entries, onOpen }: { entries: any[]; onOpen: (e: any) => voi
                     return Ic ? <Ic key={p} className="w-3 h-3" /> : null;
                   })}
                 </div>
-                <div className="font-medium text-sm">{e.hook}</div>
-                {e.body && <p className="text-xs text-muted-foreground mt-1 line-clamp-2 whitespace-pre-wrap">{e.body}</p>}
+                <div className={`font-medium text-sm ${posted ? "line-through" : ""}`}>{e.hook}</div>
+                {e.body && <p className={`text-xs text-muted-foreground mt-1 line-clamp-2 whitespace-pre-wrap ${posted ? "line-through" : ""}`}>{e.body}</p>}
               </div>
-              {e.image_url && <img src={e.image_url} alt="" className="w-16 h-16 object-cover rounded-md" />}
+              {e.image_url && <img src={e.image_url} alt="" className={`w-16 h-16 object-cover rounded-md ${posted ? "grayscale" : ""}`} />}
             </div>
           </Card>
         </button>
-      ))}
+      );
+      })}
     </div>
   );
 }
@@ -299,6 +352,9 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
   const [linkedDesign, setLinkedDesign] = useState<{ id: string; thumbnail_url: string | null } | null>(null);
   const [linkedinConn, setLinkedinConn] = useState<SocialConnectionMeta | null>(null);
   const [postingToLinkedIn, setPostingToLinkedIn] = useState(false);
+  const [canvaConn, setCanvaConn] = useState<SocialConnectionMeta | null>(null);
+  const [canvaPickerOpen, setCanvaPickerOpen] = useState(false);
+  const [pullingFromCanva, setPullingFromCanva] = useState(false);
   const navigate = useNavigate();
   const [figmaBrief, setFigmaBrief] = useState<string | null>(entry?.figma_brief ?? null);
   const [me, setMe] = useState<{ name?: string; linkedin_url?: string; style?: string } | null>(null);
@@ -322,6 +378,21 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
   useEffect(() => {
     getMyLinkedInConnection().then(setLinkedinConn).catch(() => setLinkedinConn(null));
   }, []);
+  // Canva connection (drives the "Design in Canva" + "Pull from Canva" buttons)
+  useEffect(() => {
+    getMyCanvaConnection().then(setCanvaConn).catch(() => setCanvaConn(null));
+  }, []);
+
+  async function pullFromCanva() {
+    if (!entry?.canva_design_id) { toast.error("No Canva design linked yet"); return; }
+    setPullingFromCanva(true);
+    try {
+      const r = await exportCanvaDesign({ design_id: entry.canva_design_id, plan_id: entry.id, format: "png" });
+      setForm({ ...form, image_url: r.image_url });
+      toast.success("Pulled latest export from Canva");
+    } catch (e: any) { toast.error(e?.message ?? "Pull from Canva failed"); }
+    finally { setPullingFromCanva(false); }
+  }
 
   async function postToLinkedInNow() {
     if (!entry?.id) { toast.error("Save the post first"); return; }
@@ -356,20 +427,48 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
     setForm({ ...form, platforms: cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p] });
   }
 
-  async function save() {
+  // Combine the user's local date + time into a UTC ISO timestamp so the
+  // dispatcher fires at the right moment regardless of server timezone.
+  function localDateTimeToUtcIso(date: string, time: string): string | null {
+    if (!date) return null;
+    const t = time && /^\d{2}:\d{2}/.test(time) ? time.slice(0, 5) : "09:00";
+    const local = new Date(`${date}T${t}:00`);
+    if (isNaN(local.getTime())) return null;
+    return local.toISOString();
+  }
+
+  async function save(overrideStatus?: string) {
     if (!form.hook?.trim()) { toast.error("Hook is required"); return; }
     setBusy(true);
     try {
+      const status = overrideStatus ?? form.status;
+      const scheduled_at = (status === "scheduled" || form.scheduled_date)
+        ? localDateTimeToUtcIso(form.scheduled_date, form.scheduled_time)
+        : null;
       const payload: any = {
         hook: form.hook, body: form.body || null, image_url: form.image_url || null,
         scheduled_date: form.scheduled_date || null, scheduled_time: form.scheduled_time || null,
-        platforms: form.platforms ?? [], status: form.status,
+        scheduled_at,
+        platforms: form.platforms ?? [], status,
         figma_brief: figmaBrief ?? form.figma_brief ?? null,
       };
       if (isNew) await createPlannerPost(payload);
       else await updatePlanEntry(entry.id, payload);
-      toast.success("Saved"); onSaved();
+      if (overrideStatus === "scheduled") toast.success(`Scheduled for ${formatScheduled(scheduled_at)}`);
+      else toast.success("Saved");
+      onSaved();
     } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
+  }
+
+  function scheduleNow() {
+    if (!form.scheduled_date) { toast.error("Pick a date first"); return; }
+    if (!form.scheduled_time) { toast.error("Pick a time first"); return; }
+    if (!(form.platforms ?? []).length) { toast.error("Pick at least one platform"); return; }
+    const utc = localDateTimeToUtcIso(form.scheduled_date, form.scheduled_time);
+    if (!utc) { toast.error("Invalid date/time"); return; }
+    if (new Date(utc).getTime() <= Date.now()) { toast.error("Pick a future date/time"); return; }
+    setForm({ ...form, status: "scheduled" });
+    save("scheduled");
   }
 
   function useDesignAsImage() {
@@ -523,7 +622,34 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
                   <Palette className="w-4 h-4 mr-1" /> Use Studio design as image
                 </Button>
               )}
+              {canvaConn && entry?.id && (
+                <Button type="button" size="sm" variant="outline"
+                  className="border-purple-500/40 text-purple-300"
+                  onClick={() => setCanvaPickerOpen(true)}>
+                  <Palette className="w-4 h-4 mr-1" /> Design in Canva
+                </Button>
+              )}
+              {canvaConn && entry?.canva_design_id && (
+                <Button type="button" size="sm" variant="outline"
+                  className="border-purple-500/40 text-purple-300"
+                  onClick={pullFromCanva} disabled={pullingFromCanva}>
+                  {pullingFromCanva ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Palette className="w-4 h-4 mr-1" />}
+                  Pull from Canva
+                </Button>
+              )}
             </div>
+            {entry?.canva_design_id && (
+              <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                <Palette className="w-3 h-3" />
+                Linked Canva design:
+                <code className="text-[10px]">{entry.canva_design_id.slice(0, 12)}…</code>
+                {entry.canva_design_url && (
+                  <a href={entry.canva_design_url} target="_blank" rel="noreferrer" className="underline text-primary">
+                    open in Canva
+                  </a>
+                )}
+              </div>
+            )}
             <p className="text-[11px] text-muted-foreground">
               "Generate with AI" → OpenAI <code>gpt-image-1</code> with your style prompt (Social Studio → Settings).
               "Design in Figma" → full prompt with your name + LinkedIn, ready to paste into Figma AI.
@@ -565,6 +691,25 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
               </Select>
             </div>
           </div>
+          {form.scheduled_date && form.scheduled_time && (
+            <div className={`text-[11px] flex items-center gap-1.5 px-2.5 py-2 rounded border ${form.status === "scheduled" ? "border-blue-500/40 bg-blue-500/10 text-blue-300" : "border-border text-muted-foreground"}`}>
+              <CalendarClock className="w-3.5 h-3.5" />
+              {(() => {
+                const utc = localDateTimeToUtcIso(form.scheduled_date, form.scheduled_time);
+                if (!utc) return "Pick a valid date and time";
+                const past = new Date(utc).getTime() <= Date.now();
+                const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                if (form.status === "scheduled") {
+                  return past
+                    ? <>Was set to fire <strong>{relativeTime(utc)}</strong> at {formatScheduled(utc)} ({tz})</>
+                    : <>Will fire <strong>{relativeTime(utc)}</strong> at {formatScheduled(utc)} ({tz})</>;
+                }
+                return past
+                  ? <>Date/time is in the past — pick a future moment to schedule</>
+                  : <>Click <strong>Schedule</strong> below to fire {relativeTime(utc)} at {formatScheduled(utc)} ({tz})</>;
+              })()}
+            </div>
+          )}
           <div>
             <Label>Platforms</Label>
             <div className="flex flex-wrap gap-2 mt-1">
@@ -607,8 +752,27 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
               Post to LinkedIn
             </Button>
           )}
-          <Button onClick={save} disabled={busy}>{busy && <Loader2 className="w-4 h-4 mr-1 animate-spin" />} Save</Button>
+          <Button variant="outline" onClick={scheduleNow} disabled={busy}
+            className="border-blue-500/40 text-blue-300 hover:bg-blue-500/10"
+            title="Save and queue this post to fire at the chosen date/time">
+            <CalendarClock className="w-4 h-4 mr-1" /> Schedule
+          </Button>
+          <Button onClick={() => save()} disabled={busy}>{busy && <Loader2 className="w-4 h-4 mr-1 animate-spin" />} Save</Button>
         </DialogFooter>
+
+        {canvaConn && entry?.id && (
+          <CanvaDesignPicker
+            open={canvaPickerOpen}
+            onClose={() => setCanvaPickerOpen(false)}
+            planId={entry.id}
+            hook={form.hook ?? ""}
+            body={form.body ?? ""}
+            onLinked={({ design_id, edit_url }) => {
+              setForm({ ...form, canva_design_id: design_id, canva_design_url: edit_url ?? form.canva_design_url });
+              onSaved();
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

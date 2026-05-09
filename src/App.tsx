@@ -39,6 +39,7 @@ import DesignEditor from "./pages/designer/DesignEditor";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import LinkedInCallback from "./pages/oauth/LinkedInCallback";
+import CanvaCallback from "./pages/oauth/CanvaCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -98,6 +99,7 @@ function AppRoutes() {
       <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/oauth/linkedin/callback" element={<ProtectedRoute><LinkedInCallback /></ProtectedRoute>} />
+      <Route path="/oauth/canva/callback" element={<ProtectedRoute><CanvaCallback /></ProtectedRoute>} />
       <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
       <Route path="/health" element={<ProtectedRoute><AppLayout><HealthRecords /></AppLayout></ProtectedRoute>} />
       <Route path="/fasting" element={<ProtectedRoute><AppLayout><FastingModule /></AppLayout></ProtectedRoute>} />
