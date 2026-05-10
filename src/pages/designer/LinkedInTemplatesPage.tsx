@@ -114,9 +114,12 @@ export default function LinkedInTemplatesPage() {
 
   // Re-run logo detection whenever the relevant text changes
   const watchedText = useMemo(() => {
-    const cheat = `${cheatData.title} ${cheatData.subtitle ?? ""} ${cheatData.sections.map((s) => `${s.title} ${s.subtitle ?? ""} ${(s.items ?? []).join(" ")}`).join(" ")}`;
-    const carousel = carouselData.slides.map((s) => `${s.title} ${s.body ?? ""}`).join(" ");
-    const square = `${squareData.statement} ${squareData.support ?? ""}`;
+    const cheatSections = (cheatData?.sections ?? []).map(
+      (s) => `${s.title ?? ""} ${s.subtitle ?? ""} ${(s.items ?? []).join(" ")}`
+    ).join(" ");
+    const cheat = `${cheatData?.title ?? ""} ${cheatData?.subtitle ?? ""} ${cheatSections}`;
+    const carousel = (carouselData?.slides ?? []).map((s) => `${s.title ?? ""} ${s.body ?? ""}`).join(" ");
+    const square = `${squareData?.statement ?? ""} ${squareData?.support ?? ""}`;
     const planText = planMeta ? `${planMeta.hook ?? ""} ${planMeta.body ?? ""}` : "";
     return [cheat, carousel, square, planText].join(" ");
   }, [cheatData, carouselData, squareData, planMeta]);
