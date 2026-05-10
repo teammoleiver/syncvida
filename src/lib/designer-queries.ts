@@ -82,10 +82,11 @@ export type Design = {
 };
 
 export type DesignAsset = {
-  id: string; user_id: string; kind: "upload" | "ai_generated" | "ai_edited";
+  id: string; user_id: string; kind: "upload" | "ai_generated" | "ai_edited" | "url_import" | "bg_removed";
   storage_path: string; public_url: string; prompt: string | null;
   parent_asset_id: string | null; width: number | null; height: number | null;
   mime: string | null; created_at: string;
+  name?: string | null;
 };
 
 export type DesignTemplate = {
@@ -184,7 +185,25 @@ export async function uploadAsset(file: File): Promise<DesignAsset> {
   return data as any;
 }
 export async function generateAssetImage(prompt: string, aspect: "1:1" | "4:5" | "9:16" = "1:1") {
-  return supabase.functions.invoke("generate-design-image", { body: { prompt, aspect } });
+  return generateAssetImageWithRefs(prompt, aspect, []);
+}
+export async function generateAssetImageWithRefs(prompt: string, aspect: "1:1" | "4:5" | "9:16", reference_asset_ids: string[]) {
+  return supabase.functions.invoke("generate-design-image", { body: { prompt, aspect, reference_asset_ids } });
+}
+export async function importAssetFromUrl(url: string, name?: string) {
+  return supabase.functions.invoke("import-asset-from-url", { body: { url, name } });
+}
+export async function suggestAssetName(asset_id: string) {
+  return supabase.functions.invoke("suggest-asset-name", { body: { asset_id } });
+}
+export async function removeAssetBackground(asset_id: string) {
+  return supabase.functions.invoke("remove-asset-background", { body: { asset_id } });
+}
+export async function renameAsset(asset_id: string, name: string) {
+  const { data, error } = await supabase.from("design_assets" as any)
+    .update({ name } as any).eq("id", asset_id).select().single();
+  if (error) throw error;
+  return data as any;
 }
 export async function editAssetImage(asset_id: string, prompt: string) {
   return supabase.functions.invoke("edit-design-image", { body: { asset_id, prompt } });

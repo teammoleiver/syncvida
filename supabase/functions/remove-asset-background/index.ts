@@ -14,37 +14,24 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(auth.replace("Bearer ", ""));
     if (!user) return json({ error: "Unauthorized" }, 401);
 
-    const { prompt, aspect, reference_asset_ids } = await req.json();
-    if (typeof prompt !== "string" || prompt.trim().length < 3) return json({ error: "Prompt required" }, 400);
-    const aspectStr = ["1:1", "4:5", "9:16"].includes(aspect) ? aspect : "1:1";
+    const { asset_id } = await req.json();
+    if (typeof asset_id !== "string") return json({ error: "asset_id required" }, 400);
+
+    const { data: src } = await supabase.from("design_assets").select("*").eq("id", asset_id).eq("user_id", user.id).maybeSingle();
+    if (!src) return json({ error: "Asset not found" }, 404);
 
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) return json({ error: "LOVABLE_API_KEY missing" }, 500);
-
-    // Optional: include reference images so the model can incorporate logos / personal photos.
-    let refUrls: string[] = [];
-    if (Array.isArray(reference_asset_ids) && reference_asset_ids.length > 0) {
-      const ids = reference_asset_ids.filter((x: unknown): x is string => typeof x === "string").slice(0, 6);
-      if (ids.length > 0) {
-        const { data: refs } = await supabase.from("design_assets")
-          .select("public_url").in("id", ids).eq("user_id", user.id);
-        refUrls = (refs ?? []).map((r: any) => r.public_url).filter(Boolean);
-      }
-    }
-
-    const userContent: any = refUrls.length === 0
-      ? `Aspect ratio ${aspectStr}. ${prompt}`
-      : [
-          { type: "text", text: `Aspect ratio ${aspectStr}. Use the attached image(s) as references — incorporate their logos, brand marks, products or the person shown faithfully. ${prompt}` },
-          ...refUrls.map((url) => ({ type: "image_url", image_url: { url } })),
-        ];
 
     const ai = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-image",
-        messages: [{ role: "user", content: userContent }],
+        messages: [{ role: "user", content: [
+          { type: "text", text: "Remove the background completely. Keep only the main subject. Return a clean PNG with a fully transparent background." },
+          { type: "image_url", image_url: { url: src.public_url } },
+        ] }],
         modalities: ["image", "text"],
       }),
     });
@@ -60,13 +47,14 @@ Deno.serve(async (req) => {
     const mime = meta.match(/data:([^;]+);/)?.[1] ?? "image/png";
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
     const ext = mime.split("/")[1] ?? "png";
-    const path = `${user.id}/ai-${crypto.randomUUID()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("design-assets").upload(path, bytes, { contentType: mime, upsert: false });
+    const path = `${user.id}/bg-${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("design-assets").upload(path, bytes, { contentType: mime });
     if (upErr) return json({ error: upErr.message }, 500);
-    const { data: signed } = supabase.storage.from("design-assets").getPublicUrl(path);
+    const { data: pub } = supabase.storage.from("design-assets").getPublicUrl(path);
+    const newName = src.name ? `${src.name} (no bg)` : null;
     const { data: row, error: insErr } = await supabase.from("design_assets").insert({
-      user_id: user.id, kind: "ai_generated", storage_path: path, public_url: signed?.publicUrl ?? "", prompt, mime,
-      parent_asset_id: refUrls.length > 0 && Array.isArray(reference_asset_ids) ? reference_asset_ids[0] : null,
+      user_id: user.id, kind: "bg_removed", storage_path: path, public_url: pub?.publicUrl ?? "",
+      parent_asset_id: src.id, mime, name: newName, prompt: "Remove background",
     }).select().single();
     if (insErr) return json({ error: insErr.message }, 500);
     return json({ asset: row });

@@ -1,18 +1,23 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Upload, Sparkles, Wand2, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Upload, Sparkles, Wand2, Loader2, Trash2, LinkIcon, Pencil, Eraser, Check, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { listAssets, uploadAsset, generateAssetImage, editAssetImage, deleteAsset, type DesignAsset } from "@/lib/designer-queries";
+import {
+  listAssets, uploadAsset, generateAssetImageWithRefs, editAssetImage, deleteAsset,
+  importAssetFromUrl, suggestAssetName, removeAssetBackground, renameAsset,
+  type DesignAsset,
+} from "@/lib/designer-queries";
 
 export default function AssetLibraryPage() {
   const [assets, setAssets] = useState<DesignAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [genOpen, setGenOpen] = useState(false);
+  const [urlOpen, setUrlOpen] = useState(false);
   const [editing, setEditing] = useState<DesignAsset | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -31,65 +36,161 @@ export default function AssetLibraryPage() {
           <Button asChild variant="ghost" size="sm"><Link to="/designer"><ArrowLeft className="w-4 h-4 mr-1" /> Back</Link></Button>
           <h1 className="font-display text-2xl font-bold">Asset library</h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <input ref={fileRef} type="file" accept="image/*" className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.currentTarget.value = ""; }} />
           <Button variant="outline" onClick={() => fileRef.current?.click()}><Upload className="w-4 h-4 mr-1" /> Upload</Button>
+          <Button variant="outline" onClick={() => setUrlOpen(true)}><LinkIcon className="w-4 h-4 mr-1" /> Add by URL</Button>
           <Button onClick={() => setGenOpen(true)}><Sparkles className="w-4 h-4 mr-1" /> Generate with AI</Button>
         </div>
       </header>
+      <p className="text-xs text-muted-foreground -mt-2">
+        Tip: assets here can be used as references when you generate new images — perfect for logos, brand marks, or your personal photo.
+      </p>
 
       {loading ? <p className="text-muted-foreground">Loading…</p>
         : assets.length === 0 ? (
-          <Card className="p-12 text-center text-muted-foreground">No assets yet.</Card>
+          <Card className="p-12 text-center text-muted-foreground">
+            No assets yet. Upload a file, paste an image URL, or generate one with AI.
+          </Card>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {assets.map((a) => (
-              <Card key={a.id} className="overflow-hidden group relative">
-                <img src={a.public_url} alt="" className="w-full aspect-square object-cover" />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 flex justify-between">
-                  <Button size="sm" variant="secondary" onClick={() => setEditing(a)}><Wand2 className="w-3.5 h-3.5 mr-1" /> Edit</Button>
-                  <Button size="icon" variant="destructive" onClick={async () => { if (confirm("Delete?")) { await deleteAsset(a); reload(); } }}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-                <div className="absolute top-1 left-1 text-[10px] uppercase bg-background/80 px-1.5 py-0.5 rounded">{a.kind.replace("_", " ")}</div>
-              </Card>
+              <AssetCard key={a.id} asset={a} onEdit={() => setEditing(a)} onChanged={reload} />
             ))}
           </div>
         )}
 
-      <GenerateDialog open={genOpen} onClose={() => setGenOpen(false)} onCreated={reload} />
+      <GenerateDialog open={genOpen} onClose={() => setGenOpen(false)} onCreated={reload} assets={assets} />
+      <UrlImportDialog open={urlOpen} onClose={() => setUrlOpen(false)} onCreated={reload} />
       <EditDialog asset={editing} onClose={() => setEditing(null)} onSaved={reload} />
     </section>
   );
 }
 
-function GenerateDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
-  const [prompt, setPrompt] = useState("");
-  const [aspect, setAspect] = useState<"1:1" | "4:5" | "9:16">("1:1");
+function AssetCard({ asset, onEdit, onChanged }: { asset: DesignAsset; onEdit: () => void; onChanged: () => void }) {
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState(asset.name ?? "");
+  const [busy, setBusy] = useState(false);
+
+  async function saveName() {
+    setBusy(true);
+    try { await renameAsset(asset.id, name.trim()); toast.success("Renamed"); setRenaming(false); onChanged(); }
+    catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
+  }
+  async function aiName() {
+    setBusy(true);
+    try {
+      const { data, error } = await suggestAssetName(asset.id);
+      if (error) throw error;
+      const d = data as any; if (d?.error) throw new Error(d.error);
+      toast.success(`Named: ${d.name}`); onChanged();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
+  }
+
+  return (
+    <Card className="overflow-hidden group relative">
+      <img src={asset.public_url} alt={asset.name ?? ""} className="w-full aspect-square object-cover bg-muted" />
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 flex justify-between gap-1">
+        <Button size="sm" variant="secondary" onClick={onEdit}><Wand2 className="w-3.5 h-3.5 mr-1" /> Edit</Button>
+        <Button size="icon" variant="destructive" onClick={async () => { if (confirm("Delete?")) { await deleteAsset(asset); onChanged(); } }}>
+          <Trash2 className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+      <div className="absolute top-1 left-1 text-[10px] uppercase bg-background/80 px-1.5 py-0.5 rounded">{asset.kind.replace("_", " ")}</div>
+      <div className="p-2 border-t border-border">
+        {renaming ? (
+          <div className="flex items-center gap-1">
+            <Input value={name} onChange={(e) => setName(e.target.value)} className="h-7 text-xs" autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") setRenaming(false); }} />
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={saveName} disabled={busy}><Check className="w-3.5 h-3.5" /></Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setRenaming(false); setName(asset.name ?? ""); }}><X className="w-3.5 h-3.5" /></Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-1">
+            <button className="text-xs truncate text-left flex-1 hover:underline" title={asset.name ?? "Untitled"}
+              onClick={() => { setName(asset.name ?? ""); setRenaming(true); }}>
+              {asset.name || <span className="text-muted-foreground italic">Untitled</span>}
+            </button>
+            <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => { setName(asset.name ?? ""); setRenaming(true); }}>
+              <Pencil className="w-3 h-3" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" title="AI name" onClick={aiName} disabled={busy}>
+              {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+            </Button>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function UrlImportDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
+  const [url, setUrl] = useState("");
+  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function go() {
-    if (!prompt.trim()) return;
+    if (!url.trim()) return;
     setBusy(true);
     try {
-      const { data, error } = await generateAssetImage(prompt, aspect);
+      const { data, error } = await importAssetFromUrl(url.trim(), name.trim() || undefined);
       if (error) throw error;
-      const d = data as any;
-      if (d?.error) throw new Error(d.error);
-      onCreated(); onClose(); setPrompt("");
-      toast.success("Image generated");
+      const d = data as any; if (d?.error) throw new Error(d.error);
+      toast.success("Imported");
+      setUrl(""); setName(""); onCreated(); onClose();
     } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
   }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
+        <DialogHeader><DialogTitle>Add asset by URL</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">Paste a direct link to an image (logo, photo, icon…). It'll be downloaded and added to your library.</p>
+          <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/logo.png" autoFocus />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Optional name (e.g. Clay logo)" />
+          <Button onClick={go} disabled={busy || !url.trim()} className="w-full">
+            {busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <LinkIcon className="w-4 h-4 mr-1" />}Import
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function GenerateDialog({ open, onClose, onCreated, assets }: { open: boolean; onClose: () => void; onCreated: () => void; assets: DesignAsset[] }) {
+  const [prompt, setPrompt] = useState("");
+  const [aspect, setAspect] = useState<"1:1" | "4:5" | "9:16">("1:1");
+  const [busy, setBusy] = useState(false);
+  const [refIds, setRefIds] = useState<string[]>([]);
+
+  const refOptions = useMemo(() => assets.slice(0, 60), [assets]);
+
+  function toggleRef(id: string) {
+    setRefIds((cur) => cur.includes(id) ? cur.filter((x) => x !== id) : (cur.length >= 6 ? cur : [...cur, id]));
+  }
+
+  async function go() {
+    if (!prompt.trim()) return;
+    setBusy(true);
+    try {
+      const { data, error } = await generateAssetImageWithRefs(prompt, aspect, refIds);
+      if (error) throw error;
+      const d = data as any;
+      if (d?.error) throw new Error(d.error);
+      onCreated(); onClose(); setPrompt(""); setRefIds([]);
+      toast.success("Image generated");
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle>Generate image with AI</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <textarea className="w-full rounded-md border border-border bg-background p-2 text-sm" rows={4}
-            value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe the image you want…" />
+            value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe the image you want… e.g. 'Hero banner with my photo on a dark gradient, Clay logo in the corner'" />
           <Select value={aspect} onValueChange={(v) => setAspect(v as any)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -98,6 +199,32 @@ function GenerateDialog({ open, onClose, onCreated }: { open: boolean; onClose: 
               <SelectItem value="9:16">Story 9:16</SelectItem>
             </SelectContent>
           </Select>
+
+          {refOptions.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium">Reference assets <span className="text-muted-foreground">({refIds.length}/6)</span></p>
+                {refIds.length > 0 && (
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setRefIds([])}>Clear</Button>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">Pick logos, your photo, or any asset you want incorporated into the generated image.</p>
+              <div className="grid grid-cols-6 gap-1.5 max-h-40 overflow-y-auto p-1 rounded border border-border bg-muted/30">
+                {refOptions.map((a) => {
+                  const sel = refIds.includes(a.id);
+                  return (
+                    <button key={a.id} type="button" onClick={() => toggleRef(a.id)}
+                      title={a.name ?? a.kind}
+                      className={`relative aspect-square rounded overflow-hidden border-2 transition ${sel ? "border-primary ring-2 ring-primary/40" : "border-transparent hover:border-border"}`}>
+                      <img src={a.public_url} alt="" className="w-full h-full object-cover" />
+                      {sel && <div className="absolute top-0.5 right-0.5 bg-primary text-primary-foreground rounded-full p-0.5"><Check className="w-2.5 h-2.5" /></div>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <Button onClick={go} disabled={busy} className="w-full">
             {busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}Generate
           </Button>
@@ -110,6 +237,14 @@ function GenerateDialog({ open, onClose, onCreated }: { open: boolean; onClose: 
 function EditDialog({ asset, onClose, onSaved }: { asset: DesignAsset | null; onClose: () => void; onSaved: () => void }) {
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
+  const [bgBusy, setBgBusy] = useState(false);
+
+  const presets = [
+    "Remove all text from the image",
+    "Change background to a clean dark gradient",
+    "Make the colors more vibrant and modern",
+    "Add subtle film grain and a warm tone",
+  ];
 
   async function go() {
     if (!asset || !prompt.trim()) return;
@@ -124,17 +259,42 @@ function EditDialog({ asset, onClose, onSaved }: { asset: DesignAsset | null; on
     } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
   }
 
+  async function removeBg() {
+    if (!asset) return;
+    setBgBusy(true);
+    try {
+      const { data, error } = await removeAssetBackground(asset.id);
+      if (error) throw error;
+      const d = data as any; if (d?.error) throw new Error(d.error);
+      toast.success("Background removed");
+      onSaved(); onClose();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBgBusy(false); }
+  }
+
   return (
     <Dialog open={!!asset} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader><DialogTitle>Edit with AI</DialogTitle></DialogHeader>
         {asset && (
           <div className="space-y-3">
-            <img src={asset.public_url} alt="" className="w-full max-h-72 object-contain rounded border border-border" />
+            <img src={asset.public_url} alt={asset.name ?? ""} className="w-full max-h-72 object-contain rounded border border-border bg-muted" />
+            {asset.name && <p className="text-xs text-muted-foreground text-center">{asset.name}</p>}
             <Input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="e.g. make the background dark green and add subtle grain" />
-            <Button onClick={go} disabled={busy} className="w-full">
-              {busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Wand2 className="w-4 h-4 mr-1" />}Apply edit
-            </Button>
+            <div className="flex flex-wrap gap-1">
+              {presets.map((p) => (
+                <button key={p} type="button" onClick={() => setPrompt(p)}
+                  className="text-[11px] px-2 py-0.5 rounded-full border border-border hover:bg-accent transition">{p}</button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={go} disabled={busy || bgBusy} className="flex-1">
+                {busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Wand2 className="w-4 h-4 mr-1" />}Apply edit
+              </Button>
+              <Button variant="outline" onClick={removeBg} disabled={busy || bgBusy}>
+                {bgBusy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Eraser className="w-4 h-4 mr-1" />}Remove background
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Edits and background removal create a new asset; the original is preserved.</p>
           </div>
         )}
       </DialogContent>

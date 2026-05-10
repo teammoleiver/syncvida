@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export type SocialProvider = "linkedin" | "facebook" | "instagram" | "twitter";
+export type SocialProvider = "linkedin" | "facebook" | "instagram" | "twitter" | "canva";
 
 export type SocialConnectionMeta = {
   provider: SocialProvider;
