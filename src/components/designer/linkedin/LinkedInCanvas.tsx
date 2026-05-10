@@ -1,5 +1,6 @@
 import "./canvas.css";
 import { Fragment } from "react";
+import OverlayLayer from "./OverlayLayer";
 
 /**
  * Saleh Seddik LinkedIn brand canvases — ported from the standalone HTML
@@ -31,6 +32,45 @@ export type AccentKey = keyof typeof ACCENT_PHOTO;
 
 export type SectionKind = "bullets" | "pills" | "checklist" | "stats" | "flags" | "bars" | "donut" | "tools" | "table";
 
+/**
+ * Free-position elements that float on top of the structured layout. Used for
+ * dropping logos from the asset library, custom text labels, shapes, etc.
+ * Coordinates are in canvas pixels (the same coordinate system the canvas
+ * itself renders in — e.g. 1280×1820 for the cheat sheet).
+ */
+export type Overlay =
+  | {
+      id: string;
+      type: "image";
+      x: number; y: number; w: number; h: number;
+      src: string;
+      radius?: number;
+      objectFit?: "cover" | "contain";
+    }
+  | {
+      id: string;
+      type: "text";
+      x: number; y: number; w: number; h: number;
+      text: string;
+      fontSize: number;
+      fontWeight?: number;
+      color?: string;
+      align?: "left" | "center" | "right";
+      italic?: boolean;
+      letterSpacing?: number;
+      lineHeight?: number;
+    }
+  | {
+      id: string;
+      type: "shape";
+      x: number; y: number; w: number; h: number;
+      shape: "rect" | "circle";
+      fill: string;
+      radius?: number;
+      stroke?: string;
+      strokeWidth?: number;
+    };
+
 export type SheetSection = {
   tag: string;
   accent?: AccentKey;
@@ -54,6 +94,7 @@ export type CheatSheetData = {
   closer?: string;
   attribution?: string;
   sections: SheetSection[];
+  overlays?: Overlay[];
 };
 
 export type CarouselSlide = {
@@ -72,6 +113,8 @@ export type CarouselData = {
   typeLabel?: string;
   attribution?: string;
   slides: CarouselSlide[];
+  /** Per-slide overlays: overlays[slideIndex] = Overlay[] */
+  overlays?: Record<number, Overlay[]>;
 };
 
 export type SquareData = {
@@ -85,6 +128,7 @@ export type SquareData = {
   support?: string;
   closer?: string;
   attribution?: string;
+  overlays?: Overlay[];
 };
 
 function pickPhoto(data: any): string {
@@ -316,7 +360,17 @@ function SectionContent({ section }: { section: SheetSection }) {
   );
 }
 
-export function CheatSheetCanvas({ data, idForExport = "canvas-export" }: { data: CheatSheetData; idForExport?: string }) {
+export function CheatSheetCanvas({
+  data, idForExport = "canvas-export",
+  editableOverlays = false, selectedOverlayId = null,
+  onSelectOverlay, onChangeOverlays, zoom = 1,
+}: {
+  data: CheatSheetData; idForExport?: string;
+  editableOverlays?: boolean; selectedOverlayId?: string | null;
+  onSelectOverlay?: (id: string | null) => void;
+  onChangeOverlays?: (next: Overlay[]) => void;
+  zoom?: number;
+}) {
   const accentOrder: AccentKey[] = ["coral", "amber", "teal", "indigo", "plum", "olive", "sky"];
   return (
     <div className="canvas" data-format="cheatsheet" id={idForExport}>
@@ -354,11 +408,29 @@ export function CheatSheetCanvas({ data, idForExport = "canvas-export" }: { data
           <div className="attribution">{data.attribution || `saleh seddik // ${new Date().getFullYear()}`}</div>
         </div>
       </div>
+      <OverlayLayer
+        overlays={data.overlays ?? []}
+        editable={editableOverlays}
+        selectedId={selectedOverlayId}
+        onSelect={onSelectOverlay}
+        onChange={onChangeOverlays}
+        zoom={zoom}
+      />
     </div>
   );
 }
 
-export function CarouselCanvas({ data, slideIndex = 0, idForExport = "canvas-export" }: { data: CarouselData; slideIndex?: number; idForExport?: string }) {
+export function CarouselCanvas({
+  data, slideIndex = 0, idForExport = "canvas-export",
+  editableOverlays = false, selectedOverlayId = null,
+  onSelectOverlay, onChangeOverlays, zoom = 1,
+}: {
+  data: CarouselData; slideIndex?: number; idForExport?: string;
+  editableOverlays?: boolean; selectedOverlayId?: string | null;
+  onSelectOverlay?: (id: string | null) => void;
+  onChangeOverlays?: (next: Overlay[]) => void;
+  zoom?: number;
+}) {
   const slide = data.slides?.[slideIndex] || data.slides?.[0] || ({ title: "" } as CarouselSlide);
   const total = data.slides?.length ?? 0;
   return (
@@ -376,11 +448,29 @@ export function CarouselCanvas({ data, slideIndex = 0, idForExport = "canvas-exp
           <div className="attribution">{`${String(slideIndex + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}`}</div>
         </div>
       </div>
+      <OverlayLayer
+        overlays={data.overlays?.[slideIndex] ?? []}
+        editable={editableOverlays}
+        selectedId={selectedOverlayId}
+        onSelect={onSelectOverlay}
+        onChange={onChangeOverlays}
+        zoom={zoom}
+      />
     </div>
   );
 }
 
-export function SquareCanvas({ data, idForExport = "canvas-export" }: { data: SquareData; idForExport?: string }) {
+export function SquareCanvas({
+  data, idForExport = "canvas-export",
+  editableOverlays = false, selectedOverlayId = null,
+  onSelectOverlay, onChangeOverlays, zoom = 1,
+}: {
+  data: SquareData; idForExport?: string;
+  editableOverlays?: boolean; selectedOverlayId?: string | null;
+  onSelectOverlay?: (id: string | null) => void;
+  onChangeOverlays?: (next: Overlay[]) => void;
+  zoom?: number;
+}) {
   const renderStatement = (text: string) => {
     const parts = String(text || "").split(/(\*[^*]+\*)/g);
     return parts.map((p, i) => {
@@ -403,6 +493,14 @@ export function SquareCanvas({ data, idForExport = "canvas-export" }: { data: Sq
           <div className="attribution">{data.attribution || `saleh seddik // ${new Date().getFullYear()}`}</div>
         </div>
       </div>
+      <OverlayLayer
+        overlays={data.overlays ?? []}
+        editable={editableOverlays}
+        selectedId={selectedOverlayId}
+        onSelect={onSelectOverlay}
+        onChange={onChangeOverlays}
+        zoom={zoom}
+      />
     </div>
   );
 }

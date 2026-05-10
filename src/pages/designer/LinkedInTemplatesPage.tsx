@@ -14,13 +14,14 @@ import {
   ACCENT_KEYS, SECTION_KINDS,
   type CheatSheetData, type CarouselData, type SquareData,
   type AccentKey, type SectionKind, type SheetSection, type CarouselSlide,
+  type Overlay,
 } from "@/components/designer/linkedin/LinkedInCanvas";
 import {
   SEED_CHEAT_SHEET, SEED_CAROUSEL, SEED_SQUARE, exportCanvasAsPng,
   saveCanvasAsAsset, linkAssetToPlan, getPlanEntry,
   saveCarouselAsPdf, linkPdfToPlan, renderNodeToDataUrl,
 } from "@/components/designer/linkedin/editorHelpers";
-import { createLinkedInTemplate, updateLinkedInTemplate, getDesign } from "@/lib/designer-queries";
+import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, listAssets, type DesignAsset } from "@/lib/designer-queries";
 import { detectMentionedLogos, type DetectedLogo } from "@/components/designer/linkedin/detectLogos";
 
 type TemplateKey = "cheatsheet" | "carousel" | "square";
@@ -61,6 +62,9 @@ export default function LinkedInTemplatesPage() {
   const [slideIdx, setSlideIdx] = useState(0);
   const [savingPdf, setSavingPdf] = useState(false);
   const [zoom, setZoom] = useState(0.4);
+  // Overlay editing state
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [assetPickerOpen, setAssetPickerOpen] = useState(false);
 
   // Load existing design (?id=xxx) — restores the form into the editor.
   useEffect(() => {
@@ -262,6 +266,52 @@ export default function LinkedInTemplatesPage() {
     toast.success(`Added ${names.length} tool${names.length === 1 ? "" : "s"} to the Cheat Sheet`);
   }
 
+  /** Read the overlays array for the active preset+slide. */
+  function getOverlays(): Overlay[] {
+    if (active === "cheatsheet") return cheatData.overlays ?? [];
+    if (active === "square") return squareData.overlays ?? [];
+    return carouselData.overlays?.[slideIdx] ?? [];
+  }
+
+  /** Persist a new overlays array back into whichever data shape is active. */
+  function setOverlays(next: Overlay[]) {
+    if (active === "cheatsheet") setCheatData({ ...cheatData, overlays: next });
+    else if (active === "square") setSquareData({ ...squareData, overlays: next });
+    else setCarouselData({
+      ...carouselData,
+      overlays: { ...(carouselData.overlays ?? {}), [slideIdx]: next },
+    });
+  }
+
+  function addOverlay(o: Overlay) {
+    setOverlays([...getOverlays(), o]);
+    setSelectedOverlayId(o.id);
+  }
+
+  function updateSelectedOverlay(patch: Partial<Overlay>) {
+    if (!selectedOverlayId) return;
+    setOverlays(getOverlays().map((o) => o.id === selectedOverlayId ? ({ ...o, ...patch } as Overlay) : o));
+  }
+
+  function deleteSelectedOverlay() {
+    if (!selectedOverlayId) return;
+    setOverlays(getOverlays().filter((o) => o.id !== selectedOverlayId));
+    setSelectedOverlayId(null);
+  }
+
+  function addImageFromAsset(asset: DesignAsset) {
+    addOverlay({ id: crypto.randomUUID(), type: "image", x: 100, y: 100, w: 240, h: 240, src: asset.public_url, objectFit: "contain" });
+    setAssetPickerOpen(false);
+  }
+
+  function addTextOverlay() {
+    addOverlay({ id: crypto.randomUUID(), type: "text", x: 100, y: 100, w: 480, h: 80, text: "New text", fontSize: 36, fontWeight: 700, color: "#F5F1E8", align: "left" });
+  }
+
+  function addShapeOverlay(shape: "rect" | "circle") {
+    addOverlay({ id: crypto.randomUUID(), type: "shape", x: 100, y: 100, w: 200, h: 200, shape, fill: shape === "circle" ? "#E8654A" : "#141928", radius: shape === "rect" ? 12 : 0, stroke: "#FFFFFF14", strokeWidth: 1 });
+  }
+
   /** Export current preview (single slide for carousel) as PNG download. */
   async function exportCurrentPng() {
     setExporting(true);
@@ -415,19 +465,61 @@ export default function LinkedInTemplatesPage() {
         {/* Center: live preview */}
         <div className="overflow-auto bg-muted/30 flex items-start justify-center p-8">
           <div style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}>
-            {active === "cheatsheet" && <CheatSheetCanvas data={cheatData} />}
-            {active === "carousel" && <CarouselCanvas data={carouselData} slideIndex={slideIdx} />}
-            {active === "square" && <SquareCanvas data={squareData} />}
+            {active === "cheatsheet" && (
+              <CheatSheetCanvas
+                data={cheatData}
+                editableOverlays
+                selectedOverlayId={selectedOverlayId}
+                onSelectOverlay={setSelectedOverlayId}
+                onChangeOverlays={(next) => setCheatData({ ...cheatData, overlays: next })}
+                zoom={zoom}
+              />
+            )}
+            {active === "carousel" && (
+              <CarouselCanvas
+                data={carouselData}
+                slideIndex={slideIdx}
+                editableOverlays
+                selectedOverlayId={selectedOverlayId}
+                onSelectOverlay={setSelectedOverlayId}
+                onChangeOverlays={(next) => setCarouselData({ ...carouselData, overlays: { ...(carouselData.overlays ?? {}), [slideIdx]: next } })}
+                zoom={zoom}
+              />
+            )}
+            {active === "square" && (
+              <SquareCanvas
+                data={squareData}
+                editableOverlays
+                selectedOverlayId={selectedOverlayId}
+                onSelectOverlay={setSelectedOverlayId}
+                onChangeOverlays={(next) => setSquareData({ ...squareData, overlays: next })}
+                zoom={zoom}
+              />
+            )}
           </div>
         </div>
 
-        {/* Right: form fields for the active preset */}
+        {/* Right: form fields + elements layer for the active preset */}
         <div className="border-l border-border overflow-auto p-3 space-y-3">
-          {active === "cheatsheet" && <CheatSheetForm data={cheatData} setData={setCheatData} />}
-          {active === "carousel" && <CarouselForm data={carouselData} setData={setCarouselData} slideIdx={slideIdx} setSlideIdx={setSlideIdx} />}
-          {active === "square" && <SquareForm data={squareData} setData={setSquareData} />}
+          <ElementsPanel
+            overlays={getOverlays()}
+            selectedId={selectedOverlayId}
+            onSelect={setSelectedOverlayId}
+            onAddImage={() => setAssetPickerOpen(true)}
+            onAddText={addTextOverlay}
+            onAddShape={addShapeOverlay}
+            onUpdate={updateSelectedOverlay}
+            onDelete={deleteSelectedOverlay}
+          />
+          <div className="border-t border-border pt-3">
+            {active === "cheatsheet" && <CheatSheetForm data={cheatData} setData={setCheatData} />}
+            {active === "carousel" && <CarouselForm data={carouselData} setData={setCarouselData} slideIdx={slideIdx} setSlideIdx={setSlideIdx} />}
+            {active === "square" && <SquareForm data={squareData} setData={setSquareData} />}
+          </div>
         </div>
       </div>
+
+      <AssetPickerDialog open={assetPickerOpen} onClose={() => setAssetPickerOpen(false)} onPick={addImageFromAsset} />
     </section>
   );
 }
@@ -735,5 +827,157 @@ function SaveStatusBadge({ status }: { status: "idle" | "saving" | "saved" | "er
     }`}>
       {status === "saving" ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving</> : status === "saved" ? <><Check className="w-3 h-3" /> Saved</> : <>Save failed</>}
     </span>
+  );
+}
+
+/* ---------- Elements panel (overlay manager) ---------- */
+
+function ElementsPanel({
+  overlays, selectedId, onSelect,
+  onAddImage, onAddText, onAddShape,
+  onUpdate, onDelete,
+}: {
+  overlays: Overlay[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  onAddImage: () => void;
+  onAddText: () => void;
+  onAddShape: (s: "rect" | "circle") => void;
+  onUpdate: (patch: Partial<Overlay>) => void;
+  onDelete: () => void;
+}) {
+  const sel = overlays.find((o) => o.id === selectedId) ?? null;
+  return (
+    <Card className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Elements</h3>
+        {overlays.length > 0 && <Badge variant="secondary" className="text-[10px]">{overlays.length}</Badge>}
+      </div>
+      <p className="text-[10px] text-muted-foreground">Add free-position layers on top of the template — logos, text labels, shapes. Click to select, drag to move, drag the corner handle to resize.</p>
+      <div className="grid grid-cols-2 gap-1.5">
+        <Button size="sm" variant="outline" onClick={onAddImage}><ImageIcon className="w-3 h-3 mr-1" /> Image</Button>
+        <Button size="sm" variant="outline" onClick={onAddText}>Aa Text</Button>
+        <Button size="sm" variant="outline" onClick={() => onAddShape("rect")}>Rect</Button>
+        <Button size="sm" variant="outline" onClick={() => onAddShape("circle")}>Circle</Button>
+      </div>
+
+      {overlays.length > 0 && (
+        <div className="border-t border-border pt-2 space-y-1.5">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium">Layers</div>
+          {overlays.map((o, i) => (
+            <button
+              key={o.id}
+              onClick={() => onSelect(o.id)}
+              className={`w-full text-left flex items-center gap-2 px-2 py-1.5 rounded text-xs ${
+                o.id === selectedId ? "bg-primary/15 border border-primary/40" : "hover:bg-muted border border-transparent"
+              }`}
+            >
+              <span className="text-[10px] font-mono text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
+              <span className="capitalize">{o.type}</span>
+              {o.type === "text" && <span className="text-muted-foreground truncate flex-1">{(o as any).text?.slice(0, 30)}</span>}
+              {o.type === "image" && <span className="text-muted-foreground truncate flex-1">{(o as any).src?.split("/").pop()?.slice(0, 30)}</span>}
+              {o.type === "shape" && <span className="text-muted-foreground flex-1">{(o as any).shape}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {sel && (
+        <div className="border-t border-border pt-2 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium">Selected · {sel.type}</div>
+            <Button size="sm" variant="ghost" onClick={onDelete}>
+              <Trash2 className="w-3 h-3 text-destructive" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <NumField label="X" value={sel.x} onChange={(v) => onUpdate({ x: v })} />
+            <NumField label="Y" value={sel.y} onChange={(v) => onUpdate({ y: v })} />
+            <NumField label="W" value={sel.w} onChange={(v) => onUpdate({ w: v })} />
+            <NumField label="H" value={sel.h} onChange={(v) => onUpdate({ h: v })} />
+          </div>
+          {sel.type === "text" && (
+            <>
+              <FieldText label="Text" value={(sel as any).text} onChange={(v) => onUpdate({ text: v } as any)} multiline />
+              <div className="grid grid-cols-2 gap-1.5">
+                <NumField label="Size" value={(sel as any).fontSize} onChange={(v) => onUpdate({ fontSize: v } as any)} />
+                <NumField label="Weight" value={(sel as any).fontWeight ?? 600} onChange={(v) => onUpdate({ fontWeight: v } as any)} />
+              </div>
+              <FieldText label="Color (#hex)" value={(sel as any).color ?? ""} onChange={(v) => onUpdate({ color: v } as any)} />
+            </>
+          )}
+          {sel.type === "image" && (
+            <>
+              <FieldText label="Image URL" value={(sel as any).src ?? ""} onChange={(v) => onUpdate({ src: v } as any)} />
+              <NumField label="Corner radius" value={(sel as any).radius ?? 0} onChange={(v) => onUpdate({ radius: v } as any)} />
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Fit</label>
+                <Select value={(sel as any).objectFit ?? "contain"} onValueChange={(v) => onUpdate({ objectFit: v as any } as any)}>
+                  <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="contain">contain (full logo visible)</SelectItem>
+                    <SelectItem value="cover">cover (fill the box)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+          {sel.type === "shape" && (
+            <>
+              <FieldText label="Fill (#hex)" value={(sel as any).fill ?? ""} onChange={(v) => onUpdate({ fill: v } as any)} />
+              <NumField label="Corner radius" value={(sel as any).radius ?? 0} onChange={(v) => onUpdate({ radius: v } as any)} />
+              <FieldText label="Stroke (#hex, optional)" value={(sel as any).stroke ?? ""} onChange={(v) => onUpdate({ stroke: v } as any)} />
+            </>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function NumField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="space-y-1">
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <Input type="number" value={value} onChange={(e) => onChange(Number(e.target.value) || 0)} className="text-xs h-8" />
+    </div>
+  );
+}
+
+/* ---------- Asset picker dialog ---------- */
+
+function AssetPickerDialog({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (a: DesignAsset) => void }) {
+  const [assets, setAssets] = useState<DesignAsset[]>([]);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    listAssets().then((a) => setAssets(a)).finally(() => setLoading(false));
+  }, [open]);
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6" onClick={onClose}>
+      <div className="bg-background rounded-lg border border-border w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h3 className="font-semibold">Pick an asset</h3>
+          <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
+        </div>
+        <div className="flex-1 overflow-auto p-4">
+          {loading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>
+          ) : assets.length === 0 ? (
+            <div className="text-sm text-muted-foreground italic">No assets yet. Upload some at <code>/designer/assets</code> first.</div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+              {assets.map((a) => (
+                <button key={a.id} onClick={() => onPick(a)} className="aspect-square rounded-md border border-border overflow-hidden hover:border-primary transition">
+                  <img src={a.public_url} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
