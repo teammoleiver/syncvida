@@ -1080,6 +1080,36 @@ export type Database = {
         }
         Relationships: []
       }
+      oauth_states: {
+        Row: {
+          code_verifier: string | null
+          created_at: string
+          expires_at: string
+          provider: string
+          redirect_to: string | null
+          state: string
+          user_id: string
+        }
+        Insert: {
+          code_verifier?: string | null
+          created_at?: string
+          expires_at?: string
+          provider: string
+          redirect_to?: string | null
+          state: string
+          user_id: string
+        }
+        Update: {
+          code_verifier?: string | null
+          created_at?: string
+          expires_at?: string
+          provider?: string
+          redirect_to?: string | null
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1376,7 +1406,10 @@ export type Database = {
       social_content_plan: {
         Row: {
           body: string | null
+          canva_design_id: string | null
+          canva_design_url: string | null
           created_at: string
+          figma_brief: string | null
           format: string | null
           framework: string | null
           hook: string
@@ -1388,6 +1421,7 @@ export type Database = {
           platforms: string[]
           position: number | null
           posted_at: string | null
+          scheduled_at: string | null
           scheduled_date: string | null
           scheduled_day: string | null
           scheduled_time: string | null
@@ -1408,7 +1442,10 @@ export type Database = {
         }
         Insert: {
           body?: string | null
+          canva_design_id?: string | null
+          canva_design_url?: string | null
           created_at?: string
+          figma_brief?: string | null
           format?: string | null
           framework?: string | null
           hook: string
@@ -1420,6 +1457,7 @@ export type Database = {
           platforms?: string[]
           position?: number | null
           posted_at?: string | null
+          scheduled_at?: string | null
           scheduled_date?: string | null
           scheduled_day?: string | null
           scheduled_time?: string | null
@@ -1440,7 +1478,10 @@ export type Database = {
         }
         Update: {
           body?: string | null
+          canva_design_id?: string | null
+          canva_design_url?: string | null
           created_at?: string
+          figma_brief?: string | null
           format?: string | null
           framework?: string | null
           hook?: string
@@ -1452,6 +1493,7 @@ export type Database = {
           platforms?: string[]
           position?: number | null
           posted_at?: string | null
+          scheduled_at?: string | null
           scheduled_date?: string | null
           scheduled_day?: string | null
           scheduled_time?: string | null
@@ -1622,6 +1664,54 @@ export type Database = {
           score?: number | null
           timeframe?: string | null
           title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      social_oauth_connections: {
+        Row: {
+          access_token: string
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          email: string | null
+          expires_at: string | null
+          provider: string
+          provider_user_id: string
+          raw_profile: Json | null
+          refresh_token: string | null
+          scope: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          expires_at?: string | null
+          provider: string
+          provider_user_id: string
+          raw_profile?: Json | null
+          refresh_token?: string | null
+          scope?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          expires_at?: string | null
+          provider?: string
+          provider_user_id?: string
+          raw_profile?: Json | null
+          refresh_token?: string | null
+          scope?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -1823,6 +1913,84 @@ export type Database = {
           user_id?: string
           username?: string | null
           work_experience_summary?: string | null
+        }
+        Relationships: []
+      }
+      social_review_post_states: {
+        Row: {
+          edited_body: string | null
+          notes: string | null
+          platform: string
+          post_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          edited_body?: string | null
+          notes?: string | null
+          platform: string
+          post_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          edited_body?: string | null
+          notes?: string | null
+          platform?: string
+          post_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      social_review_posts: {
+        Row: {
+          body: string
+          created_at: string
+          date: string
+          id: string
+          month: string
+          pillar: string
+          platform: string
+          post_type: string
+          source_kind: string
+          source_post_id: string | null
+          topic: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          date?: string
+          id?: string
+          month?: string
+          pillar?: string
+          platform: string
+          post_type?: string
+          source_kind?: string
+          source_post_id?: string | null
+          topic?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          date?: string
+          id?: string
+          month?: string
+          pillar?: string
+          platform?: string
+          post_type?: string
+          source_kind?: string
+          source_post_id?: string | null
+          topic?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -2376,6 +2544,57 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_logs: {
+        Row: {
+          attempted_at: string
+          duration_ms: number | null
+          error: string | null
+          id: string
+          ok: boolean
+          plan_id: string | null
+          platform: string
+          request_payload: Json | null
+          response_body: string | null
+          response_headers: Json | null
+          status_code: number | null
+          trigger_kind: string
+          user_id: string
+          webhook_url: string
+        }
+        Insert: {
+          attempted_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          ok?: boolean
+          plan_id?: string | null
+          platform: string
+          request_payload?: Json | null
+          response_body?: string | null
+          response_headers?: Json | null
+          status_code?: number | null
+          trigger_kind?: string
+          user_id: string
+          webhook_url: string
+        }
+        Update: {
+          attempted_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          ok?: boolean
+          plan_id?: string | null
+          platform?: string
+          request_payload?: Json | null
+          response_body?: string | null
+          response_headers?: Json | null
+          status_code?: number | null
+          trigger_kind?: string
+          user_id?: string
+          webhook_url?: string
+        }
+        Relationships: []
+      }
       weekly_menu_plans: {
         Row: {
           ai_analysis: Json | null
@@ -2477,7 +2696,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_my_social_connections: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          created_at: string
+          display_name: string
+          email: string
+          expires_at: string
+          provider: string
+          provider_user_id: string
+          scope: string
+          updated_at: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
