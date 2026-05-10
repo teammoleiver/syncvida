@@ -41,45 +41,6 @@ export type Database = {
         }
         Relationships: []
       }
-      apify_actors: {
-        Row: {
-          actor_id: string
-          created_at: string
-          id: string
-          input_template: Json | null
-          is_default: boolean
-          kind: string
-          label: string
-          notes: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          actor_id: string
-          created_at?: string
-          id?: string
-          input_template?: Json | null
-          is_default?: boolean
-          kind: string
-          label: string
-          notes?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          actor_id?: string
-          created_at?: string
-          id?: string
-          input_template?: Json | null
-          is_default?: boolean
-          kind?: string
-          label?: string
-          notes?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       blood_test_records: {
         Row: {
           analyzed_at: string | null
@@ -731,11 +692,9 @@ export type Database = {
           created_at: string
           height: number
           id: string
-          kind: string
           planner_entry_id: string | null
           platform: string
           slides: Json
-          template_data: Json | null
           thumbnail_url: string | null
           title: string
           type: string
@@ -747,11 +706,9 @@ export type Database = {
           created_at?: string
           height?: number
           id?: string
-          kind?: string
           planner_entry_id?: string | null
           platform?: string
           slides?: Json
-          template_data?: Json | null
           thumbnail_url?: string | null
           title?: string
           type: string
@@ -763,11 +720,9 @@ export type Database = {
           created_at?: string
           height?: number
           id?: string
-          kind?: string
           planner_entry_id?: string | null
           platform?: string
           slides?: Json
-          template_data?: Json | null
           thumbnail_url?: string | null
           title?: string
           type?: string
@@ -1457,8 +1412,6 @@ export type Database = {
           canva_design_id: string | null
           canva_design_url: string | null
           created_at: string
-          document_filename: string | null
-          document_url: string | null
           figma_brief: string | null
           format: string | null
           framework: string | null
@@ -1495,8 +1448,6 @@ export type Database = {
           canva_design_id?: string | null
           canva_design_url?: string | null
           created_at?: string
-          document_filename?: string | null
-          document_url?: string | null
           figma_brief?: string | null
           format?: string | null
           framework?: string | null
@@ -1533,8 +1484,6 @@ export type Database = {
           canva_design_id?: string | null
           canva_design_url?: string | null
           created_at?: string
-          document_filename?: string | null
-          document_url?: string | null
           figma_brief?: string | null
           format?: string | null
           framework?: string | null
@@ -2455,7 +2404,6 @@ export type Database = {
           priority: string | null
           project_id: string | null
           recurring_pattern: string | null
-          source: Json | null
           status: string
           subtasks: Json | null
           tags: string[] | null
@@ -2481,7 +2429,6 @@ export type Database = {
           priority?: string | null
           project_id?: string | null
           recurring_pattern?: string | null
-          source?: Json | null
           status?: string
           subtasks?: Json | null
           tags?: string[] | null
@@ -2507,7 +2454,6 @@ export type Database = {
           priority?: string | null
           project_id?: string | null
           recurring_pattern?: string | null
-          source?: Json | null
           status?: string
           subtasks?: Json | null
           tags?: string[] | null
@@ -2747,164 +2693,6 @@ export type Database = {
           weight_kg?: number
         }
         Relationships: []
-      }
-      youtube_channels: {
-        Row: {
-          avatar_url: string | null
-          channel_id: string
-          created_at: string
-          description: string | null
-          handle: string | null
-          id: string
-          last_fetched_at: string | null
-          last_seen_at: string
-          notify_new: boolean
-          source_url: string
-          subscriber_count: number | null
-          title: string | null
-          updated_at: string
-          uploads_playlist_id: string | null
-          user_id: string
-          video_count: number | null
-          view_count: number | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          channel_id: string
-          created_at?: string
-          description?: string | null
-          handle?: string | null
-          id?: string
-          last_fetched_at?: string | null
-          last_seen_at?: string
-          notify_new?: boolean
-          source_url: string
-          subscriber_count?: number | null
-          title?: string | null
-          updated_at?: string
-          uploads_playlist_id?: string | null
-          user_id: string
-          video_count?: number | null
-          view_count?: number | null
-        }
-        Update: {
-          avatar_url?: string | null
-          channel_id?: string
-          created_at?: string
-          description?: string | null
-          handle?: string | null
-          id?: string
-          last_fetched_at?: string | null
-          last_seen_at?: string
-          notify_new?: boolean
-          source_url?: string
-          subscriber_count?: number | null
-          title?: string | null
-          updated_at?: string
-          uploads_playlist_id?: string | null
-          user_id?: string
-          video_count?: number | null
-          view_count?: number | null
-        }
-        Relationships: []
-      }
-      youtube_videos: {
-        Row: {
-          channel_id: string
-          channel_pk: string
-          comment_count: number | null
-          description: string | null
-          duration_seconds: number | null
-          fetched_at: string
-          generated_ideas: Json | null
-          generated_posts: Json | null
-          id: string
-          ideas_generated_at: string | null
-          is_liked: boolean
-          like_count: number | null
-          posts_generated_at: string | null
-          published_at: string | null
-          raw: Json | null
-          source: string
-          summary_generated_at: string | null
-          summary_points: Json | null
-          thumbnail_url: string | null
-          title: string
-          transcript: string | null
-          transcript_fetched_at: string | null
-          transcript_language: string | null
-          transcript_source: string | null
-          user_id: string
-          video_id: string
-          view_count: number | null
-        }
-        Insert: {
-          channel_id: string
-          channel_pk: string
-          comment_count?: number | null
-          description?: string | null
-          duration_seconds?: number | null
-          fetched_at?: string
-          generated_ideas?: Json | null
-          generated_posts?: Json | null
-          id?: string
-          ideas_generated_at?: string | null
-          is_liked?: boolean
-          like_count?: number | null
-          posts_generated_at?: string | null
-          published_at?: string | null
-          raw?: Json | null
-          source?: string
-          summary_generated_at?: string | null
-          summary_points?: Json | null
-          thumbnail_url?: string | null
-          title?: string
-          transcript?: string | null
-          transcript_fetched_at?: string | null
-          transcript_language?: string | null
-          transcript_source?: string | null
-          user_id: string
-          video_id: string
-          view_count?: number | null
-        }
-        Update: {
-          channel_id?: string
-          channel_pk?: string
-          comment_count?: number | null
-          description?: string | null
-          duration_seconds?: number | null
-          fetched_at?: string
-          generated_ideas?: Json | null
-          generated_posts?: Json | null
-          id?: string
-          ideas_generated_at?: string | null
-          is_liked?: boolean
-          like_count?: number | null
-          posts_generated_at?: string | null
-          published_at?: string | null
-          raw?: Json | null
-          source?: string
-          summary_generated_at?: string | null
-          summary_points?: Json | null
-          thumbnail_url?: string | null
-          title?: string
-          transcript?: string | null
-          transcript_fetched_at?: string | null
-          transcript_language?: string | null
-          transcript_source?: string | null
-          user_id?: string
-          video_id?: string
-          view_count?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "youtube_videos_channel_pk_fkey"
-            columns: ["channel_pk"]
-            isOneToOne: false
-            referencedRelation: "youtube_channels"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
