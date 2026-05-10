@@ -14,6 +14,7 @@ export type YouTubeChannel = {
   uploads_playlist_id: string | null;
   source_url: string;
   last_fetched_at: string | null;
+  last_seen_at: string;
   notify_new: boolean;
   created_at: string;
   updated_at: string;
@@ -37,6 +38,8 @@ export type YouTubeVideo = {
   fetched_at: string;
   has_transcript?: boolean;
   transcript_fetched_at?: string | null;
+  is_liked?: boolean;
+  summary_points?: SummaryPoint[] | null;
 };
 
 export type AskAnswer = {
@@ -87,8 +90,21 @@ export async function addYouTubeChannel(url: string): Promise<{ channel: YouTube
   return callEdge("youtube-add-channel", { url });
 }
 
-export async function refreshYouTubeChannel(channel_pk?: string): Promise<{ ok: boolean; channels: number; new_videos: number; perChannel: any[] }> {
-  return callEdge("youtube-fetch-videos", channel_pk ? { channel_pk } : {});
+/**
+ * Refresh videos for a channel. `max` controls how many of the channel's
+ * latest videos to pull from Apify — keep small (10–20) for normal refreshes
+ * to save credits, since duplicates are skipped server-side.
+ */
+export async function refreshYouTubeChannel(channel_pk?: string, max = 15): Promise<{ ok: boolean; channels: number; new_videos: number; perChannel: any[] }> {
+  return callEdge("youtube-fetch-videos", { channel_pk, max_results: max });
+}
+
+export async function markChannelSeen(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("youtube_channels" as any)
+    .update({ last_seen_at: new Date().toISOString() } as any)
+    .eq("id", id);
+  if (error) throw error;
 }
 
 export async function deleteYouTubeChannel(id: string): Promise<void> {
@@ -118,7 +134,7 @@ export async function listYouTubeVideos(args: ListVideosArgs = {}): Promise<YouT
   // Select known columns explicitly so we can include transcript_fetched_at
   // without dragging the full transcript text into every list response.
   let q = supabase.from("youtube_videos" as any).select(
-    "id, user_id, channel_pk, channel_id, video_id, title, description, published_at, thumbnail_url, view_count, like_count, comment_count, duration_seconds, source, fetched_at, transcript_fetched_at"
+    "id, user_id, channel_pk, channel_id, video_id, title, description, published_at, thumbnail_url, view_count, like_count, comment_count, duration_seconds, source, fetched_at, transcript_fetched_at, is_liked"
   ).limit(limit);
   if (channelPks?.length) q = q.in("channel_pk", channelPks);
   if (fromIso) q = q.gte("published_at", fromIso);
@@ -141,13 +157,79 @@ export async function askYouTubeAi(question: string, channelPks: string[] = [], 
 }
 
 export type VideoIdea = { hook: string; body: string; angle: string; format: string };
+export type VideoPost = { platform: "linkedin" | "twitter" | "instagram"; hook: string; body: string; hashtags: string[]; length: number };
+export type SummaryPoint = { headline: string; detail: string };
 
 export async function fetchVideoTranscript(video_id: string, refresh = false): Promise<{ transcript: string; cached: boolean }> {
   return callEdge("youtube-fetch-transcript", { video_id, refresh });
 }
 
-export async function generateVideoIdeas(video_id: string, count = 7): Promise<{ ideas: VideoIdea[]; source_video: { video_id: string; title: string; channel: string } }> {
-  return callEdge("youtube-video-ideas", { video_id, count });
+export async function generateVideoIdeas(video_id: string, count = 7, refresh = false): Promise<{ ideas: VideoIdea[]; cached?: boolean; source_video: { video_id: string; title: string; channel: string } }> {
+  return callEdge("youtube-video-ideas", { video_id, count, refresh });
+}
+
+export async function generateVideoPosts(video_id: string, count = 5, platforms: string[] = ["linkedin", "twitter", "instagram"], refresh = false): Promise<{ posts: VideoPost[]; cached?: boolean; source_video: { video_id: string; title: string; channel: string } }> {
+  return callEdge("youtube-video-posts", { video_id, count, platforms, refresh });
+}
+
+export async function generateVideoSummary(video_id: string, refresh = false): Promise<{ points: SummaryPoint[]; cached: boolean }> {
+  return callEdge("youtube-video-summary", { video_id, refresh });
+}
+
+export async function toggleVideoLike(video_id: string, liked: boolean): Promise<void> {
+  const { error } = await supabase
+    .from("youtube_videos" as any)
+    .update({ is_liked: liked } as any)
+    .eq("video_id", video_id);
+  if (error) throw error;
+}
+
+export async function addPointToTasks(point: SummaryPoint, source: { video_id: string; title: string; channel: string }) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const url = `https://www.youtube.com/watch?v=${source.video_id}`;
+  const { data, error } = await supabase.from("tasks" as any).insert({
+    user_id: user.id,
+    title: point.headline,
+    description: point.detail,
+    column_id: "col_inbox",
+    status: "inbox",
+    tags: ["youtube"] as any,
+    source: {
+      kind: "youtube_video",
+      video_id: source.video_id,
+      video_title: source.title,
+      channel: source.channel,
+      url,
+      headline: point.headline,
+      detail: point.detail,
+    } as any,
+  } as any).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function addPostToPlanner(post: VideoPost, source: { video_id: string; title: string; channel: string }, schedule?: Schedule) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const sourceNote = `From YouTube: "${source.title}" by ${source.channel} (https://www.youtube.com/watch?v=${source.video_id})`;
+  const sched = schedule ?? { scheduled_date: null, scheduled_time: null };
+  const { data, error } = await supabase.from("social_content_plan" as any).insert({
+    user_id: user.id,
+    hook: post.hook || post.body.split("\n")[0].slice(0, 120),
+    body: post.body,
+    format: "social-post",
+    pillar: "general",
+    status: "planned",
+    platforms: [post.platform] as any,
+    notes: sourceNote,
+    source_kind: "youtube",
+    scheduled_date: sched.scheduled_date,
+    scheduled_time: sched.scheduled_time,
+    scheduled_at: buildScheduledAt(sched),
+  } as any).select().single();
+  if (error) throw error;
+  return data;
 }
 
 export async function getVideoDetail(video_id: string): Promise<YouTubeVideo & { transcript: string | null; transcript_fetched_at: string | null } | null> {
@@ -160,10 +242,20 @@ export async function getVideoDetail(video_id: string): Promise<YouTubeVideo & {
   return (data as any) ?? null;
 }
 
-export async function addIdeaToPlanner(idea: VideoIdea, source: { video_id: string; title: string; channel: string }) {
+export type Schedule = { scheduled_date: string | null; scheduled_time: string | null };
+
+function buildScheduledAt(s: Schedule): string | null {
+  if (!s.scheduled_date) return null;
+  const time = s.scheduled_time || "09:00";
+  // Treat as local time in the user's browser; the dispatcher converts to UTC.
+  return new Date(`${s.scheduled_date}T${time}:00`).toISOString();
+}
+
+export async function addIdeaToPlanner(idea: VideoIdea, source: { video_id: string; title: string; channel: string }, schedule?: Schedule) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
   const formatNote = `From YouTube: "${source.title}" by ${source.channel} (https://www.youtube.com/watch?v=${source.video_id})`;
+  const sched = schedule ?? { scheduled_date: null, scheduled_time: null };
   const { data, error } = await supabase.from("social_content_plan" as any).insert({
     user_id: user.id,
     hook: idea.hook,
@@ -173,6 +265,9 @@ export async function addIdeaToPlanner(idea: VideoIdea, source: { video_id: stri
     status: "planned",
     notes: idea.angle ? `${idea.angle}\n\n${formatNote}` : formatNote,
     source_kind: "youtube",
+    scheduled_date: sched.scheduled_date,
+    scheduled_time: sched.scheduled_time,
+    scheduled_at: buildScheduledAt(sched),
   } as any).select().single();
   if (error) throw error;
   return data;

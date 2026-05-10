@@ -8,12 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Loader2, Plus, RefreshCw, Search, Sparkles, Trash2, Youtube,
-  ExternalLink, Bell, BellOff, Calendar, FileText,
+  ExternalLink, Bell, BellOff, Calendar, FileText, Heart,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   listYouTubeChannels, addYouTubeChannel, refreshYouTubeChannel, deleteYouTubeChannel,
-  setNotifyNew, listYouTubeVideos, askYouTubeAi,
+  setNotifyNew, listYouTubeVideos, askYouTubeAi, markChannelSeen,
   type YouTubeChannel, type YouTubeVideo, type AskAnswer,
 } from "@/lib/youtube-queries";
 import VideoDetailDialog from "@/components/social/VideoDetailDialog";
@@ -89,8 +89,13 @@ export default function YouTubePage() {
   async function refreshOne(id: string) {
     setRefreshingId(id);
     try {
-      const r = await refreshYouTubeChannel(id);
-      toast.success(`${r.new_videos} new video${r.new_videos === 1 ? "" : "s"}`);
+      // Pull only the latest 15 videos — duplicates are skipped server-side, so
+      // this catches everything new since last refresh while keeping the Apify
+      // bill predictable.
+      const r = await refreshYouTubeChannel(id, 15);
+      toast.success(r.new_videos > 0
+        ? `${r.new_videos} new video${r.new_videos === 1 ? "" : "s"}`
+        : "Up to date — no new videos");
       await loadAll();
     } catch (e: any) { toast.error(e?.message ?? "Refresh failed"); }
     finally { setRefreshingId(null); }
@@ -99,8 +104,10 @@ export default function YouTubePage() {
   async function refreshAll() {
     setRefreshingAll(true);
     try {
-      const r = await refreshYouTubeChannel();
-      toast.success(`${r.new_videos} new video${r.new_videos === 1 ? "" : "s"} across ${r.channels} channels`);
+      const r = await refreshYouTubeChannel(undefined, 15);
+      toast.success(r.new_videos > 0
+        ? `${r.new_videos} new video${r.new_videos === 1 ? "" : "s"} across ${r.channels} channels`
+        : `Up to date across ${r.channels} channel${r.channels === 1 ? "" : "s"}`);
       await loadAll();
     } catch (e: any) { toast.error(e?.message ?? "Refresh failed"); }
     finally { setRefreshingAll(false); }
@@ -140,6 +147,19 @@ export default function YouTubePage() {
     for (const c of channels) m[c.id] = c.title ?? c.handle ?? c.channel_id;
     return m;
   }, [channels]);
+
+  // Count videos fetched after the user last viewed this channel — the "unread" indicator.
+  const newCountByChannel = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const v of videos) {
+      const ch = channels.find((c) => c.id === v.channel_pk);
+      if (!ch || !ch.last_seen_at) continue;
+      if (new Date(v.fetched_at).getTime() > new Date(ch.last_seen_at).getTime()) {
+        m[v.channel_pk] = (m[v.channel_pk] ?? 0) + 1;
+      }
+    }
+    return m;
+  }, [videos, channels]);
 
   // Available years derived from loaded videos
   const availableYears = useMemo(() => {
@@ -202,6 +222,11 @@ export default function YouTubePage() {
       if (n.has(id)) n.delete(id); else n.add(id);
       return n;
     });
+    // Reset the "new videos" badge for this channel — user has now looked at it.
+    if ((newCountByChannel[id] ?? 0) > 0) {
+      void markChannelSeen(id).catch(() => { /* non-critical */ });
+      setChannels((cur) => cur.map((c) => c.id === id ? { ...c, last_seen_at: new Date().toISOString() } : c));
+    }
   }
 
   return (
@@ -255,11 +280,27 @@ export default function YouTubePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {channels.map((c) => {
             const picked = pickedChannels.has(c.id);
+            const newCount = newCountByChannel[c.id] ?? 0;
             return (
               <Card key={c.id}
-                className={`p-3 transition-colors ${picked ? "border-primary ring-1 ring-primary/40" : ""}`}>
+                className={`p-3 transition-colors relative ${
+                  picked ? "border-primary ring-1 ring-primary/40"
+                  : newCount > 0 ? "border-emerald-500/60 ring-1 ring-emerald-500/30"
+                  : ""
+                }`}>
+                {newCount > 0 && (
+                  <div className="absolute -top-2 -right-2 z-10">
+                    <Badge className="bg-emerald-500 text-white border-0 gap-1 shadow-md">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                      </span>
+                      {newCount} new
+                    </Badge>
+                  </div>
+                )}
                 <div className="flex items-start gap-3">
-                  <button onClick={() => togglePickChannel(c.id)} className="shrink-0">
+                  <button onClick={() => togglePickChannel(c.id)} className="shrink-0 relative">
                     {c.avatar_url ? (
                       <img src={c.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" />
                     ) : (
@@ -431,6 +472,11 @@ export default function YouTubePage() {
                             <FileText className="w-2.5 h-2.5" /> Transcript
                           </Badge>
                         )}
+                        {v.is_liked && (
+                          <div className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md">
+                            <Heart className="w-3.5 h-3.5 fill-current" />
+                          </div>
+                        )}
                       </div>
                       <div className="p-2.5 flex-1 flex flex-col">
                         <div className="text-xs font-medium line-clamp-2 group-hover:text-primary">{v.title}</div>
@@ -455,6 +501,9 @@ export default function YouTubePage() {
         channelTitle={openVideo ? (channelTitleByPk[openVideo.channel_pk] ?? openVideo.channel_id) : ""}
         onTranscriptFetched={(vid) => {
           setVideos((cur) => cur.map((v) => v.video_id === vid ? { ...v, has_transcript: true, transcript_fetched_at: new Date().toISOString() } : v));
+        }}
+        onLikeToggled={(vid, isLiked) => {
+          setVideos((cur) => cur.map((v) => v.video_id === vid ? { ...v, is_liked: isLiked } : v));
         }}
       />
     </section>

@@ -8,7 +8,7 @@ import {
   Timer, Repeat, StickyNote, Heart, Dumbbell, Brain,
   Monitor, Phone, Mail, Users, Pill, ShoppingCart, Home,
   BookOpen, MapPin, Sparkles, Filter, Eye, Pause,
-  ChevronLeft, GripVertical,
+  ChevronLeft, GripVertical, Youtube as YoutubeIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -91,7 +91,18 @@ export interface Task {
   order: number;
   completedAt: string | null;
   createdAt: string;
+  source?: TaskSource | null;
 }
+
+export type TaskSource = {
+  kind: "youtube_video" | string;
+  video_id?: string;
+  video_title?: string;
+  channel?: string;
+  url?: string;
+  headline?: string;
+  detail?: string;
+};
 
 // ============================================================
 // CONFIGS
@@ -677,6 +688,35 @@ function TaskDetailPanel({
           })}
         </div>
       </div>
+
+      {/* Source (e.g. captured from a YouTube video) */}
+      {task.source?.kind === "youtube_video" && (
+        <div className="px-4 py-3 border-b border-border shrink-0 bg-rose-500/5">
+          <div className="flex items-start gap-2">
+            <div className="w-8 h-8 rounded-md bg-rose-500/10 text-rose-400 flex items-center justify-center shrink-0 mt-0.5">
+              <YoutubeIcon className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium">Captured from YouTube</div>
+              {task.source.url ? (
+                <a
+                  href={task.source.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-medium text-foreground hover:text-primary truncate block"
+                >
+                  {task.source.video_title ?? task.source.url}
+                </a>
+              ) : (
+                <div className="text-xs font-medium truncate">{task.source.video_title ?? "Untitled video"}</div>
+              )}
+              {task.source.channel && (
+                <div className="text-[10px] text-muted-foreground truncate">{task.source.channel}</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto">
@@ -1573,6 +1613,7 @@ export default function TasksModule() {
           order: r.task_order || 0,
           completedAt: r.completed_at || null,
           createdAt: r.created_at || new Date().toISOString(),
+          source: (r as any).source ?? null,
         }));
         setTasks(mapped);
       }

@@ -3,23 +3,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ExternalLink, FileText, Sparkles, Plus, RefreshCw, Check, ChevronDown, ChevronUp, Copy, Clock } from "lucide-react";
+import { Loader2, ExternalLink, FileText, Sparkles, Plus, RefreshCw, Check, ChevronDown, ChevronUp, Copy, Clock, Linkedin, Twitter, Instagram, Send, Heart, ListChecks, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import {
-  fetchVideoTranscript, generateVideoIdeas, getVideoDetail, addIdeaToPlanner,
-  type YouTubeVideo, type VideoIdea,
+  fetchVideoTranscript, generateVideoIdeas, generateVideoPosts, generateVideoSummary, getVideoDetail, addIdeaToPlanner, addPostToPlanner, addPointToTasks, toggleVideoLike,
+  type YouTubeVideo, type VideoIdea, type VideoPost, type SummaryPoint, type Schedule,
 } from "@/lib/youtube-queries";
+import SchedulePicker from "@/components/social/SchedulePicker";
 
 type SourceVideo = { video_id: string; title: string; channel: string };
 
 export default function VideoDetailDialog({
-  open, onClose, video, channelTitle, onTranscriptFetched,
+  open, onClose, video, channelTitle, onTranscriptFetched, onLikeToggled,
 }: {
   open: boolean;
   onClose: () => void;
   video: YouTubeVideo | null;
   channelTitle: string;
   onTranscriptFetched?: (videoId: string) => void;
+  onLikeToggled?: (videoId: string, liked: boolean) => void;
 }) {
   const [transcript, setTranscript] = useState<string | null>(null);
   const [transcriptFetchedAt, setTranscriptFetchedAt] = useState<string | null>(null);
@@ -33,14 +35,32 @@ export default function VideoDetailDialog({
   const [source, setSource] = useState<SourceVideo | null>(null);
   const [transcriptDebug, setTranscriptDebug] = useState<any>(null);
 
+  const [posts, setPosts] = useState<VideoPost[] | null>(null);
+  const [generatingPosts, setGeneratingPosts] = useState(false);
+  const [savedPostIds, setSavedPostIds] = useState<Set<number>>(new Set());
+  const [savingPostIdx, setSavingPostIdx] = useState<number | null>(null);
+
+  const [summary, setSummary] = useState<SummaryPoint[] | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const [taskedPoints, setTaskedPoints] = useState<Set<number>>(new Set());
+  const [savingTaskIdx, setSavingTaskIdx] = useState<number | null>(null);
+
+  const [liked, setLiked] = useState(false);
+  const [likingBusy, setLikingBusy] = useState(false);
+
   // Reset and load existing transcript when video changes
   useEffect(() => {
     if (!open || !video) return;
     setTranscript(null);
     setTranscriptFetchedAt(null);
     setIdeas(null);
+    setPosts(null);
+    setSummary(null);
     setSavedIds(new Set());
+    setSavedPostIds(new Set());
+    setTaskedPoints(new Set());
     setTranscriptOpen(false);
+    setLiked(!!video.is_liked);
     setSource({
       video_id: video.video_id,
       title: video.title,
@@ -51,6 +71,13 @@ export default function VideoDetailDialog({
         setTranscript(d.transcript);
         setTranscriptFetchedAt((d as any).transcript_fetched_at ?? null);
       }
+      const cachedSummary = (d as any)?.summary_points;
+      if (Array.isArray(cachedSummary) && cachedSummary.length > 0) setSummary(cachedSummary);
+      const cachedIdeas = (d as any)?.generated_ideas;
+      if (Array.isArray(cachedIdeas) && cachedIdeas.length > 0) setIdeas(cachedIdeas);
+      const cachedPosts = (d as any)?.generated_posts;
+      if (Array.isArray(cachedPosts) && cachedPosts.length > 0) setPosts(cachedPosts);
+      if (typeof (d as any)?.is_liked === "boolean") setLiked((d as any).is_liked);
     }).catch(() => { /* ignore */ });
   }, [open, video?.video_id, channelTitle]);
 
@@ -75,33 +102,33 @@ export default function VideoDetailDialog({
     } finally { setLoadingTranscript(false); }
   }
 
-  async function genIdeas() {
+  async function genIdeas(refresh = false) {
     if (!video) return;
     setGenerating(true);
     try {
-      const r = await generateVideoIdeas(video.video_id, 7);
+      const r = await generateVideoIdeas(video.video_id, 7, refresh);
       setIdeas(r.ideas);
       setSource(r.source_video);
       setSavedIds(new Set());
-      toast.success(`${r.ideas.length} ideas generated`);
+      toast.success(r.cached ? `Loaded ${r.ideas.length} saved ideas` : `${r.ideas.length} ideas generated`);
     } catch (e: any) {
       toast.error(e?.message ?? "Ideas failed");
     } finally { setGenerating(false); }
   }
 
-  async function saveIdea(i: number) {
+  async function saveIdea(i: number, schedule: Schedule) {
     if (!ideas || !source) return;
     setSavingIdx(i);
     try {
-      await addIdeaToPlanner(ideas[i], source);
+      await addIdeaToPlanner(ideas[i], source, schedule);
       setSavedIds((cur) => new Set(cur).add(i));
-      toast.success("Added to Content Planner");
+      toast.success(schedule.scheduled_date ? `Scheduled for ${schedule.scheduled_date}` : "Added to Content Planner");
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to save");
     } finally { setSavingIdx(null); }
   }
 
-  async function saveAll() {
+  async function saveAll(schedule: Schedule) {
     if (!ideas || !source) return;
     setSavingIdx(-1);
     let saved = 0;
@@ -109,13 +136,84 @@ export default function VideoDetailDialog({
       for (let i = 0; i < ideas.length; i++) {
         if (savedIds.has(i)) continue;
         try {
-          await addIdeaToPlanner(ideas[i], source);
+          await addIdeaToPlanner(ideas[i], source, schedule);
           setSavedIds((cur) => new Set(cur).add(i));
           saved++;
         } catch { /* continue */ }
       }
-      toast.success(`Added ${saved} idea${saved === 1 ? "" : "s"} to planner`);
+      toast.success(schedule.scheduled_date
+        ? `Scheduled ${saved} idea${saved === 1 ? "" : "s"} for ${schedule.scheduled_date}`
+        : `Added ${saved} idea${saved === 1 ? "" : "s"} to planner`);
     } finally { setSavingIdx(null); }
+  }
+
+  async function genPosts(refresh = false) {
+    if (!video) return;
+    setGeneratingPosts(true);
+    try {
+      const r = await generateVideoPosts(video.video_id, 5, ["linkedin", "twitter", "instagram"], refresh);
+      setPosts(r.posts);
+      setSource(r.source_video);
+      setSavedPostIds(new Set());
+      toast.success(r.cached ? `Loaded ${r.posts.length} saved posts` : `${r.posts.length} posts ready`);
+    } catch (e: any) { toast.error(e?.message ?? "Posts failed"); }
+    finally { setGeneratingPosts(false); }
+  }
+
+  async function savePost(i: number, schedule: Schedule) {
+    if (!posts || !source) return;
+    setSavingPostIdx(i);
+    try {
+      await addPostToPlanner(posts[i], source, schedule);
+      setSavedPostIds((cur) => new Set(cur).add(i));
+      toast.success(schedule.scheduled_date ? `Scheduled for ${schedule.scheduled_date}` : "Post added to planner");
+    } catch (e: any) { toast.error(e?.message ?? "Failed to save"); }
+    finally { setSavingPostIdx(null); }
+  }
+
+  async function copyPost(p: VideoPost) {
+    const text = p.hashtags.length ? `${p.body}\n\n${p.hashtags.map((h) => `#${h}`).join(" ")}` : p.body;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Post copied");
+    } catch { /* */ }
+  }
+
+  async function summarize(refresh = false) {
+    if (!video) return;
+    setSummarizing(true);
+    try {
+      const r = await generateVideoSummary(video.video_id, refresh);
+      setSummary(r.points);
+      setTaskedPoints(new Set());
+      toast.success(r.cached ? "Loaded cached summary" : `${r.points.length} key points`);
+    } catch (e: any) { toast.error(e?.message ?? "Summary failed"); }
+    finally { setSummarizing(false); }
+  }
+
+  async function pointToTask(i: number) {
+    if (!summary || !source) return;
+    setSavingTaskIdx(i);
+    try {
+      await addPointToTasks(summary[i], source);
+      setTaskedPoints((cur) => new Set(cur).add(i));
+      toast.success("Added to Tasks → Inbox");
+    } catch (e: any) { toast.error(e?.message ?? "Failed to add task"); }
+    finally { setSavingTaskIdx(null); }
+  }
+
+  async function toggleLike() {
+    if (!video) return;
+    const next = !liked;
+    setLikingBusy(true);
+    setLiked(next); // optimistic
+    try {
+      await toggleVideoLike(video.video_id, next);
+      onLikeToggled?.(video.video_id, next);
+    } catch (e: any) {
+      setLiked(!next);
+      toast.error(e?.message ?? "Failed");
+    } finally { setLikingBusy(false); }
   }
 
   return (
@@ -146,6 +244,17 @@ export default function VideoDetailDialog({
                 <p className="text-xs text-muted-foreground line-clamp-4 whitespace-pre-wrap">{video.description}</p>
               )}
               <div className="flex flex-wrap gap-2 pt-1">
+                <Button
+                  size="sm"
+                  variant={liked ? "default" : "outline"}
+                  onClick={toggleLike}
+                  disabled={likingBusy}
+                  className={liked ? "bg-rose-500 hover:bg-rose-600 text-white border-0" : ""}
+                  title={liked ? "Unlike" : "Like"}
+                >
+                  <Heart className={`w-3.5 h-3.5 mr-1 ${liked ? "fill-current" : ""}`} />
+                  {liked ? "Liked" : "Like"}
+                </Button>
                 <Button size="sm" variant="outline" asChild>
                   <a href={ytUrl} target="_blank" rel="noreferrer"><ExternalLink className="w-3.5 h-3.5 mr-1" /> Watch on YouTube</a>
                 </Button>
@@ -153,9 +262,17 @@ export default function VideoDetailDialog({
                   {loadingTranscript ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <FileText className="w-3.5 h-3.5 mr-1" />}
                   {transcript ? "View transcript" : "Get transcript"}
                 </Button>
-                <Button size="sm" variant="outline" onClick={genIdeas} disabled={generating}>
+                <Button size="sm" variant="outline" onClick={() => summarize(false)} disabled={summarizing}>
+                  {summarizing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <ListChecks className="w-3.5 h-3.5 mr-1" />}
+                  {summary ? "View summary" : "Summarize"}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => genIdeas(false)} disabled={generating}>
                   {generating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
-                  Generate ideas
+                  {ideas && ideas.length > 0 ? "View ideas" : "Generate ideas"}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => genPosts(false)} disabled={generatingPosts}>
+                  {generatingPosts ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
+                  {posts && posts.length > 0 ? "View posts" : "Generate social posts"}
                 </Button>
               </div>
             </div>
@@ -206,6 +323,98 @@ export default function VideoDetailDialog({
             </Card>
           )}
 
+          {/* Summary points */}
+          {summary && summary.length > 0 && (
+            <Card className="p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ListChecks className="w-4 h-4 text-primary" />
+                  <h3 className="font-medium text-sm">Key points</h3>
+                  <Badge variant="secondary" className="text-[10px]">{summary.length}</Badge>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => summarize(true)} disabled={summarizing} title="Regenerate">
+                  {summarizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                </Button>
+              </div>
+              <ol className="space-y-2">
+                {summary.map((p, i) => {
+                  const tasked = taskedPoints.has(i);
+                  return (
+                    <li key={i} className="rounded-md border border-border p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-[10px] text-muted-foreground font-mono">{String(i + 1).padStart(2, "0")}</span>
+                            <div className="text-sm font-medium">{p.headline}</div>
+                          </div>
+                          {p.detail && <p className="text-xs text-muted-foreground mt-1">{p.detail}</p>}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={tasked ? "secondary" : "outline"}
+                          onClick={() => pointToTask(i)}
+                          disabled={tasked || savingTaskIdx === i}
+                          title="Send to Tasks → Inbox"
+                        >
+                          {savingTaskIdx === i ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : tasked ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <CheckSquare className="w-3.5 h-3.5" />}
+                          {tasked ? " Added" : " To Tasks"}
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </Card>
+          )}
+
+          {/* Generated social posts */}
+          {posts && posts.length > 0 && (
+            <Card className="p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Send className="w-4 h-4 text-primary" />
+                  <h3 className="font-medium text-sm">Ready-to-publish social posts</h3>
+                  <Badge variant="secondary" className="text-[10px]">{posts.length}</Badge>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => genPosts(true)} disabled={generatingPosts} title="Regenerate">
+                  {generatingPosts ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {posts.map((p, i) => {
+                  const saved = savedPostIds.has(i);
+                  const Icon = p.platform === "linkedin" ? Linkedin : p.platform === "twitter" ? Twitter : Instagram;
+                  return (
+                    <div key={i} className="rounded-md border border-border p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] gap-1 capitalize"><Icon className="w-3 h-3" />{p.platform}</Badge>
+                          <span className="text-[10px] text-muted-foreground">{p.length} chars</span>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => copyPost(p)} title="Copy">
+                            <Copy className="w-3.5 h-3.5" />
+                          </Button>
+                          <SchedulePicker
+                            busy={savingPostIdx === i}
+                            saved={saved}
+                            onSchedule={(s) => savePost(i, s)}
+                          />
+                        </div>
+                      </div>
+                      <div className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">{p.body}</div>
+                      {p.hashtags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {p.hashtags.map((h, j) => <span key={j} className="text-[11px] text-primary">#{h}</span>)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
           {/* Ideas */}
           {ideas && ideas.length > 0 && (
             <Card className="p-3 space-y-3">
@@ -215,9 +424,21 @@ export default function VideoDetailDialog({
                   <h3 className="font-medium text-sm">Content ideas based on this video</h3>
                   <Badge variant="secondary" className="text-[10px]">{ideas.length}</Badge>
                 </div>
-                <Button size="sm" variant="outline" onClick={saveAll} disabled={savingIdx !== null || savedIds.size === ideas.length}>
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Add all to planner
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => genIdeas(true)} disabled={generating} title="Regenerate">
+                    {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  </Button>
+                  <SchedulePicker
+                    busy={savingIdx !== null}
+                    saved={savedIds.size === ideas.length}
+                    onSchedule={(s) => saveAll(s)}
+                    trigger={
+                      <Button size="sm" variant="outline" disabled={savingIdx !== null || savedIds.size === ideas.length}>
+                        <Plus className="w-3.5 h-3.5 mr-1" /> Add all to planner
+                      </Button>
+                    }
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 {ideas.map((it, i) => {
@@ -233,10 +454,17 @@ export default function VideoDetailDialog({
                             {it.angle && <span className="text-[10px] text-muted-foreground italic line-clamp-1">{it.angle}</span>}
                           </div>
                         </div>
-                        <Button size="sm" variant={saved ? "secondary" : "outline"} onClick={() => saveIdea(i)} disabled={saved || savingIdx === i}>
-                          {savingIdx === i ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saved ? <Check className="w-3.5 h-3.5 text-primary" /> : <Plus className="w-3.5 h-3.5" />}
-                          {saved ? " Saved" : " Add"}
-                        </Button>
+                        <SchedulePicker
+                          busy={savingIdx === i}
+                          saved={saved}
+                          onSchedule={(s) => saveIdea(i, s)}
+                          trigger={
+                            <Button size="sm" variant={saved ? "secondary" : "outline"} disabled={saved || savingIdx === i}>
+                              {savingIdx === i ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saved ? <Check className="w-3.5 h-3.5 text-primary" /> : <Plus className="w-3.5 h-3.5" />}
+                              {saved ? " Saved" : " Add"}
+                            </Button>
+                          }
+                        />
                       </div>
                     </div>
                   );
