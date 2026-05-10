@@ -71,9 +71,16 @@ export default function LinkedInTemplatesPage() {
         if (!d) return;
         setTitle(d.title || "");
         const data = (d as any).template_data;
-        if (d.kind === "linkedin_cheatsheet" && data) { setCheatData(data); setActive("cheatsheet"); }
-        else if (d.kind === "linkedin_carousel" && data) { setCarouselData(data); setActive("carousel"); }
-        else if (d.kind === "linkedin_square" && data) { setSquareData(data); setActive("square"); }
+        if (d.kind === "linkedin_cheatsheet" && data) {
+          setCheatData({ ...SEED_CHEAT_SHEET, ...data, sections: data.sections ?? SEED_CHEAT_SHEET.sections });
+          setActive("cheatsheet");
+        } else if (d.kind === "linkedin_carousel" && data) {
+          setCarouselData({ ...SEED_CAROUSEL, ...data, slides: data.slides ?? SEED_CAROUSEL.slides });
+          setActive("carousel");
+        } else if (d.kind === "linkedin_square" && data) {
+          setSquareData({ ...SEED_SQUARE, ...data });
+          setActive("square");
+        }
       } finally { setLoadingExisting(false); }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -114,9 +121,12 @@ export default function LinkedInTemplatesPage() {
 
   // Re-run logo detection whenever the relevant text changes
   const watchedText = useMemo(() => {
-    const cheat = `${cheatData.title} ${cheatData.subtitle ?? ""} ${cheatData.sections.map((s) => `${s.title} ${s.subtitle ?? ""} ${(s.items ?? []).join(" ")}`).join(" ")}`;
-    const carousel = carouselData.slides.map((s) => `${s.title} ${s.body ?? ""}`).join(" ");
-    const square = `${squareData.statement} ${squareData.support ?? ""}`;
+    const cheatSections = (cheatData?.sections ?? []).map(
+      (s) => `${s.title ?? ""} ${s.subtitle ?? ""} ${(s.items ?? []).join(" ")}`
+    ).join(" ");
+    const cheat = `${cheatData?.title ?? ""} ${cheatData?.subtitle ?? ""} ${cheatSections}`;
+    const carousel = (carouselData?.slides ?? []).map((s) => `${s.title ?? ""} ${s.body ?? ""}`).join(" ");
+    const square = `${squareData?.statement ?? ""} ${squareData?.support ?? ""}`;
     const planText = planMeta ? `${planMeta.hook ?? ""} ${planMeta.body ?? ""}` : "";
     return [cheat, carousel, square, planText].join(" ");
   }, [cheatData, carouselData, squareData, planMeta]);
