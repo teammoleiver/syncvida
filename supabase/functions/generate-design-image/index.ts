@@ -44,23 +44,46 @@ Deno.serve(async (req) => {
           ...refUrls.map((url) => ({ type: "image_url", image_url: { url } })),
         ];
 
-    const ai = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [{ role: "user", content: userContent }],
-        modalities: ["image", "text"],
-      }),
-    });
+    async function callImageModel(extraNudge = "") {
+      const content = typeof userContent === "string"
+        ? `${userContent}${extraNudge}`
+        : [{ type: "text", text: `${userContent[0].text}${extraNudge}` }, ...userContent.slice(1)];
+      const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image",
+          messages: [{ role: "user", content }],
+          modalities: ["image", "text"],
+        }),
+      });
+      return r;
+    }
+
+    let ai = await callImageModel();
     if (!ai.ok) {
       if (ai.status === 429) return json({ error: "AI rate limit, try again shortly" }, 429);
       if (ai.status === 402) return json({ error: "AI credits exhausted" }, 402);
       return json({ error: `AI error: ${await ai.text()}` }, 500);
     }
-    const data = await ai.json();
-    const dataUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    if (!dataUrl?.startsWith("data:image/")) return json({ error: "No image returned" }, 500);
+    let data = await ai.json();
+    let dataUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    if (!dataUrl?.startsWith("data:image/")) {
+      // Retry once with an explicit instruction to return an image
+      ai = await callImageModel(" Return ONLY an image. Do not respond with text.");
+      if (ai.ok) {
+        data = await ai.json();
+        dataUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      }
+    }
+    if (!dataUrl?.startsWith("data:image/")) {
+      const textOut = data.choices?.[0]?.message?.content;
+      console.warn("No image returned. Text response:", typeof textOut === "string" ? textOut.slice(0, 300) : "");
+      return json({
+        error: "The image model didn't return an image. Try a more visual prompt (e.g. include a subject and style), or try again.",
+        fallback: true,
+      }, 200);
+    }
     const [meta, b64] = dataUrl.split(",");
     const mime = meta.match(/data:([^;]+);/)?.[1] ?? "image/png";
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
