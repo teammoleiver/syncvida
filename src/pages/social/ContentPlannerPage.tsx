@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { Clock, Check } from "lucide-react";
 import { toast } from "sonner";
 import { listContentPlan, createPlannerPost, updatePlanEntry, deletePlanEntry, pushSinglePost, PLANNER_PLATFORMS, generatePostImage, getWriterSettings } from "@/lib/social-queries";
 import { generateDesignFromPrompt } from "@/lib/designer-queries";
@@ -800,36 +804,13 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
               </div>
             )}
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div><Label>Date</Label><Input type="date" value={form.scheduled_date ?? ""} onChange={(e) => setForm({ ...form, scheduled_date: e.target.value })} /></div>
-            <div><Label>Time</Label><Input type="time" value={(form.scheduled_time ?? "").slice(0,5)} onChange={(e) => setForm({ ...form, scheduled_time: e.target.value })} /></div>
-            <div>
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          </div>
-          {form.scheduled_date && form.scheduled_time && (
-            <div className={`text-[11px] flex items-center gap-1.5 px-2.5 py-2 rounded border ${form.status === "scheduled" ? "border-blue-500/40 bg-blue-500/10 text-blue-300" : "border-border text-muted-foreground"}`}>
-              <CalendarClock className="w-3.5 h-3.5" />
-              {(() => {
-                const utc = localDateTimeToUtcIso(form.scheduled_date, form.scheduled_time);
-                if (!utc) return "Pick a valid date and time";
-                const past = new Date(utc).getTime() <= Date.now();
-                const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                if (form.status === "scheduled") {
-                  return past
-                    ? <>Was set to fire <strong>{relativeTime(utc)}</strong> at {formatScheduled(utc)} ({tz})</>
-                    : <>Will fire <strong>{relativeTime(utc)}</strong> at {formatScheduled(utc)} ({tz})</>;
-                }
-                return past
-                  ? <>Date/time is in the past — pick a future moment to schedule</>
-                  : <>Click <strong>Schedule</strong> below to fire {relativeTime(utc)} at {formatScheduled(utc)} ({tz})</>;
-              })()}
-            </div>
-          )}
+          <ScheduleBlock
+            date={form.scheduled_date ?? ""}
+            time={(form.scheduled_time ?? "").slice(0, 5)}
+            status={form.status}
+            onChange={(p) => setForm({ ...form, ...p })}
+            utcIso={localDateTimeToUtcIso(form.scheduled_date, form.scheduled_time)}
+          />
           <div>
             <Label>Platforms</Label>
             <div className="flex flex-wrap gap-2 mt-1">
@@ -939,5 +920,210 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
         />
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ScheduleBlock — polished date / time / status picker
+// ─────────────────────────────────────────────────────────────────────────────
+
+const STATUS_META: Record<string, { label: string; dot: string; ring: string }> = {
+  planned:   { label: "Planned",   dot: "bg-slate-400",   ring: "data-[on=true]:bg-slate-500/15 data-[on=true]:text-slate-700 dark:data-[on=true]:text-slate-200 data-[on=true]:border-slate-400/40" },
+  drafting:  { label: "Drafting",  dot: "bg-amber-400",   ring: "data-[on=true]:bg-amber-500/15 data-[on=true]:text-amber-700 dark:data-[on=true]:text-amber-300 data-[on=true]:border-amber-500/40" },
+  ready:     { label: "Ready",     dot: "bg-violet-400",  ring: "data-[on=true]:bg-violet-500/15 data-[on=true]:text-violet-700 dark:data-[on=true]:text-violet-300 data-[on=true]:border-violet-500/40" },
+  scheduled: { label: "Scheduled", dot: "bg-blue-500",    ring: "data-[on=true]:bg-blue-500/15 data-[on=true]:text-blue-700 dark:data-[on=true]:text-blue-300 data-[on=true]:border-blue-500/40" },
+  posted:    { label: "Posted",    dot: "bg-emerald-500", ring: "data-[on=true]:bg-emerald-500/15 data-[on=true]:text-emerald-700 dark:data-[on=true]:text-emerald-300 data-[on=true]:border-emerald-500/40" },
+  failed:    { label: "Failed",    dot: "bg-destructive", ring: "data-[on=true]:bg-destructive/15 data-[on=true]:text-destructive data-[on=true]:border-destructive/40" },
+};
+
+const TIME_PRESETS = ["08:00", "09:00", "12:00", "15:00", "18:00", "20:00"];
+
+function toLocalYmd(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function ScheduleBlock({
+  date, time, status, utcIso, onChange,
+}: {
+  date: string;
+  time: string;
+  status: string;
+  utcIso: string | null;
+  onChange: (p: Partial<{ scheduled_date: string; scheduled_time: string; status: string }>) => void;
+}) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+  const nextMonday = (() => {
+    const d = new Date(today);
+    const days = (8 - d.getDay()) % 7 || 7;
+    d.setDate(d.getDate() + days);
+    return d;
+  })();
+
+  const dateObj = date ? new Date(`${date}T00:00:00`) : undefined;
+  const past = utcIso ? new Date(utcIso).getTime() <= Date.now() : false;
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const datePresets: { label: string; value: Date }[] = [
+    { label: "Today",       value: today },
+    { label: "Tomorrow",    value: tomorrow },
+    { label: "Next Monday", value: nextMonday },
+  ];
+
+  const dateLabel = dateObj
+    ? dateObj.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
+    : "Pick a date";
+
+  return (
+    <div className="rounded-xl border border-border bg-card/40 p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs uppercase tracking-wider text-muted-foreground/80">Schedule</Label>
+        {date && (
+          <button
+            type="button"
+            onClick={() => onChange({ scheduled_date: "", scheduled_time: "" })}
+            className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* Date + Time row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {/* Date picker */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(
+                "h-11 justify-start font-normal text-sm",
+                !date && "text-muted-foreground",
+              )}
+            >
+              <CalendarIcon className="w-4 h-4 mr-2 text-primary" />
+              {dateLabel}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-auto p-3 space-y-2">
+            <div className="flex flex-wrap gap-1.5">
+              {datePresets.map((p) => (
+                <Button
+                  key={p.label}
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 text-xs"
+                  onClick={() => onChange({ scheduled_date: toLocalYmd(p.value) })}
+                >
+                  {p.label}
+                </Button>
+              ))}
+            </div>
+            <Calendar
+              mode="single"
+              selected={dateObj}
+              onSelect={(d) => d && onChange({ scheduled_date: toLocalYmd(d) })}
+              className={cn("p-0 pointer-events-auto")}
+            />
+          </PopoverContent>
+        </Popover>
+
+        {/* Time picker */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(
+                "h-11 justify-start font-normal text-sm",
+                !time && "text-muted-foreground",
+              )}
+            >
+              <Clock className="w-4 h-4 mr-2 text-primary" />
+              {time || "Pick a time"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-64 p-3 space-y-2">
+            <div className="grid grid-cols-3 gap-1.5">
+              {TIME_PRESETS.map((t) => (
+                <Button
+                  key={t}
+                  size="sm"
+                  variant={time === t ? "default" : "secondary"}
+                  className="h-8 text-xs"
+                  onClick={() => onChange({ scheduled_time: t })}
+                >
+                  {t}
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 pt-1 border-t border-border">
+              <Label className="text-[11px] text-muted-foreground shrink-0">Custom</Label>
+              <Input
+                type="time"
+                value={time}
+                onChange={(e) => onChange({ scheduled_time: e.target.value })}
+                className="h-8 text-xs"
+              />
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* Status segmented pills */}
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1.5">Status</div>
+        <div className="flex flex-wrap gap-1.5">
+          {STATUSES.map((s) => {
+            const meta = STATUS_META[s];
+            const on = status === s;
+            return (
+              <button
+                key={s}
+                type="button"
+                data-on={on}
+                onClick={() => onChange({ status: s })}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2.5 h-7 rounded-full border text-xs font-medium transition-all",
+                  "border-border bg-background text-muted-foreground hover:text-foreground",
+                  meta.ring,
+                )}
+              >
+                <span className={cn("w-1.5 h-1.5 rounded-full", meta.dot)} />
+                {meta.label}
+                {on && <Check className="w-3 h-3 ml-0.5" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Live hint */}
+      {date && time && utcIso && (
+        <div
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-2 rounded-md border text-[11px]",
+            past
+              ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+              : status === "scheduled"
+                ? "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300"
+                : "border-border bg-muted/40 text-muted-foreground",
+          )}
+        >
+          <CalendarClock className="w-3.5 h-3.5 shrink-0" />
+          <span>
+            {past
+              ? <>In the past — pick a future moment to schedule</>
+              : status === "scheduled"
+                ? <>Will fire <strong>{relativeTime(utcIso)}</strong> · {formatScheduled(utcIso)} ({tz})</>
+                : <>Set <strong>{relativeTime(utcIso)}</strong> · {formatScheduled(utcIso)} — click <strong>Schedule</strong> to confirm</>}
+          </span>
+        </div>
+      )}
+    </div>
   );
 }
