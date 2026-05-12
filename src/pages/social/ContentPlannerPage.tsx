@@ -364,6 +364,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
   const navigate = useNavigate();
   const [figmaBrief, setFigmaBrief] = useState<string | null>(entry?.figma_brief ?? null);
   const [me, setMe] = useState<{ name?: string; linkedin_url?: string; style?: string } | null>(null);
+  const [profileMeta, setProfileMeta] = useState<{ name?: string; avatar_url?: string | null; headline?: string }>({});
 
   // Look up the linked Studio design (if any) so we can offer "Use design as image"
   useEffect(() => {
@@ -474,6 +475,11 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
           name: (p as any)?.full_name || (p as any)?.name || "",
           linkedin_url: (w as any)?.linkedin_url || "",
           style: (w as any)?.image_style_prompt || "",
+        });
+        setProfileMeta({
+          name: (p as any)?.full_name || (p as any)?.name || "",
+          avatar_url: (p as any)?.avatar_url ?? null,
+          headline: (w as any)?.headline || (p as any)?.headline || "",
         });
       } catch { /* ignore */ }
     })();
@@ -654,9 +660,12 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>{isNew ? "New post" : "Edit post"}</DialogTitle></DialogHeader>
-        <div className="space-y-3">
+      <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] overflow-hidden p-0 flex flex-col">
+        <DialogHeader className="px-6 pt-5 pb-3 border-b border-border shrink-0">
+          <DialogTitle>{isNew ? "New post" : "Edit post"}</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] gap-0 flex-1 overflow-hidden">
+        <div className="space-y-3 overflow-y-auto px-6 py-4 border-r border-border">
           <div><Label>Hook / headline</Label><Input value={form.hook ?? ""} onChange={(e) => setForm({ ...form, hook: e.target.value })} /></div>
           <div><Label>Body</Label><Textarea rows={6} value={form.body ?? ""} onChange={(e) => setForm({ ...form, body: e.target.value })} /></div>
           <div className="space-y-2">
@@ -837,7 +846,18 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
             </details>
           )}
         </div>
-        <DialogFooter className="flex-wrap gap-2">
+        <aside className="hidden lg:flex flex-col bg-muted/20 px-4 py-4 overflow-hidden">
+          <PostPreview
+            hook={form.hook ?? ""}
+            body={form.body ?? ""}
+            image_url={form.image_url ?? null}
+            document_filename={form.document_filename ?? null}
+            author={profileMeta}
+            selectedPlatforms={form.platforms ?? []}
+          />
+        </aside>
+        </div>
+        <DialogFooter className="flex-wrap gap-2 px-6 py-3 border-t border-border bg-background shrink-0">
           {!isNew && <Button variant="ghost" onClick={remove} className="text-destructive"><Trash2 className="w-4 h-4 mr-1" /> Delete</Button>}
           <div className="flex-1" />
           <Button variant="outline" onClick={onClose}>Cancel</Button>
