@@ -20,6 +20,7 @@ import { getProfile } from "@/lib/supabase-queries";
 import LinkedInReview from "./LinkedInReview";
 import PlatformReview from "./PlatformReview";
 import { PostPreview } from "@/components/social/PostPreview";
+import { resolveAvatarUrl } from "@/lib/avatar";
 
 const STATUSES = ["planned", "drafting", "ready", "scheduled", "posted", "failed"];
 const PLATFORM_ICONS: Record<string, any> = { linkedin: Linkedin, facebook: Facebook, instagram: Instagram, twitter: Twitter, youtube: Youtube };
@@ -476,9 +477,15 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
           linkedin_url: (w as any)?.linkedin_url || "",
           style: (w as any)?.image_style_prompt || "",
         });
+        const { data: { user } } = await supabase.auth.getUser();
+        const avatar = await resolveAvatarUrl({
+          userId: user?.id,
+          storedAvatar: (p as any)?.avatar_url ?? null,
+          oauthAvatarUrl: (user?.user_metadata as any)?.avatar_url ?? null,
+        }).catch(() => null);
         setProfileMeta({
-          name: (p as any)?.full_name || (p as any)?.name || "",
-          avatar_url: (p as any)?.avatar_url ?? null,
+          name: (p as any)?.full_name || (p as any)?.name || user?.user_metadata?.full_name || "",
+          avatar_url: avatar ?? (user?.user_metadata as any)?.avatar_url ?? null,
           headline: (w as any)?.headline || (p as any)?.headline || "",
         });
       } catch { /* ignore */ }
