@@ -18,7 +18,13 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    // Cron-only: require service role bearer to prevent anonymous quota burn.
+    const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    if (!bearer || bearer !== serviceKey) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
     const apiKey = Deno.env.get("YOUTUBE_API_KEY") ?? "";
 
     const { data: channels, error } = await admin.from("youtube_channels").select("*");
