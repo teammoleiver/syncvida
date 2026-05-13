@@ -19,7 +19,7 @@ import {
 import {
   SEED_CHEAT_SHEET, SEED_CAROUSEL, SEED_SQUARE, exportCanvasAsPng,
   saveCanvasAsAsset, linkAssetToPlan, getPlanEntry,
-  saveCarouselAsPdf, linkPdfToPlan, renderNodeToDataUrl,
+  saveCarouselAsPdf, linkPdfToPlan, renderNodeToDataUrl, buildCarouselFromPost,
 } from "@/components/designer/linkedin/editorHelpers";
 import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, listAssets, type DesignAsset } from "@/lib/designer-queries";
 import { detectMentionedLogos, type DetectedLogo } from "@/components/designer/linkedin/detectLogos";
@@ -125,13 +125,11 @@ export default function LinkedInTemplatesPage() {
       const body = bodyParam ?? "";
       setCheatData((d) => ({ ...d, title: hook || d.title, subtitle: body || d.subtitle }));
       setSquareData((d) => ({ ...d, statement: hook || d.statement, support: body || d.support }));
-      setCarouselData((d) => ({
-        ...d,
-        slides: [
-          { ...(d.slides[0] ?? {}), eyebrow: "Hook", title: hook || d.slides[0]?.title || "" },
-          ...(body ? [{ eyebrow: "Body", title: body.slice(0, 80), body, accent: "teal" as AccentKey }] : []),
-          ...d.slides.slice(1),
-        ],
+      // Generate the entire carousel dynamically from the post — number of
+      // slides, layouts, and content all come from `hook` + `body`, so
+      // every post produces a different deck instead of the static template.
+      setCarouselData((d) => buildCarouselFromPost(hook, body, {
+        author: d.author, handleShort: d.handleShort, avatarUrl: d.avatarUrl,
       }));
     }
     if (planId) {
@@ -142,6 +140,9 @@ export default function LinkedInTemplatesPage() {
           // Seed from the plan if not already in URL
           setCheatData((d) => ({ ...d, title: p.hook || d.title, subtitle: p.body || d.subtitle }));
           setSquareData((d) => ({ ...d, statement: p.hook || d.statement, support: p.body || d.support }));
+          setCarouselData((d) => buildCarouselFromPost(p.hook ?? "", p.body ?? "", {
+            author: d.author, handleShort: d.handleShort, avatarUrl: d.avatarUrl,
+          }));
         }
       });
     }
@@ -541,7 +542,27 @@ export default function LinkedInTemplatesPage() {
           />
           <div className="border-t border-border pt-3">
             {active === "cheatsheet" && <CheatSheetForm data={cheatData} setData={editCheatData} />}
-            {active === "carousel" && <CarouselForm data={carouselData} setData={editCarouselData} slideIdx={slideIdx} setSlideIdx={setSlideIdx} />}
+            {active === "carousel" && (
+              <>
+                {(planMeta?.hook || planMeta?.body || params.get("hook") || params.get("body")) && (
+                  <Button
+                    type="button" size="sm" variant="outline" className="w-full mb-3"
+                    onClick={() => {
+                      const hook = planMeta?.hook ?? params.get("hook") ?? "";
+                      const body = planMeta?.body ?? params.get("body") ?? "";
+                      editCarouselData((d) => buildCarouselFromPost(hook, body, {
+                        author: d.author, handleShort: d.handleShort, avatarUrl: d.avatarUrl,
+                      }));
+                      setSlideIdx(0);
+                      toast.success("Slides regenerated from post");
+                    }}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 mr-1" /> Regenerate slides from post
+                  </Button>
+                )}
+                <CarouselForm data={carouselData} setData={editCarouselData} slideIdx={slideIdx} setSlideIdx={setSlideIdx} />
+              </>
+            )}
             {active === "square" && <SquareForm data={squareData} setData={editSquareData} />}
           </div>
         </div>
