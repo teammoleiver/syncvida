@@ -3,6 +3,7 @@ import { Send, Bot, User, Trash2, Loader2 } from "lucide-react";
 import { getChatHistory, saveChatMessage } from "@/lib/supabase-queries";
 import { clearChatHistory } from "@/lib/supabase-queries";
 import { gatherHealthIntelligence, buildAIContextFromIntelligence } from "@/lib/health-intelligence";
+import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 
 interface Message {
@@ -73,11 +74,15 @@ export default function AssistantModule() {
       const healthContext = await buildHealthContext();
       const apiMessages = newMessages.slice(-20).map((m) => ({ role: m.role, content: m.content }));
 
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Please sign in to use the assistant");
+
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ messages: apiMessages, healthContext }),
       });
