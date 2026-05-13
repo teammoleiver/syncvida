@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, Sparkles, Combine, ListChecks, FileText, Send, Copy, Check,
-  Linkedin, Twitter, Instagram, ExternalLink, Lightbulb,
+  Linkedin, Twitter, Instagram, ExternalLink, Lightbulb, AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -58,10 +58,17 @@ export default function MultiVideoSynthDialog({
         count,
         platforms,
         intent: intent.trim() || undefined,
+        fallback_videos: transcribed.slice(0, 10).map((v) => ({
+          video_id: v.video_id,
+          title: v.title,
+          description: v.description,
+          channel_id: channelTitleByPk[v.channel_pk] ?? v.channel_id,
+        })),
       });
       setResult(r);
       setTab(r.ideas?.length ? "ideas" : r.posts?.length ? "posts" : "themes");
-      toast.success(`Synthesized ${r.ideas?.length ?? 0} ideas · ${r.posts?.length ?? 0} posts`);
+      if (r.ai_unavailable) toast.warning(r.warning ?? "AI unavailable — local drafts generated instead");
+      else toast.success(`Synthesized ${r.ideas?.length ?? 0} ideas · ${r.posts?.length ?? 0} posts`);
     } catch (e: any) {
       toast.error(e?.message ?? "Generation failed");
     } finally { setBusy(false); }
@@ -160,6 +167,15 @@ export default function MultiVideoSynthDialog({
               )}
               {result && (
                 <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+                  {result.ai_unavailable && (
+                    <div className="mb-3 flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-muted-foreground">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                      <div>
+                        <div className="font-medium text-foreground">AI credits are exhausted</div>
+                        <div>{result.warning ?? "Showing local draft ideas so the workflow still works. Top up AI balance for deeper creative synthesis."}</div>
+                      </div>
+                    </div>
+                  )}
                   <TabsList>
                     <TabsTrigger value="ideas"><Lightbulb className="w-3.5 h-3.5 mr-1" /> Ideas ({result.ideas.length})</TabsTrigger>
                     <TabsTrigger value="posts"><FileText className="w-3.5 h-3.5 mr-1" /> Posts ({result.posts.length})</TabsTrigger>
