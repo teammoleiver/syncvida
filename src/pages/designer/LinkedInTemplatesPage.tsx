@@ -278,12 +278,12 @@ export default function LinkedInTemplatesPage() {
     const existing = cheatData.sections.find((s) => s.kind === "tools");
     if (existing) {
       const merged = Array.from(new Set([...(existing.items ?? []), ...names]));
-      setCheatData({
+      editCheatData({
         ...cheatData,
         sections: cheatData.sections.map((s) => s === existing ? { ...s, items: merged } : s),
       });
     } else {
-      setCheatData({
+      editCheatData({
         ...cheatData,
         sections: [
           ...cheatData.sections,
@@ -303,9 +303,9 @@ export default function LinkedInTemplatesPage() {
 
   /** Persist a new overlays array back into whichever data shape is active. */
   function setOverlays(next: Overlay[]) {
-    if (active === "cheatsheet") setCheatData({ ...cheatData, overlays: next });
-    else if (active === "square") setSquareData({ ...squareData, overlays: next });
-    else setCarouselData({
+    if (active === "cheatsheet") editCheatData({ ...cheatData, overlays: next });
+    else if (active === "square") editSquareData({ ...squareData, overlays: next });
+    else editCarouselData({
       ...carouselData,
       overlays: { ...(carouselData.overlays ?? {}), [slideIdx]: next },
     });
@@ -398,7 +398,7 @@ export default function LinkedInTemplatesPage() {
           </Button>
           <Input
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => editTitle(e.target.value)}
             placeholder={designId ? "Untitled template" : "New LinkedIn template"}
             className="max-w-xs h-8"
           />
@@ -485,9 +485,9 @@ export default function LinkedInTemplatesPage() {
       <div className="flex-1 grid grid-cols-[80px_1fr_360px] min-h-0">
         {/* Left: preset selector */}
         <div className="border-r border-border p-2 flex flex-col gap-1 overflow-auto">
-          <PresetTile active={active === "cheatsheet"} onClick={() => setActive("cheatsheet")} icon={<LayoutGrid className="w-4 h-4" />} label="Sheet" />
-          <PresetTile active={active === "carousel"} onClick={() => setActive("carousel")} icon={<Layers className="w-4 h-4" />} label="Slides" />
-          <PresetTile active={active === "square"} onClick={() => setActive("square")} icon={<SquareIcon className="w-4 h-4" />} label="Square" />
+          <PresetTile active={active === "cheatsheet"} onClick={() => editActive("cheatsheet")} icon={<LayoutGrid className="w-4 h-4" />} label="Sheet" />
+          <PresetTile active={active === "carousel"} onClick={() => editActive("carousel")} icon={<Layers className="w-4 h-4" />} label="Slides" />
+          <PresetTile active={active === "square"} onClick={() => editActive("square")} icon={<SquareIcon className="w-4 h-4" />} label="Square" />
         </div>
 
         {/* Center: live preview */}
@@ -499,7 +499,7 @@ export default function LinkedInTemplatesPage() {
                 editableOverlays
                 selectedOverlayId={selectedOverlayId}
                 onSelectOverlay={setSelectedOverlayId}
-                onChangeOverlays={(next) => setCheatData({ ...cheatData, overlays: next })}
+                onChangeOverlays={(next) => editCheatData({ ...cheatData, overlays: next })}
                 zoom={zoom}
               />
             )}
@@ -510,7 +510,7 @@ export default function LinkedInTemplatesPage() {
                 editableOverlays
                 selectedOverlayId={selectedOverlayId}
                 onSelectOverlay={setSelectedOverlayId}
-                onChangeOverlays={(next) => setCarouselData({ ...carouselData, overlays: { ...(carouselData.overlays ?? {}), [slideIdx]: next } })}
+                onChangeOverlays={(next) => editCarouselData({ ...carouselData, overlays: { ...(carouselData.overlays ?? {}), [slideIdx]: next } })}
                 zoom={zoom}
               />
             )}
@@ -520,7 +520,7 @@ export default function LinkedInTemplatesPage() {
                 editableOverlays
                 selectedOverlayId={selectedOverlayId}
                 onSelectOverlay={setSelectedOverlayId}
-                onChangeOverlays={(next) => setSquareData({ ...squareData, overlays: next })}
+                onChangeOverlays={(next) => editSquareData({ ...squareData, overlays: next })}
                 zoom={zoom}
               />
             )}
@@ -540,9 +540,9 @@ export default function LinkedInTemplatesPage() {
             onDelete={deleteSelectedOverlay}
           />
           <div className="border-t border-border pt-3">
-            {active === "cheatsheet" && <CheatSheetForm data={cheatData} setData={setCheatData} />}
-            {active === "carousel" && <CarouselForm data={carouselData} setData={setCarouselData} slideIdx={slideIdx} setSlideIdx={setSlideIdx} />}
-            {active === "square" && <SquareForm data={squareData} setData={setSquareData} />}
+            {active === "cheatsheet" && <CheatSheetForm data={cheatData} setData={editCheatData} />}
+            {active === "carousel" && <CarouselForm data={carouselData} setData={editCarouselData} slideIdx={slideIdx} setSlideIdx={setSlideIdx} />}
+            {active === "square" && <SquareForm data={squareData} setData={editSquareData} />}
           </div>
         </div>
       </div>
