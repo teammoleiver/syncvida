@@ -12,6 +12,13 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    // Cron-only: require the service role key as the bearer token.
+    const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    if (!bearer || bearer !== serviceKey) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const apifyToken = Deno.env.get("APIFY_API_TOKEN");
     const defaultActor = Deno.env.get("APIFY_LINKEDIN_ACTOR_ID") ?? "94SdiE9JwTx0RNyfS";
     if (!apifyToken) return new Response(JSON.stringify({ error: "APIFY_API_TOKEN not configured" }), {
