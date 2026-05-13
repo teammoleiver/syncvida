@@ -473,13 +473,32 @@ export default function YouTubePage() {
                 </div>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {sec.items.map((v) => (
-                  <button key={v.id} onClick={() => setOpenVideo(v)}
-                    className="group text-left">
-                    <Card className={`overflow-hidden transition-colors h-full flex flex-col ${
-                      v.has_transcript
-                        ? "border-emerald-500/60 hover:border-emerald-400 ring-1 ring-emerald-500/20"
-                        : "hover:border-primary/60"
+                {sec.items.map((v) => {
+                  const isPicked = pickedVideos.has(v.video_id);
+                  return (
+                  <div key={v.id} className="relative group">
+                    {/* Selection checkbox — only meaningful when transcript is ready */}
+                    {v.has_transcript && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); togglePickVideo(v.video_id); }}
+                        className={`absolute top-1.5 left-1.5 z-10 w-5 h-5 rounded-md border flex items-center justify-center transition-all shadow-sm ${
+                          isPicked
+                            ? "bg-primary border-primary text-primary-foreground scale-110"
+                            : "bg-background/90 border-border opacity-0 group-hover:opacity-100 hover:border-primary"
+                        }`}
+                        title={isPicked ? "Unselect" : "Select for multi-video synthesis"}
+                      >
+                        {isPicked && <CheckSquare className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                    <button onClick={() => setOpenVideo(v)} className="text-left w-full">
+                    <Card className={`overflow-hidden transition-all h-full flex flex-col ${
+                      isPicked
+                        ? "border-primary ring-2 ring-primary/40 shadow-md"
+                        : v.has_transcript
+                          ? "border-emerald-500/60 hover:border-emerald-400 ring-1 ring-emerald-500/20"
+                          : "hover:border-primary/60"
                     }`}>
                       <div className="relative">
                         {v.thumbnail_url ? (
@@ -493,7 +512,7 @@ export default function YouTubePage() {
                           </Badge>
                         )}
                         {v.is_liked && (
-                          <div className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md">
+                          <div className="absolute bottom-1.5 left-1.5 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md">
                             <Heart className="w-3.5 h-3.5 fill-current" />
                           </div>
                         )}
@@ -507,7 +526,9 @@ export default function YouTubePage() {
                       </div>
                     </Card>
                   </button>
-                ))}
+                  </div>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -525,6 +546,38 @@ export default function YouTubePage() {
         onLikeToggled={(vid, isLiked) => {
           setVideos((cur) => cur.map((v) => v.video_id === vid ? { ...v, is_liked: isLiked } : v));
         }}
+      />
+
+      {/* Floating multi-select action bar */}
+      {pickedVideos.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 rounded-full bg-foreground text-background shadow-2xl border border-border animate-in fade-in slide-in-from-bottom-4">
+          <CheckSquare className="w-4 h-4" />
+          <div className="text-sm font-medium">
+            {pickedVideos.size} selected
+            {pickedTranscribedCount !== pickedVideos.size && (
+              <span className="text-xs opacity-70 ml-1">
+                ({pickedTranscribedCount} with transcript)
+              </span>
+            )}
+          </div>
+          <div className="w-px h-5 bg-background/20" />
+          <Button size="sm" variant="secondary" className="h-8 rounded-full"
+            disabled={pickedTranscribedCount === 0}
+            onClick={() => setSynthOpen(true)}>
+            <Combine className="w-3.5 h-3.5 mr-1" /> Synthesize ideas + posts
+          </Button>
+          <button onClick={() => setPickedVideos(new Set())}
+            className="opacity-70 hover:opacity-100 ml-1" title="Clear selection">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      <MultiVideoSynthDialog
+        open={synthOpen}
+        onClose={() => setSynthOpen(false)}
+        videos={pickedVideoObjs}
+        channelTitleByPk={channelTitleByPk}
       />
     </section>
   );
