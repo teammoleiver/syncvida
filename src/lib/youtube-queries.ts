@@ -176,6 +176,33 @@ export async function generateVideoSummary(video_id: string, refresh = false): P
   return callEdge("youtube-video-summary", { video_id, refresh });
 }
 
+export type MultiVideoTheme = { label: string; sources: number[] };
+export type MultiVideoSource = { n: number; video_id: string; title: string; channel: string; url: string };
+export type MultiVideoIdea = VideoIdea & { sources: number[] };
+export type MultiVideoPost = VideoPost & { sources: number[] };
+export type MultiVideoResult = {
+  themes: MultiVideoTheme[];
+  ideas: MultiVideoIdea[];
+  posts: MultiVideoPost[];
+  next_steps: string[];
+  sources: MultiVideoSource[];
+};
+
+/**
+ * Generate combined ideas + posts across N transcribed videos. The model is
+ * told to look across sources for shared themes, contradictions, and gaps —
+ * not just summarize each one in isolation.
+ */
+export async function generateMultiVideoContent(args: {
+  video_ids: string[];
+  mode?: "ideas" | "posts" | "both";
+  count?: number;
+  platforms?: string[];
+  intent?: string;
+}): Promise<MultiVideoResult> {
+  return callEdge("youtube-multi-video-content", args);
+}
+
 export async function toggleVideoLike(video_id: string, liked: boolean): Promise<void> {
   const { error } = await supabase
     .from("youtube_videos" as any)
