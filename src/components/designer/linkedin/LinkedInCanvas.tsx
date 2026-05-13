@@ -489,7 +489,7 @@ function clip(s: string | undefined, n: number): string {
   return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s;
 }
 
-function CarouselBody({ slide }: { slide: CarouselSlide }) {
+function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: string; handleShort?: string; avatarUrl?: string; photoKey?: AccentKey; } }) {
   const layout: CarouselLayout = slide.layout || "text";
 
   if (layout === "cover") {
@@ -560,6 +560,29 @@ function CarouselBody({ slide }: { slide: CarouselSlide }) {
     );
   }
 
+  if (layout === "cta") {
+    const photo = ctx ? pickPhoto(ctx) : "";
+    const initial = (ctx?.author || "S").trim().charAt(0).toUpperCase();
+    return (
+      <div className="carousel-body carousel-cta">
+        {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
+        <div
+          className="carousel-cta-avatar"
+          style={{
+            backgroundImage: photo ? `url(${photo})` : undefined,
+            backgroundColor: photo ? undefined : "var(--brand-coral)",
+          }}
+        >
+          {!photo && initial}
+        </div>
+        <div className="carousel-cta-name">{ctx?.author || slide.quoteAuthor || ""}</div>
+        {ctx?.handleShort && <div className="carousel-cta-handle">@{ctx.handleShort}</div>}
+        <h2 className="carousel-cta-prompt">{slide.ctaPrompt || slide.title || "What would you add?"}</h2>
+        {slide.ctaAction && <p className="carousel-cta-action">{slide.ctaAction}</p>}
+      </div>
+    );
+  }
+
   // text (default)
   return (
     <div className="carousel-body">
@@ -588,7 +611,7 @@ export function CarouselCanvas({
   return (
     <div className="canvas" data-format="carousel" data-accent={accent} id={idForExport}>
       <TopChrome typeLabel={data.typeLabel || "Carousel"} />
-      <CarouselBody slide={slide} />
+      <CarouselBody slide={slide} ctx={{ author: data.author, handleShort: data.handleShort, avatarUrl: data.avatarUrl, photoKey: data.photoKey }} />
       <div className="cnv-footer cnv-footer-sig">
         <Signature data={data} size="md" />
         <div className="cnv-footer-right">
