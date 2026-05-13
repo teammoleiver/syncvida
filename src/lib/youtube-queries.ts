@@ -186,6 +186,8 @@ export type MultiVideoResult = {
   posts: MultiVideoPost[];
   next_steps: string[];
   sources: MultiVideoSource[];
+  ai_unavailable?: boolean;
+  warning?: string;
 };
 
 /**
@@ -200,7 +202,16 @@ export async function generateMultiVideoContent(args: {
   platforms?: string[];
   intent?: string;
 }): Promise<MultiVideoResult> {
-  return callEdge("youtube-multi-video-content", args);
+  const result = await callEdge<Partial<MultiVideoResult>>("youtube-multi-video-content", args);
+  return {
+    themes: Array.isArray(result.themes) ? result.themes : [],
+    ideas: Array.isArray(result.ideas) ? result.ideas : [],
+    posts: Array.isArray(result.posts) ? result.posts : [],
+    next_steps: Array.isArray(result.next_steps) ? result.next_steps : [],
+    sources: Array.isArray(result.sources) ? result.sources : [],
+    ai_unavailable: !!result.ai_unavailable,
+    warning: result.warning,
+  };
 }
 
 export async function toggleVideoLike(video_id: string, liked: boolean): Promise<void> {
