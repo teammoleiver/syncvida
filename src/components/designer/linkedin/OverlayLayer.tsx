@@ -25,6 +25,7 @@ export default function OverlayLayer({
   /** When false (e.g. for thumbnails), overlays render but don't accept events. */
   editable?: boolean;
 }) {
+  const safeOverlays = Array.isArray(overlays) ? overlays : [];
   const dragRef = useRef<{ id: string; sx: number; sy: number; ox: number; oy: number; mode: "move" | "resize" } | null>(null);
 
   function startDrag(e: React.MouseEvent, o: Overlay, mode: "move" | "resize") {
@@ -44,10 +45,10 @@ export default function OverlayLayer({
 
   function onMove(e: MouseEvent) {
     const d = dragRef.current;
-    if (!d || !overlays || !onChange) return;
+    if (!d || !onChange) return;
     const dx = (e.clientX - d.sx) / zoom;
     const dy = (e.clientY - d.sy) / zoom;
-    const next = overlays.map((o) => {
+    const next = safeOverlays.map((o) => {
       if (o.id !== d.id) return o;
       if (d.mode === "move") return { ...o, x: Math.round(d.ox + dx), y: Math.round(d.oy + dy) };
       const ow = (d as any).ow as number;
@@ -71,7 +72,7 @@ export default function OverlayLayer({
         if (e.target === e.currentTarget) onSelect?.(null);
       }}
     >
-      {overlays.map((o) => {
+      {safeOverlays.map((o) => {
         const selected = o.id === selectedId;
         const baseStyle: React.CSSProperties = {
           position: "absolute",
