@@ -70,13 +70,14 @@ Deno.serve(async (req) => {
       url: `https://www.youtube.com/watch?v=${v.video_id}`,
     }));
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) return json({ error: "LOVABLE_API_KEY missing" }, 500);
+    const openAiKey = Deno.env.get("OPENAI_API_KEY");
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!openAiKey && !lovableKey) return json({ error: "No AI provider key configured" }, 500);
 
     const wantIdeas = mode === "ideas" || mode === "both";
     const wantPosts = mode === "posts" || mode === "both";
 
-    const systemPrompt = `You are a content strategist helping a creator synthesize multiple source videos into ORIGINAL content.
+    const systemPrompt = `You are a senior LinkedIn ghostwriter and content strategist helping a creator synthesize multiple source videos into ORIGINAL content.
 Your job is NOT to summarize each video. Your job is to look across them, find shared themes, contradictions, and gaps, then produce content the user can post as their own POV.
 
 Rules:
@@ -84,6 +85,11 @@ Rules:
 - Prefer ideas that combine 2+ sources or take a contrarian stance.
 - Each idea = a specific angle, not a generic restatement.
 - Hooks must be 8-14 words, scroll-stoppers, no clickbait fluff.
+- LinkedIn posts must be complete, ready-to-publish posts: 900-1,500 characters, 6-10 short paragraphs, a strong first-line hook, a clear POV, concrete examples from the sources, a practical takeaway, and a final engagement question.
+- Twitter/X posts must be 500-900 characters unless the requested platform only allows shorter content.
+- Instagram captions must be 700-1,200 characters with a human caption structure.
+- Do not return outlines, placeholders, summaries, or one-paragraph idea blurbs in posts.
+- Keep hashtags separate in the hashtags array, not inside the body.
 - Output STRICT JSON, no markdown, no commentary.
 
 Schema:
@@ -98,26 +104,15 @@ ${sourcesText}
 
 Return ${wantIdeas ? `${count} ideas` : ""}${wantIdeas && wantPosts ? " and " : ""}${wantPosts ? `${Math.min(count, 6)} platform-ready posts (covering: ${platforms.join(", ")})` : ""}.`;
 
-    const ai = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-    if (!ai.ok) {
-      if (ai.status === 429) return json({ error: "AI rate limit, try again shortly" }, 429);
-      if (ai.status === 402) return json({
+    const { response: ai, provider, errorStatus } = await callBestAiProvider({ openAiKey, lovableKey, systemPrompt, userPrompt });
+    if (!ai?.ok) {
+      if (errorStatus === 429) return json({ error: "AI rate limit, try again shortly" }, 429);
+      if (errorStatus === 402) return json({
         ...fallbackSynthesis(vids, chMap, count, platforms, intent, sources),
         ai_unavailable: true,
-        warning: "AI credits are exhausted, so this draft was generated locally from the selected transcripts.",
+        warning: "AI provider credits are unavailable, so this draft was generated locally from the selected transcripts.",
       });
-      return json({ error: `AI error: ${await ai.text()}` }, 500);
+      return json({ error: `AI error: ${ai ? await ai.text() : "No provider succeeded"}` }, 500);
     }
     const aiBody = await ai.json();
     const content: string = aiBody.choices?.[0]?.message?.content ?? "";
@@ -130,6 +125,7 @@ Return ${wantIdeas ? `${count} ideas` : ""}${wantIdeas && wantPosts ? " and " : 
       posts: Array.isArray(parsed.posts) ? parsed.posts.map(normalizePost) : [],
       next_steps: Array.isArray(parsed.next_steps) ? parsed.next_steps.map(String) : [],
       sources,
+      provider,
     });
   } catch (e) {
     return json({ error: String((e as Error).message ?? e) }, 500);
