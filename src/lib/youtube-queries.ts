@@ -188,6 +188,7 @@ export type MultiVideoResult = {
   sources: MultiVideoSource[];
   ai_unavailable?: boolean;
   warning?: string;
+  provider?: string;
 };
 
 /**
@@ -220,6 +221,7 @@ export async function generateMultiVideoContent(args: {
     sources: Array.isArray(result.sources) ? result.sources : [],
     ai_unavailable: !!result.ai_unavailable,
     warning: result.warning,
+    provider: typeof result.provider === "string" ? result.provider : undefined,
   };
 }
 
@@ -247,14 +249,18 @@ function buildLocalMultiVideoFallback(args: { count?: number; platforms?: string
       sources: [...new Set([source?.n ?? 1, other])],
     };
   });
-  const posts: MultiVideoPost[] = (args.platforms?.length ? args.platforms : ["linkedin", "twitter", "instagram"]).slice(0, 3).map((platform, i) => ({
-    platform: platform as any,
-    hook: ideas[i % ideas.length]?.hook ?? "A stronger cross-video angle",
-    body: `${ideas[i % ideas.length]?.hook ?? "A stronger cross-video angle"}\n\n${ideas[i % ideas.length]?.body ?? "Use the selected videos as one combined source of inspiration."}`,
-    hashtags: words.slice(0, 3),
-    length: 0,
-    sources: ideas[i % ideas.length]?.sources ?? sourceNums,
-  }));
+  const posts: MultiVideoPost[] = (args.platforms?.length ? args.platforms : ["linkedin", "twitter", "instagram"]).slice(0, 3).map((platform, i) => {
+    const idea = ideas[i % ideas.length];
+    const body = buildLocalStructuredPost(platform, idea, theme, words, args.intent);
+    return {
+      platform: platform as any,
+      hook: idea?.hook ?? "A stronger cross-video angle",
+      body,
+      hashtags: words.slice(0, 3),
+      length: body.length,
+      sources: idea?.sources ?? sourceNums,
+    };
+  });
   return {
     themes: [
       { label: toTitleCase(theme), sources: sourceNums },
@@ -263,11 +269,21 @@ function buildLocalMultiVideoFallback(args: { count?: number; platforms?: string
     ],
     ideas,
     posts: posts.map((p) => ({ ...p, length: p.body.length })),
-    next_steps: ["Top up AI balance for deeper synthesis", "Refine the strongest local draft", "Add the best post to the planner"],
+    next_steps: ["Review the strongest cross-video angle", "Personalize the opening line", "Add the best post to the planner"],
     sources,
     ai_unavailable: true,
-    warning: "AI credits are exhausted, so local drafts were generated from the selected video titles and descriptions.",
+    warning: "AI providers are unavailable, so local drafts were generated from the selected video titles and descriptions.",
   };
+}
+
+function buildLocalStructuredPost(platform: string, idea: MultiVideoIdea | undefined, theme: string, words: string[], intent?: string) {
+  const hook = idea?.hook ?? "A stronger cross-video angle";
+  const body = idea?.body ?? "Use the selected videos as one combined source of inspiration.";
+  if (platform === "twitter") {
+    return `${hook}\n\nThe useful insight is rarely inside one video. It is in the pattern across sources: ${theme}.\n\nTurn that overlap into one claim, one example, and one practical takeaway. That is how a simple recap becomes an original post.`;
+  }
+  const topic = toTitleCase(words.slice(0, 2).join(" and ") || "This Topic");
+  return `${hook}\n\nI would not treat these videos as separate ideas.\n\nThe stronger move is to read them together and look for the repeated pattern: ${theme}.\n\nThat is where original content starts. Not with a recap. Not with a list of tips. With a clear point of view about what all the examples reveal.\n\n${intent ? `${intent}\n\n` : ""}${body}\n\nThe practical takeaway:\n\nWhen multiple sources point to the same problem, name the pattern first. Then show the tension. Then give the reader one next step they can apply today.\n\nFor ${topic}, the question is not “what did this video say?”\n\nIt is: “what system is hiding underneath these examples?”\n\nThat is usually the post worth publishing.\n\nWhat pattern would you pull from these sources?`;
 }
 
 function topLocalKeywords(text: string) {
