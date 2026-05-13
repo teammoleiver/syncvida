@@ -72,6 +72,23 @@ export default function LinkedInTemplatesPage() {
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
 
+  // Wrapped setters that flip the dirty flag — used everywhere a user can
+  // mutate the template (forms, overlay layer, title, preset switcher).
+  const editCheatData = (next: CheatSheetData | ((d: CheatSheetData) => CheatSheetData)) => {
+    setDirty(true);
+    setCheatData((prev) => (typeof next === "function" ? (next as any)(prev) : next));
+  };
+  const editCarouselData = (next: CarouselData | ((d: CarouselData) => CarouselData)) => {
+    setDirty(true);
+    setCarouselData((prev) => (typeof next === "function" ? (next as any)(prev) : next));
+  };
+  const editSquareData = (next: SquareData | ((d: SquareData) => SquareData)) => {
+    setDirty(true);
+    setSquareData((prev) => (typeof next === "function" ? (next as any)(prev) : next));
+  };
+  const editTitle = (v: string) => { setDirty(true); setTitle(v); };
+  const editActive = (v: TemplateKey) => { setDirty(true); setActive(v); };
+
   // Load existing design (?id=xxx) — restores the form into the editor.
   useEffect(() => {
     if (!designIdFromUrl) return;
