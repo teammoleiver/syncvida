@@ -177,7 +177,6 @@ async function callBestAiProvider(args: { openAiKey?: string | null; lovableKey?
         });
         if (response.ok) return { response, provider, errorStatus: 0 };
         lastResponse = response; lastStatus = response.status;
-        if (![401, 403, 404, 429].includes(response.status)) break;
       }
       if (provider === "lovable" && args.lovableKey) {
         const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
