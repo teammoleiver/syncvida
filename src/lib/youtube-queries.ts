@@ -201,8 +201,17 @@ export async function generateMultiVideoContent(args: {
   count?: number;
   platforms?: string[];
   intent?: string;
+  fallback_videos?: Pick<YouTubeVideo, "video_id" | "title" | "description" | "channel_id">[];
 }): Promise<MultiVideoResult> {
-  const result = await callEdge<Partial<MultiVideoResult>>("youtube-multi-video-content", args);
+  let result: Partial<MultiVideoResult>;
+  try {
+    result = await callEdge<Partial<MultiVideoResult>>("youtube-multi-video-content", args);
+  } catch (e: any) {
+    if (String(e?.message ?? "").toLowerCase().includes("ai credits exhausted")) {
+      return buildLocalMultiVideoFallback(args);
+    }
+    throw e;
+  }
   return {
     themes: Array.isArray(result.themes) ? result.themes : [],
     ideas: Array.isArray(result.ideas) ? result.ideas : [],
@@ -212,6 +221,66 @@ export async function generateMultiVideoContent(args: {
     ai_unavailable: !!result.ai_unavailable,
     warning: result.warning,
   };
+}
+
+function buildLocalMultiVideoFallback(args: { count?: number; platforms?: string[]; intent?: string; fallback_videos?: Pick<YouTubeVideo, "video_id" | "title" | "description" | "channel_id">[] }): MultiVideoResult {
+  const videos = args.fallback_videos ?? [];
+  const sources = videos.map((v, i) => ({ n: i + 1, video_id: v.video_id, title: v.title, channel: v.channel_id, url: `https://www.youtube.com/watch?v=${v.video_id}` }));
+  const words = topLocalKeywords(videos.map((v) => `${v.title} ${v.description ?? ""}`).join(" "));
+  const theme = words.slice(0, 3).join(" + ") || "shared content angle";
+  const sourceNums = sources.map((s) => s.n);
+  const count = Math.min(Math.max(args.count ?? 5, 3), 8);
+  const ideas: MultiVideoIdea[] = Array.from({ length: count }, (_, i) => {
+    const source = sources[i % Math.max(sources.length, 1)];
+    const other = sourceNums.find((n) => n !== source?.n) ?? source?.n ?? 1;
+    const keyword = toTitleCase(words[i % Math.max(words.length, 1)] ?? "idea");
+    return {
+      hook: [
+        `The hidden pattern behind ${keyword}`,
+        `Most people miss this angle on ${keyword}`,
+        `I compared multiple takes on ${keyword}`,
+        `The smarter way to think about ${keyword}`,
+      ][i % 4],
+      body: `${args.intent ? `${args.intent}\n\n` : ""}Connect ${source?.title ?? "the selected videos"} with the repeated pattern across the sources: ${theme}. Build the post around one clear POV, one concrete example, and one practical takeaway.`,
+      angle: `Combine S${source?.n ?? 1} with S${other} instead of posting a single-video summary.`,
+      format: ["insight", "framework", "contrarian", "tutorial"][i % 4],
+      sources: [...new Set([source?.n ?? 1, other])],
+    };
+  });
+  const posts: MultiVideoPost[] = (args.platforms?.length ? args.platforms : ["linkedin", "twitter", "instagram"]).slice(0, 3).map((platform, i) => ({
+    platform: platform as any,
+    hook: ideas[i % ideas.length]?.hook ?? "A stronger cross-video angle",
+    body: `${ideas[i % ideas.length]?.hook ?? "A stronger cross-video angle"}\n\n${ideas[i % ideas.length]?.body ?? "Use the selected videos as one combined source of inspiration."}`,
+    hashtags: words.slice(0, 3),
+    length: 0,
+    sources: ideas[i % ideas.length]?.sources ?? sourceNums,
+  }));
+  return {
+    themes: [
+      { label: toTitleCase(theme), sources: sourceNums },
+      { label: "Different examples of the same audience problem", sources: sourceNums },
+      { label: "Reusable lessons for original social posts", sources: sourceNums },
+    ],
+    ideas,
+    posts: posts.map((p) => ({ ...p, length: p.body.length })),
+    next_steps: ["Top up AI balance for deeper synthesis", "Refine the strongest local draft", "Add the best post to the planner"],
+    sources,
+    ai_unavailable: true,
+    warning: "AI credits are exhausted, so local drafts were generated from the selected video titles and descriptions.",
+  };
+}
+
+function topLocalKeywords(text: string) {
+  const stop = new Set("about after again also and are but can for from have how into more most not only should that the their them then these they this use using video videos what when which with your".split(" "));
+  const counts = new Map<string, number>();
+  for (const word of text.toLowerCase().match(/[a-z][a-z0-9-]{3,}/g) ?? []) {
+    if (!stop.has(word)) counts.set(word, (counts.get(word) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([word]) => word);
+}
+
+function toTitleCase(text: string) {
+  return text.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export async function toggleVideoLike(video_id: string, liked: boolean): Promise<void> {
