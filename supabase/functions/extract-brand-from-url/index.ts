@@ -5,6 +5,49 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function assertPublicUrl(rawUrl: string): Promise<URL> {
+  const u = new URL(rawUrl);
+  if (!/^https?:$/.test(u.protocol)) throw new Error("Only http(s) URLs allowed");
+  const host = u.hostname.toLowerCase();
+  // Reject IP literals and obviously-internal hostnames upfront.
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal") || host.endsWith(".local")) {
+    throw new Error("URL host is not public");
+  }
+  // Resolve and reject private/loopback/link-local ranges.
+  try {
+    const records = await Deno.resolveDns(host, "A").catch(() => [] as string[]);
+    const records6 = await Deno.resolveDns(host, "AAAA").catch(() => [] as string[]);
+    const all = [...records, ...records6];
+    for (const ip of all) {
+      if (isPrivateIp(ip)) throw new Error("URL resolves to a private address");
+    }
+  } catch (e) {
+    if ((e as Error).message?.includes("private")) throw e;
+    // DNS failure — let fetch fail naturally
+  }
+  return u;
+}
+
+function isPrivateIp(ip: string): boolean {
+  if (ip.includes(":")) {
+    // IPv6
+    const lower = ip.toLowerCase();
+    if (lower === "::1" || lower.startsWith("fc") || lower.startsWith("fd") || lower.startsWith("fe80") || lower.startsWith("::ffff:")) return true;
+    return false;
+  }
+  const parts = ip.split(".").map(Number);
+  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return false;
+  const [a, b] = parts;
+  if (a === 10) return true;
+  if (a === 127) return true;
+  if (a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a >= 224) return true; // multicast / reserved
+  return false;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -17,6 +60,7 @@ Deno.serve(async (req) => {
     const { url } = await req.json();
     if (typeof url !== "string" || !/^https?:\/\//.test(url)) return json({ error: "Invalid URL" }, 400);
 
+    try { await assertPublicUrl(url); } catch (e) { return json({ error: (e as Error).message }, 400); }
     const html = await (await fetch(url, { redirect: "follow" })).text();
     const snippet = html.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<style[\s\S]*?<\/style>/g, "").slice(0, 12000);
 
