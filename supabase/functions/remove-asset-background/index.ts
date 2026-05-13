@@ -38,11 +38,11 @@ Deno.serve(async (req) => {
     if (!ai.ok) {
       if (ai.status === 429) return json({ error: "AI rate limit, try again shortly" }, 429);
       if (ai.status === 402) return json({ error: "AI credits exhausted" }, 402);
-      return json({ error: `AI error: ${await ai.text()}` }, 500);
+      return json({ error: `AI error: ${await ai.text()}`, fallback: true }, 200);
     }
     const data = await ai.json();
     const dataUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    if (!dataUrl?.startsWith("data:image/")) return json({ error: "No image returned" }, 500);
+    if (!dataUrl?.startsWith("data:image/")) return json({ error: "Background removal didn't return an image. Try again.", fallback: true }, 200);
     const [meta, b64] = dataUrl.split(",");
     const mime = meta.match(/data:([^;]+);/)?.[1] ?? "image/png";
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
