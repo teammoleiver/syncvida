@@ -19,7 +19,7 @@ import {
 import {
   SEED_CHEAT_SHEET, SEED_CAROUSEL, SEED_SQUARE, exportCanvasAsPng,
   saveCanvasAsAsset, linkAssetToPlan, getPlanEntry,
-  saveCarouselAsPdf, linkPdfToPlan, renderNodeToDataUrl,
+  saveCarouselAsPdf, linkPdfToPlan, renderNodeToDataUrl, buildCarouselFromPost,
 } from "@/components/designer/linkedin/editorHelpers";
 import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, listAssets, type DesignAsset } from "@/lib/designer-queries";
 import { detectMentionedLogos, type DetectedLogo } from "@/components/designer/linkedin/detectLogos";
