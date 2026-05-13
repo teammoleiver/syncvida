@@ -160,6 +160,30 @@ function pickPhoto(data: any): string {
   return (accent && ACCENT_PHOTO[accent]) || ACCENT_PHOTO.coral;
 }
 
+function safeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((item) => String(item ?? "")).filter(Boolean);
+  if (typeof value === "string" && value.trim()) return value.split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
+  return [];
+}
+
+function safeSections(value: unknown): SheetSection[] {
+  return Array.isArray(value) ? (value as SheetSection[]) : [];
+}
+
+function safeSlides(value: unknown): CarouselSlide[] {
+  return Array.isArray(value) ? (value as CarouselSlide[]) : [];
+}
+
+function safeOverlays(value: unknown): Overlay[] {
+  return Array.isArray(value) ? (value as Overlay[]) : [];
+}
+
+function safeRows(value: unknown): string[][] {
+  return Array.isArray(value)
+    ? value.map((row) => safeStringArray(row)).filter((row) => row.length > 0)
+    : [];
+}
+
 function TopChrome({ typeLabel }: { typeLabel: string }) {
   return (
     <div className="cnv-header">
