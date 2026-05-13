@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Loader2, Plus, RefreshCw, Search, Sparkles, Trash2, Youtube,
-  ExternalLink, Bell, BellOff, Calendar, FileText, Heart,
+  ExternalLink, Bell, BellOff, Calendar, FileText, Heart, Combine, CheckSquare, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -17,6 +17,7 @@ import {
   type YouTubeChannel, type YouTubeVideo, type AskAnswer,
 } from "@/lib/youtube-queries";
 import VideoDetailDialog from "@/components/social/VideoDetailDialog";
+import MultiVideoSynthDialog from "@/components/social/MultiVideoSynthDialog";
 
 export default function YouTubePage() {
   const [channels, setChannels] = useState<YouTubeChannel[]>([]);
@@ -38,6 +39,10 @@ export default function YouTubePage() {
   const [answer, setAnswer] = useState<AskAnswer | null>(null);
 
   const [openVideo, setOpenVideo] = useState<YouTubeVideo | null>(null);
+
+  // Multi-select for cross-video synthesis. Holds video_id values (string).
+  const [pickedVideos, setPickedVideos] = useState<Set<string>>(new Set());
+  const [synthOpen, setSynthOpen] = useState(false);
 
   useEffect(() => { void loadAll(); }, []);
 
@@ -228,6 +233,21 @@ export default function YouTubePage() {
       setChannels((cur) => cur.map((c) => c.id === id ? { ...c, last_seen_at: new Date().toISOString() } : c));
     }
   }
+
+  function togglePickVideo(videoId: string) {
+    setPickedVideos((cur) => {
+      const n = new Set(cur);
+      if (n.has(videoId)) n.delete(videoId); else n.add(videoId);
+      return n;
+    });
+  }
+
+  // Resolve picked video_ids to full video objects (preserving selection order).
+  const pickedVideoObjs = useMemo(() => {
+    const map = new Map(videos.map((v) => [v.video_id, v]));
+    return [...pickedVideos].map((id) => map.get(id)).filter(Boolean) as YouTubeVideo[];
+  }, [pickedVideos, videos]);
+  const pickedTranscribedCount = pickedVideoObjs.filter((v) => v.has_transcript).length;
 
   return (
     <section className="space-y-6">
