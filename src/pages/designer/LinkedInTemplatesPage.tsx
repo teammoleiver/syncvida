@@ -542,7 +542,27 @@ export default function LinkedInTemplatesPage() {
           />
           <div className="border-t border-border pt-3">
             {active === "cheatsheet" && <CheatSheetForm data={cheatData} setData={editCheatData} />}
-            {active === "carousel" && <CarouselForm data={carouselData} setData={editCarouselData} slideIdx={slideIdx} setSlideIdx={setSlideIdx} />}
+            {active === "carousel" && (
+              <>
+                {(planMeta?.hook || planMeta?.body || params.get("hook") || params.get("body")) && (
+                  <Button
+                    type="button" size="sm" variant="outline" className="w-full mb-3"
+                    onClick={() => {
+                      const hook = planMeta?.hook ?? params.get("hook") ?? "";
+                      const body = planMeta?.body ?? params.get("body") ?? "";
+                      editCarouselData((d) => buildCarouselFromPost(hook, body, {
+                        author: d.author, handleShort: d.handleShort, avatarUrl: d.avatarUrl,
+                      }));
+                      setSlideIdx(0);
+                      toast.success("Slides regenerated from post");
+                    }}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 mr-1" /> Regenerate slides from post
+                  </Button>
+                )}
+                <CarouselForm data={carouselData} setData={editCarouselData} slideIdx={slideIdx} setSlideIdx={setSlideIdx} />
+              </>
+            )}
             {active === "square" && <SquareForm data={squareData} setData={editSquareData} />}
           </div>
         </div>
