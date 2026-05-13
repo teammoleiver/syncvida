@@ -156,6 +156,49 @@ function normalizePost(x: any) {
     sources: Array.isArray(x?.sources) ? x.sources.map((n: any) => Number(n)).filter((n: number) => Number.isFinite(n)) : [],
   };
 }
+
+async function callBestAiProvider(args: { openAiKey?: string | null; lovableKey?: string | null; systemPrompt: string; userPrompt: string }) {
+  const providers = args.openAiKey ? ["openai", "lovable"] : ["lovable"];
+  let lastResponse: Response | null = null;
+  let lastStatus = 0;
+
+  for (const provider of providers) {
+    try {
+      if (provider === "openai" && args.openAiKey) {
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${args.openAiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "gpt-5-mini",
+            messages: [{ role: "system", content: args.systemPrompt }, { role: "user", content: args.userPrompt }],
+            response_format: { type: "json_object" },
+            max_completion_tokens: 5000,
+          }),
+        });
+        if (response.ok) return { response, provider, errorStatus: 0 };
+        lastResponse = response; lastStatus = response.status;
+        if (![401, 403, 404, 429].includes(response.status)) break;
+      }
+      if (provider === "lovable" && args.lovableKey) {
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${args.lovableKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [{ role: "system", content: args.systemPrompt }, { role: "user", content: args.userPrompt }],
+            response_format: { type: "json_object" },
+            max_tokens: 5000,
+          }),
+        });
+        if (response.ok) return { response, provider, errorStatus: 0 };
+        lastResponse = response; lastStatus = response.status;
+      }
+    } catch (_) { /* try next provider */ }
+  }
+
+  return { response: lastResponse, provider: "", errorStatus: lastStatus };
+}
+
 function fallbackSynthesis(vids: any[], chMap: Map<string, string>, count: number, platforms: string[], intent: string, sources: any[]) {
   const commonWords = topKeywords(vids.map((v) => `${v.title ?? ""} ${v.description ?? ""} ${(v.transcript ?? "").slice(0, 2500)}`).join(" "));
   const baseTheme = commonWords.slice(0, 3).join(" + ") || "shared creator strategy";
