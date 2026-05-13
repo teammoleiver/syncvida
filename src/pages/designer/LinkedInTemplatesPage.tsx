@@ -776,6 +776,7 @@ const LAYOUT_LABEL: Record<CarouselLayout, string> = {
   quote: "Quote — pull quote",
   bullets: "Bullets — 3–5 punchy items",
   comparison: "Comparison — before / after",
+  cta: "CTA — closing follow / connect",
 };
 
 function CarouselForm({ data, setData, slideIdx, setSlideIdx }: { data: CarouselData; setData: (d: CarouselData) => void; slideIdx: number; setSlideIdx: (n: number) => void }) {
