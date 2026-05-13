@@ -125,13 +125,11 @@ export default function LinkedInTemplatesPage() {
       const body = bodyParam ?? "";
       setCheatData((d) => ({ ...d, title: hook || d.title, subtitle: body || d.subtitle }));
       setSquareData((d) => ({ ...d, statement: hook || d.statement, support: body || d.support }));
-      setCarouselData((d) => ({
-        ...d,
-        slides: [
-          { ...(d.slides[0] ?? {}), eyebrow: "Hook", title: hook || d.slides[0]?.title || "" },
-          ...(body ? [{ eyebrow: "Body", title: body.slice(0, 80), body, accent: "teal" as AccentKey }] : []),
-          ...d.slides.slice(1),
-        ],
+      // Generate the entire carousel dynamically from the post — number of
+      // slides, layouts, and content all come from `hook` + `body`, so
+      // every post produces a different deck instead of the static template.
+      setCarouselData((d) => buildCarouselFromPost(hook, body, {
+        author: d.author, handleShort: d.handleShort, avatarUrl: d.avatarUrl,
       }));
     }
     if (planId) {
@@ -142,6 +140,9 @@ export default function LinkedInTemplatesPage() {
           // Seed from the plan if not already in URL
           setCheatData((d) => ({ ...d, title: p.hook || d.title, subtitle: p.body || d.subtitle }));
           setSquareData((d) => ({ ...d, statement: p.hook || d.statement, support: p.body || d.support }));
+          setCarouselData((d) => buildCarouselFromPost(p.hook ?? "", p.body ?? "", {
+            author: d.author, handleShort: d.handleShort, avatarUrl: d.avatarUrl,
+          }));
         }
       });
     }
