@@ -57,6 +57,12 @@ export default function LinkedInTemplatesPage() {
   const [detected, setDetected] = useState<DetectedLogo[]>([]);
   const [lastSaved, setLastSaved] = useState<{ kind: "image" | "pdf"; url: string; filename?: string; pageCount?: number } | null>(null);
   const [loadingExisting, setLoadingExisting] = useState(!!designIdFromUrl);
+  // Tracks whether the user has actually edited anything yet. Without this,
+  // the autosave effect would create a brand-new SEED design every time the
+  // editor mounts without an `?id=` — flooding the library with identical
+  // copies of the cheat sheet seed and making it look like every design is
+  // the same one.
+  const [dirty, setDirty] = useState(false);
   // Carousel state lifted here so the center preview, the right-panel form,
   // and the action buttons in the top header all share the same slide index.
   const [slideIdx, setSlideIdx] = useState(0);
@@ -69,10 +75,12 @@ export default function LinkedInTemplatesPage() {
   // Load existing design (?id=xxx) — restores the form into the editor.
   useEffect(() => {
     if (!designIdFromUrl) return;
+    setLoadingExisting(true);
+    setDirty(false);
     (async () => {
       try {
         const d = await getDesign(designIdFromUrl);
-        if (!d) return;
+        if (!d) { setLoadingExisting(false); return; }
         setTitle(d.title || "");
         const data = (d as any).template_data;
         if (d.kind === "linkedin_cheatsheet" && data) {
@@ -195,10 +203,13 @@ export default function LinkedInTemplatesPage() {
   // Debounced autosave: 1.2s after the last edit.
   useEffect(() => {
     if (loadingExisting) return;
+    // Don't auto-create a new design from the seed — wait until the user
+    // actually edits something. Existing designs (have an id) still autosave.
+    if (!designId && !dirty) return;
     const t = setTimeout(() => { void persist(); }, 1200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cheatData, carouselData, squareData, title, active, loadingExisting]);
+  }, [cheatData, carouselData, squareData, title, active, loadingExisting, designId, dirty]);
 
   async function exportCurrent(extra = "") {
     setExporting(true);
