@@ -1,5 +1,5 @@
 import { toPng } from "html-to-image";
-import type { CheatSheetData, CarouselData, SquareData, CarouselSlide, AccentKey } from "./LinkedInCanvas";
+import type { CheatSheetData, CarouselData, SquareData, CarouselSlide, SheetSection, AccentKey } from "./LinkedInCanvas";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -447,26 +447,193 @@ export function buildCarouselFromPost(
     });
   });
 
-  // Always end with a CTA quote if not already present.
-  if (!pickedQuote) {
-    slides.push({
-      layout: "quote",
-      eyebrow: "Takeaway",
-      title: cleanHook || "Worth sharing.",
-      quote: cleanHook || "Worth sharing.",
-      quoteAuthor: base.author ?? "",
-      closer: "Follow for more",
-      accent: ACCENTS[(slides.length) % ACCENTS.length],
-    });
-  }
+  // Always end with a dedicated CTA slide that highlights the author's photo
+  // and prompts the reader to engage. Replaces any prior closing quote.
+  const ctaPrompts = [
+    "What would you add?",
+    "Have you tried this?",
+    "How does your team handle it?",
+    "What's working for you?",
+    "Agree or disagree?",
+  ];
+  const lastChunk = chunks[chunks.length - 1] || cleanHook;
+  const prompt = (() => {
+    const q = lastChunk.split(/(?<=[.!?])\s+/).find((s) => s.trim().endsWith("?"));
+    if (q) return q.trim();
+    return ctaPrompts[Math.floor(Math.random() * ctaPrompts.length)];
+  })();
+  slides.push({
+    layout: "cta",
+    eyebrow: "Let's talk",
+    title: prompt,
+    ctaPrompt: prompt,
+    ctaAction: `Follow ${base.author ?? "me"} for more`,
+    quoteAuthor: base.author ?? "",
+    closer: "Follow + connect",
+    accent: ACCENTS[(slides.length) % ACCENTS.length],
+  });
 
   return {
     author: base.author ?? SEED_CAROUSEL.author,
     handleShort: base.handleShort ?? SEED_CAROUSEL.handleShort,
     avatarUrl: base.avatarUrl,
+    photoKey: base.photoKey,
     typeLabel: base.typeLabel ?? "Carousel",
     attribution: base.attribution ?? `${(base.author ?? SEED_CAROUSEL.author).toLowerCase()} // ${new Date().getFullYear()}`,
     slides: slides.slice(0, 8),
     overlays: {},
+  };
+}
+
+/**
+ * Build a CheatSheet dynamically from a LinkedIn post. Splits the body into
+ * paragraphs / bullet groups and turns each into a section card. Section
+ * count, kinds (bullets / stats / checklist / pills), titles, and items all
+ * derive from the actual post content — no static template.
+ */
+export function buildCheatSheetFromPost(
+  hook: string,
+  body: string,
+  base: Partial<CheatSheetData> = {},
+): CheatSheetData {
+  const ACCENTS: AccentKey[] = ["coral", "amber", "teal", "sky", "indigo", "olive"];
+  const TAGS = ["The Shift", "Definition", "Setup", "The Stack", "Playbook", "Insight"];
+  const cleanHook = (hook || "").trim();
+  const cleanBody = (body || "").trim();
+
+  const paragraphs = cleanBody.split(/\n\s*\n+/).map((p) => p.trim()).filter(Boolean);
+  let chunks = paragraphs;
+  if (chunks.length < 2 && cleanBody) {
+    const sents = cleanBody.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+    chunks = [];
+    for (let i = 0; i < sents.length; i += 2) {
+      chunks.push(sents.slice(i, i + 2).join(" "));
+    }
+  }
+  chunks = chunks.slice(0, 6);
+
+  const sections: SheetSection[] = chunks.map((chunk, i) => {
+    const accent = ACCENTS[i % ACCENTS.length];
+    const tag = TAGS[i % TAGS.length];
+    const lines = chunk.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+    const bulletLines = lines.filter((l) => /^([-•*]|\d+[.)])\s+/.test(l));
+    const sentences = chunk.split(/(?<=[.!?])\s+/).filter(Boolean);
+    const title = (lines[0] || sentences[0] || `Point ${i + 1}`)
+      .replace(/^([-•*]|\d+[.)])\s+/, "")
+      .slice(0, 70);
+
+    // Stats heuristic — chunk loaded with %, $, x numbers
+    const statMatches = chunk.match(/[\$<]?\d+(?:\.\d+)?[%xKMB+]?/g) || [];
+    if (statMatches.length >= 2 && bulletLines.length === 0) {
+      const items = statMatches.slice(0, 4).map((m) => {
+        const ctx = chunk.split(m)[1]?.split(/[.!?\n]/)[0]?.trim() || "";
+        return `${m} :: ${ctx.slice(0, 28) || "metric"} :: ${ctx.slice(0, 60) || ""}`;
+      });
+      return { tag, accent, title, kind: "stats", items };
+    }
+
+    if (bulletLines.length >= 2) {
+      const items = bulletLines
+        .map((l) => l.replace(/^([-•*]|\d+[.)])\s+/, "").slice(0, 110))
+        .slice(0, 5);
+      const isOrdered = /^\d+[.)]/.test(bulletLines[0]);
+      return { tag, accent, title, kind: isOrdered ? "checklist" : "bullets", items };
+    }
+
+    // Default: split sentences into bullets
+    const items = sentences
+      .filter((s) => s.length > 8)
+      .slice(0, 4)
+      .map((s) => s.trim().slice(0, 120));
+    if (items.length >= 2) {
+      return { tag, accent, title, kind: "bullets", items };
+    }
+    // Tiny chunk → render as pills (single thoughts)
+    return {
+      tag, accent, title,
+      kind: "pills",
+      items: [chunk.slice(0, 80)],
+    };
+  });
+
+  // Always end with a single "Takeaway" closing card if room.
+  if (sections.length < 6) {
+    sections.push({
+      tag: "Takeaway",
+      accent: ACCENTS[(sections.length) % ACCENTS.length],
+      title: cleanHook ? cleanHook.slice(0, 70) : "Worth remembering.",
+      kind: "pills",
+      items: [cleanHook ? cleanHook.slice(0, 90) : "Save & share."],
+    });
+  }
+
+  return {
+    author: base.author ?? SEED_CHEAT_SHEET.author,
+    handleShort: base.handleShort ?? SEED_CHEAT_SHEET.handleShort,
+    avatarUrl: base.avatarUrl,
+    photoKey: base.photoKey,
+    typeLabel: base.typeLabel ?? "Cheat Sheet",
+    eyebrow: "Field notes",
+    title: cleanHook || SEED_CHEAT_SHEET.title,
+    subtitle: chunks[0]?.slice(0, 180) || "",
+    closer: cleanHook ? `${cleanHook.split(/[.!?]/)[0].slice(0, 60)}.` : "Save this.",
+    attribution: base.attribution ?? `${(base.author ?? SEED_CHEAT_SHEET.author).toLowerCase()} // ${new Date().getFullYear()}`,
+    sections: sections.slice(0, 6),
+    overlays: [],
+  };
+}
+
+/**
+ * Build a Square (Hot Take) dynamically from the post. Picks the punchiest
+ * sentence as the headline statement and uses the rest as supporting body.
+ */
+export function buildSquareFromPost(
+  hook: string,
+  body: string,
+  base: Partial<SquareData> = {},
+): SquareData {
+  const cleanHook = (hook || "").trim();
+  const cleanBody = (body || "").trim();
+  const sentences = `${cleanHook}. ${cleanBody}`.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  const statement = (cleanHook || sentences[0] || "Hot take.").slice(0, 200);
+
+  // Auto-emphasize the last 1-3 words as a *highlight* if not already.
+  const emphasized = /\*[^*]+\*/.test(statement)
+    ? statement
+    : (() => {
+        const words = statement.split(/\s+/);
+        if (words.length < 4) return statement;
+        const tail = words.slice(-3).join(" ").replace(/[.!?]$/, "");
+        const head = words.slice(0, -3).join(" ");
+        const punct = statement.match(/[.!?]$/)?.[0] || "";
+        return `${head} *${tail}*${punct}`;
+      })();
+
+  const support = sentences
+    .slice(1)
+    .filter((s) => s.length > 12)
+    .slice(0, 2)
+    .join(" ")
+    .slice(0, 220) || cleanBody.slice(0, 220);
+
+  const closer = (() => {
+    const q = sentences.find((s) => s.endsWith("?"));
+    if (q) return q.slice(0, 80);
+    const last = sentences[sentences.length - 1];
+    return last ? last.slice(0, 80) : "What would you add?";
+  })();
+
+  return {
+    author: base.author ?? SEED_SQUARE.author,
+    handleShort: base.handleShort ?? SEED_SQUARE.handleShort,
+    avatarUrl: base.avatarUrl,
+    photoKey: base.photoKey,
+    typeLabel: base.typeLabel ?? "Hot Take",
+    eyebrow: "On the record",
+    statement: emphasized,
+    support,
+    closer,
+    attribution: base.attribution ?? `${(base.author ?? SEED_SQUARE.author).toLowerCase()} // ${new Date().getFullYear()}`,
+    overlays: [],
   };
 }
