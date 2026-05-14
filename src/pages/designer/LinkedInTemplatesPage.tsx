@@ -441,6 +441,9 @@ export default function LinkedInTemplatesPage() {
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setZoom((z) => Math.min(2, z * 1.15))} title="Zoom in">+</Button>
         </div>
         <div className="flex gap-1.5 flex-wrap items-center">
+          <Button size="sm" variant="outline" onClick={() => setStylePickerOpen(true)} className="h-8">
+            <Palette className="w-3.5 h-3.5 mr-1" /> Style
+          </Button>
           {planMeta && (
             <a
               href="/content-planner"
