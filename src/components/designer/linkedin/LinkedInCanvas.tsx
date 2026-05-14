@@ -95,6 +95,7 @@ export type CheatSheetData = {
   attribution?: string;
   sections: SheetSection[];
   overlays?: Overlay[];
+  themeKey?: ThemeKey;
 };
 
 /**
@@ -140,6 +141,7 @@ export type CarouselData = {
   slides: CarouselSlide[];
   /** Per-slide overlays: overlays[slideIndex] = Overlay[] */
   overlays?: Record<number, Overlay[]>;
+  themeKey?: ThemeKey;
 };
 
 export type SquareData = {
@@ -154,7 +156,45 @@ export type SquareData = {
   closer?: string;
   attribution?: string;
   overlays?: Overlay[];
+  themeKey?: ThemeKey;
 };
+
+/**
+ * Visual style themes — applied to the canvas root via `data-theme` so all
+ * typography, colors, and surface tokens swap together. Picked once via the
+ * Template Style dialog right after the post is generated.
+ */
+export type ThemeKey =
+  | "editorial-dark"
+  | "editorial-light"
+  | "mono-minimal"
+  | "bold-pop"
+  | "magazine-serif"
+  | "tech-neon"
+  | "pastel-soft"
+  | "corporate-clean";
+
+export const THEME_KEYS: ThemeKey[] = [
+  "editorial-dark",
+  "editorial-light",
+  "mono-minimal",
+  "bold-pop",
+  "magazine-serif",
+  "tech-neon",
+  "pastel-soft",
+  "corporate-clean",
+];
+
+export const THEMES: { key: ThemeKey; label: string; description: string; preview: { bg: string; fg: string; accent: string } }[] = [
+  { key: "editorial-dark", label: "Editorial Dark", description: "Default — bold sans, deep navy, coral accent.", preview: { bg: "#0B0F1A", fg: "#F5F1E8", accent: "#E8654A" } },
+  { key: "editorial-light", label: "Editorial Light", description: "Same energy, light paper background.", preview: { bg: "#F5F1E8", fg: "#0B0F1A", accent: "#E8654A" } },
+  { key: "mono-minimal", label: "Mono Minimal", description: "Black & white, system mono, brutalist.", preview: { bg: "#FFFFFF", fg: "#000000", accent: "#000000" } },
+  { key: "bold-pop", label: "Bold Pop", description: "Saturated coral background, white display type.", preview: { bg: "#E8654A", fg: "#FFFFFF", accent: "#0B0F1A" } },
+  { key: "magazine-serif", label: "Magazine Serif", description: "Serif headlines, cream paper, gold accent.", preview: { bg: "#F3EAD8", fg: "#1A1410", accent: "#A16A2C" } },
+  { key: "tech-neon", label: "Tech Neon", description: "Pure black, mint accent, mono labels.", preview: { bg: "#050507", fg: "#E8F8EE", accent: "#36F1A6" } },
+  { key: "pastel-soft", label: "Pastel Soft", description: "Lavender background, deep plum text.", preview: { bg: "#F2EAF7", fg: "#3B1B5B", accent: "#7C4DD1" } },
+  { key: "corporate-clean", label: "Corporate Clean", description: "Fresh white, navy text, sharp blue accent.", preview: { bg: "#FFFFFF", fg: "#0F1B3D", accent: "#1B5BFF" } },
+];
 
 function pickPhoto(data: any): string {
   if (data.avatarUrl) return data.avatarUrl;
@@ -426,7 +466,7 @@ export function CheatSheetCanvas({
   const accentOrder: AccentKey[] = ["coral", "amber", "teal", "indigo", "plum", "olive", "sky"];
   const sections = safeSections(data.sections);
   return (
-    <div className="canvas" data-format="cheatsheet" id={idForExport}>
+    <div className="canvas" data-format="cheatsheet" data-theme={data.themeKey || undefined} id={idForExport}>
       <TopChrome typeLabel={data.typeLabel || "Cheat Sheet"} />
       <div className="cnv-hero">
         {data.eyebrow && <div className="eyebrow">{data.eyebrow}</div>}
@@ -489,6 +529,27 @@ function clip(s: string | undefined, n: number): string {
   return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s;
 }
 
+/**
+ * True when `b` substantially repeats `a`. Used to suppress small-font
+ * paragraphs that just restate the big headline above them. Compares on
+ * lowercased word sets — duplicate when 60%+ of `b`'s words are also in
+ * `a`, OR when one is a long prefix of the other.
+ */
+function isSameContent(a?: string, b?: string): boolean {
+  const A = (a || "").trim().toLowerCase();
+  const B = (b || "").trim().toLowerCase();
+  if (!A || !B) return false;
+  if (A === B) return true;
+  const stripA = A.replace(/[^a-z0-9 ]/g, "");
+  const stripB = B.replace(/[^a-z0-9 ]/g, "");
+  if (stripA.startsWith(stripB.slice(0, 30)) || stripB.startsWith(stripA.slice(0, 30))) return true;
+  const wordsA = new Set(stripA.split(/\s+/).filter((w) => w.length > 2));
+  const wordsB = stripB.split(/\s+/).filter((w) => w.length > 2);
+  if (wordsB.length === 0) return false;
+  const overlap = wordsB.filter((w) => wordsA.has(w)).length;
+  return overlap / wordsB.length >= 0.6;
+}
+
 function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: string; handleShort?: string; avatarUrl?: string; photoKey?: AccentKey; } }) {
   const layout: CarouselLayout = slide.layout || "text";
 
@@ -497,7 +558,9 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
       <div className="carousel-body carousel-cover">
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
         <h1 className="carousel-cover-title">{slide.title}</h1>
-        {slide.body && <p className="carousel-cover-sub">{clip(slide.body, 120)}</p>}
+        {slide.body && !isSameContent(slide.title, slide.body) && (
+          <p className="carousel-cover-sub">{clip(slide.body, 120)}</p>
+        )}
       </div>
     );
   }
@@ -508,7 +571,9 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
         <div className="carousel-stat-value">{slide.statValue || "—"}</div>
         {slide.statLabel && <div className="carousel-stat-label">{slide.statLabel}</div>}
-        {slide.body && <p className="carousel-stat-body">{clip(slide.body, STAT_BODY_MAX)}</p>}
+        {slide.body && !isSameContent(slide.statLabel, slide.body) && (
+          <p className="carousel-stat-body">{clip(slide.body, STAT_BODY_MAX)}</p>
+        )}
       </div>
     );
   }
@@ -588,7 +653,9 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
     <div className="carousel-body">
       {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
       <h1 className="carousel-title">{slide.title}</h1>
-      {slide.body && <p>{clip(slide.body, TEXT_BODY_MAX)}</p>}
+      {slide.body && !isSameContent(slide.title, slide.body) && (
+        <p>{clip(slide.body, TEXT_BODY_MAX)}</p>
+      )}
     </div>
   );
 }
@@ -609,7 +676,7 @@ export function CarouselCanvas({
   const total = slides.length;
   const accent = slide.accent || "coral";
   return (
-    <div className="canvas" data-format="carousel" data-accent={accent} id={idForExport}>
+    <div className="canvas" data-format="carousel" data-accent={accent} data-theme={data.themeKey || undefined} id={idForExport}>
       <TopChrome typeLabel={data.typeLabel || "Carousel"} />
       <CarouselBody slide={slide} ctx={{ author: data.author, handleShort: data.handleShort, avatarUrl: data.avatarUrl, photoKey: data.photoKey }} />
       <div className="cnv-footer cnv-footer-sig">
@@ -650,7 +717,7 @@ export function SquareCanvas({
     });
   };
   return (
-    <div className="canvas" data-format="square" id={idForExport}>
+    <div className="canvas" data-format="square" data-theme={data.themeKey || undefined} id={idForExport}>
       <TopChrome typeLabel={data.typeLabel || "Hot Take"} />
       <div className="square-body">
         {data.eyebrow && <span className="square-eyebrow">{data.eyebrow}</span>}

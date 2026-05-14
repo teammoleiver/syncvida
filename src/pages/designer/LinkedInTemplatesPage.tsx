@@ -6,16 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, Download, Plus, Trash2, ChevronLeft as PrevIcon, ChevronRight as NextIcon, Loader2, Link2, Image as ImageIcon, Sparkles, Check, LayoutGrid, Layers, Square as SquareIcon } from "lucide-react";
+import { ChevronLeft, Download, Plus, Trash2, ChevronLeft as PrevIcon, ChevronRight as NextIcon, Loader2, Link2, Image as ImageIcon, Sparkles, Check, LayoutGrid, Layers, Square as SquareIcon, Palette } from "lucide-react";
 import EditorActions from "@/components/designer/EditorActions";
 import { toast } from "sonner";
 import {
   CheatSheetCanvas, CarouselCanvas, SquareCanvas,
   ACCENT_KEYS, SECTION_KINDS, CAROUSEL_LAYOUTS,
   type CheatSheetData, type CarouselData, type SquareData,
-  type AccentKey, type SectionKind, type SheetSection, type CarouselSlide, type CarouselLayout,
+  type AccentKey, type SectionKind, type SheetSection, type CarouselSlide, type CarouselLayout, type ThemeKey,
   type Overlay,
 } from "@/components/designer/linkedin/LinkedInCanvas";
+import TemplateStylePicker from "@/components/designer/linkedin/TemplateStylePicker";
 import {
   SEED_CHEAT_SHEET, SEED_CAROUSEL, SEED_SQUARE, exportCanvasAsPng,
   saveCanvasAsAsset, linkAssetToPlan, getPlanEntry,
@@ -72,6 +73,9 @@ export default function LinkedInTemplatesPage() {
   // Overlay editing state
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
+  // Style/theme picker — opens automatically on first generation (when the
+  // editor is opened with hook/body params and no existing design id).
+  const [stylePickerOpen, setStylePickerOpen] = useState(false);
 
   // Wrapped setters that flip the dirty flag — used everywhere a user can
   // mutate the template (forms, overlay layer, title, preset switcher).
@@ -136,6 +140,8 @@ export default function LinkedInTemplatesPage() {
       setCarouselData((d) => buildCarouselFromPost(hook, body, {
         author: d.author, handleShort: d.handleShort, avatarUrl: d.avatarUrl, photoKey: d.photoKey,
       }));
+      // First-time generation — prompt for a visual style.
+      setStylePickerOpen(true);
     }
     if (planId) {
       void getPlanEntry(planId).then((p) => {
@@ -398,6 +404,18 @@ export default function LinkedInTemplatesPage() {
 
   const dims = DIMENSIONS[active];
 
+  /** Apply a visual theme to all three preset data shapes. */
+  function applyTheme(k: ThemeKey) {
+    editCheatData((d) => ({ ...d, themeKey: k }));
+    editCarouselData((d) => ({ ...d, themeKey: k }));
+    editSquareData((d) => ({ ...d, themeKey: k }));
+    toast.success("Style applied");
+  }
+  const currentTheme: ThemeKey | undefined =
+    active === "carousel" ? carouselData.themeKey
+    : active === "square" ? squareData.themeKey
+    : cheatData.themeKey;
+
   return (
     <section className="h-[calc(100vh-4rem)] flex flex-col">
       {/* Top header — same shell as the canvas DesignEditor */}
@@ -423,6 +441,9 @@ export default function LinkedInTemplatesPage() {
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setZoom((z) => Math.min(2, z * 1.15))} title="Zoom in">+</Button>
         </div>
         <div className="flex gap-1.5 flex-wrap items-center">
+          <Button size="sm" variant="outline" onClick={() => setStylePickerOpen(true)} className="h-8">
+            <Palette className="w-3.5 h-3.5 mr-1" /> Style
+          </Button>
           {planMeta && (
             <a
               href="/content-planner"
@@ -616,6 +637,12 @@ export default function LinkedInTemplatesPage() {
       </div>
 
       <AssetPickerDialog open={assetPickerOpen} onClose={() => setAssetPickerOpen(false)} onPick={addImageFromAsset} />
+      <TemplateStylePicker
+        open={stylePickerOpen}
+        current={currentTheme}
+        onPick={applyTheme}
+        onClose={() => setStylePickerOpen(false)}
+      />
     </section>
   );
 }

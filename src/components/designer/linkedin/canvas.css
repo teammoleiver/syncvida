@@ -1086,3 +1086,129 @@
   text-transform: uppercase;
   margin: 6px 0 0 !important;
 }
+
+/* =========================================================
+   Visual style themes — applied via data-theme on .canvas.
+   Override the base tokens (surface, text, brand, fonts) so a
+   single picker swaps the entire feel of the artifact.
+   ========================================================= */
+
+/* Editorial Light — paper background, dark text */
+.canvas[data-theme="editorial-light"] {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(0,0,0,0.04), transparent 60%),
+    linear-gradient(180deg, #FAF6EC 0%, #F1ECDD 100%);
+  --text-display: #0B0F1A;
+  --text-primary: #1F2535;
+  --text-secondary: #4B546B;
+  --text-muted: #8993AA;
+  --bg-card: #FFFFFF;
+  --bg-card-elev: #F5EFE0;
+  --border-subtle: rgba(0,0,0,0.08);
+}
+.canvas[data-theme="editorial-light"]::before { opacity: 0.02; mix-blend-mode: multiply; }
+
+/* Mono Minimal — black & white, brutalist */
+.canvas[data-theme="mono-minimal"] {
+  background: #FFFFFF;
+  --text-display: #000000;
+  --text-primary: #111111;
+  --text-secondary: #444444;
+  --text-muted: #888888;
+  --brand-coral: #000000;
+  --accent-coral: #000000; --accent-amber: #000000; --accent-teal: #000000;
+  --accent-indigo: #000000; --accent-plum: #000000; --accent-olive: #000000; --accent-sky: #000000;
+  --bg-card: #FFFFFF;
+  --bg-card-elev: #F4F4F4;
+  --border-subtle: rgba(0,0,0,0.18);
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-body: "JetBrains Mono", ui-monospace, monospace;
+}
+.canvas[data-theme="mono-minimal"]::before { display: none; }
+.canvas[data-theme="mono-minimal"] .carousel-eyebrow { background: #000; color: #fff; border-radius: 0; }
+
+/* Bold Pop — saturated coral background, white display */
+.canvas[data-theme="bold-pop"] {
+  background: linear-gradient(180deg, #EE6E55 0%, #DD4F33 100%);
+  --text-display: #FFFFFF;
+  --text-primary: #FFE9E1;
+  --text-secondary: #FFD7C9;
+  --text-muted: #F5BCA6;
+  --bg-card: rgba(255,255,255,0.10);
+  --bg-card-elev: rgba(255,255,255,0.16);
+  --border-subtle: rgba(255,255,255,0.22);
+  --accent-coral: #0B0F1A; --accent-amber: #0B0F1A; --accent-teal: #0B0F1A;
+  --accent-indigo: #0B0F1A; --accent-plum: #0B0F1A; --accent-olive: #0B0F1A; --accent-sky: #0B0F1A;
+}
+.canvas[data-theme="bold-pop"]::before { opacity: 0.05; }
+
+/* Magazine Serif — cream paper, serif headlines, gold accent */
+.canvas[data-theme="magazine-serif"] {
+  background: linear-gradient(180deg, #F5ECD9 0%, #EBDFC4 100%);
+  --text-display: #1A1410;
+  --text-primary: #2A2118;
+  --text-secondary: #58493A;
+  --text-muted: #8C7A66;
+  --bg-card: #FFFFFF;
+  --bg-card-elev: #F0E6D1;
+  --border-subtle: rgba(26,20,16,0.10);
+  --brand-coral: #A16A2C;
+  --accent-coral: #A16A2C; --accent-amber: #B07A2A; --accent-teal: #4F6B57;
+  --accent-indigo: #3F4A7A; --accent-plum: #7A3A55; --accent-olive: #6B6B2C; --accent-sky: #2F6B8A;
+  --font-display: "Playfair Display", "Georgia", serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+.canvas[data-theme="magazine-serif"]::before { opacity: 0.03; mix-blend-mode: multiply; }
+.canvas[data-theme="magazine-serif"] .carousel-cover-title,
+.canvas[data-theme="magazine-serif"] .carousel-title,
+.canvas[data-theme="magazine-serif"] h1, .canvas[data-theme="magazine-serif"] h2 { font-style: italic; letter-spacing: -0.015em; }
+
+/* Tech Neon — pure black, mint accent */
+.canvas[data-theme="tech-neon"] {
+  background: #050507;
+  --text-display: #E8F8EE;
+  --text-primary: #C9D7CD;
+  --text-secondary: #7E8B83;
+  --text-muted: #4B544D;
+  --bg-card: #0D1112;
+  --bg-card-elev: #141A1B;
+  --border-subtle: rgba(54,241,166,0.18);
+  --brand-coral: #36F1A6;
+  --accent-coral: #36F1A6; --accent-amber: #FFEB55; --accent-teal: #36F1A6;
+  --accent-indigo: #6EA8FF; --accent-plum: #E8649D; --accent-olive: #B6F136; --accent-sky: #36C5F1;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-body: "JetBrains Mono", ui-monospace, monospace;
+}
+.canvas[data-theme="tech-neon"]::before { opacity: 0.06; }
+
+/* Pastel Soft — lavender background, plum text */
+.canvas[data-theme="pastel-soft"] {
+  background: linear-gradient(180deg, #F4ECF9 0%, #E8DCF1 100%);
+  --text-display: #3B1B5B;
+  --text-primary: #4D2A6E;
+  --text-secondary: #6E5089;
+  --text-muted: #9D8AB3;
+  --bg-card: #FFFFFF;
+  --bg-card-elev: #F0E6F6;
+  --border-subtle: rgba(59,27,91,0.12);
+  --brand-coral: #7C4DD1;
+  --accent-coral: #C97AB8; --accent-amber: #E0A85F; --accent-teal: #5FB8B8;
+  --accent-indigo: #7C4DD1; --accent-plum: #9C5AB5; --accent-olive: #8FA85C; --accent-sky: #6FA8D8;
+}
+.canvas[data-theme="pastel-soft"]::before { opacity: 0.02; mix-blend-mode: multiply; }
+
+/* Corporate Clean — white, navy text, sharp blue */
+.canvas[data-theme="corporate-clean"] {
+  background: #FFFFFF;
+  --text-display: #0F1B3D;
+  --text-primary: #1E2A52;
+  --text-secondary: #4F5A7A;
+  --text-muted: #8993AA;
+  --bg-card: #F7F9FC;
+  --bg-card-elev: #EEF2F8;
+  --border-subtle: rgba(15,27,61,0.10);
+  --brand-coral: #1B5BFF;
+  --accent-coral: #1B5BFF; --accent-amber: #FFA62B; --accent-teal: #00B894;
+  --accent-indigo: #1B5BFF; --accent-plum: #B43E96; --accent-olive: #6B7C2A; --accent-sky: #2F8FE0;
+}
+.canvas[data-theme="corporate-clean"]::before { display: none; }

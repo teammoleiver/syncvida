@@ -354,12 +354,18 @@ export function buildCarouselFromPost(
 
   const slides: CarouselSlide[] = [];
 
-  // 1) Cover
+  // 1) Cover — title is the hook; subtitle is a SHORT promise of what's
+  // inside the deck, never the same words as a body slide.
+  const expectedSlideCount = Math.min(chunks.length + 2, 8);
+  const coverSub = (() => {
+    if (chunks.length === 0) return "A quick read.";
+    return `${expectedSlideCount} slides. Save the ones that hit.`;
+  })();
   slides.push({
     layout: "cover",
-    eyebrow: "Hook",
+    eyebrow: "Read this",
     title: cleanHook || "Untitled post",
-    body: chunks[0] ? chunks[0].slice(0, 120) : "",
+    body: coverSub,
     closer: "Swipe →",
     accent: ACCENTS[0],
   });
@@ -368,17 +374,21 @@ export function buildCarouselFromPost(
   let pickedQuote = false;
   chunks.forEach((chunk, i) => {
     const accent = ACCENTS[(i + 1) % ACCENTS.length];
-    const eyebrow = `Step ${String(i + 1).padStart(2, "0")}`;
+    const eyebrow = `${String(i + 1).padStart(2, "0")} / ${String(chunks.length).padStart(2, "0")}`;
 
     // Bullets
     const lines = chunk.split(/\n+/).map((l) => l.trim()).filter(Boolean);
     const bulletLines = lines.filter((l) => /^([-•*]|\d+[.)])\s+/.test(l));
     if (bulletLines.length >= 2) {
+      const headerLine = lines.find((l) => !/^([-•*]|\d+[.)])\s+/.test(l));
+      const cleanBullets = bulletLines
+        .map((l) => l.replace(/^([-•*]|\d+[.)])\s+/, "").slice(0, 90))
+        .slice(0, 5);
       slides.push({
         layout: "bullets",
         eyebrow,
-        title: lines[0].replace(/^([-•*]|\d+[.)])\s+/, "").slice(0, 70) || "Key points",
-        bullets: bulletLines.map((l) => l.replace(/^([-•*]|\d+[.)])\s+/, "").slice(0, 90)).slice(0, 5),
+        title: (headerLine || "Here's the playbook").slice(0, 70),
+        bullets: cleanBullets,
         closer: "Swipe →",
         accent,
       });
@@ -402,16 +412,24 @@ export function buildCarouselFromPost(
       return;
     }
 
-    // Stat
-    const statMatch = chunk.match(/(\$?\d+(?:\.\d+)?[%xKMB+]?)/);
-    if (statMatch && statMatch[0].length <= 8) {
+    // Stat — value is the number, label is a SHORT crisp descriptor (max 6
+    // words), body is OMITTED so the giant number isn't followed by a
+    // paragraph that repeats the same words in smaller font.
+    const statMatch = chunk.match(/\$?\d+(?:[.,]\d+)?[%xKMB+]?/);
+    if (statMatch && statMatch[0].length <= 8 && /[%xKMB$]|\d{2,}/.test(statMatch[0])) {
+      const sentenceWithStat = (chunk.split(/(?<=[.!?])\s+/).find((s) => s.includes(statMatch[0])) || chunk)
+        .replace(statMatch[0], "")
+        .replace(/\s{2,}/g, " ")
+        .replace(/^[\s,;:.\-—]+|[\s,;:.\-—]+$/g, "")
+        .trim();
+      const labelWords = sentenceWithStat.split(/\s+/).slice(0, 7).join(" ");
       slides.push({
         layout: "stat",
         eyebrow,
         title: statMatch[0],
         statValue: statMatch[0],
-        statLabel: chunk.replace(statMatch[0], "").trim().slice(0, 80) || "The number that matters.",
-        body: chunk.slice(0, 120),
+        statLabel: labelWords || "The number that matters.",
+        body: "",
         closer: "Swipe →",
         accent,
       });
@@ -435,13 +453,16 @@ export function buildCarouselFromPost(
       return;
     }
 
-    // Default — text slide
-    const firstSentence = sentences[0] || chunk;
+    // Default — text slide. Title = first sentence; body = REMAINING
+    // sentences, never a re-statement of the title.
+    const firstSentence = (sentences[0] || chunk).trim();
+    const restSentences = sentences.slice(1).join(" ").trim();
+    const titleText = firstSentence.replace(/[.!?]+$/, "").slice(0, 80);
     slides.push({
       layout: "text",
       eyebrow,
-      title: firstSentence.slice(0, 80),
-      body: chunk.slice(0, 220),
+      title: titleText,
+      body: restSentences ? restSentences.slice(0, 220) : "",
       closer: "Swipe →",
       accent,
     });
