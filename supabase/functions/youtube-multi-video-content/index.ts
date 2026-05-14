@@ -107,7 +107,7 @@ Return ${wantIdeas ? `exactly ${count} ideas` : ""}${wantIdeas && wantPosts ? " 
     const { response: ai, provider, errorStatus } = await callBestAiProvider({ openAiKey, lovableKey, systemPrompt, userPrompt });
     if (!ai?.ok) {
       if (errorStatus === 429) return json({ error: "AI rate limit, try again shortly" }, 429);
-      if (errorStatus === 402) return json({
+      if (errorStatus === 402 || errorStatus === 401) return json({
         ...fallbackSynthesis(vids, chMap, count, platforms, intent, sources),
         ai_unavailable: true,
         warning: "AI provider credits are unavailable, so this draft was generated locally from the selected transcripts.",
