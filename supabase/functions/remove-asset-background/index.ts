@@ -23,17 +23,19 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) return json({ error: "OPENAI_API_KEY missing" }, 500);
 
-    const ai = await fetch("https://api.openai.com/v1/chat/completions", {
+    const srcImg = await fetch(src.public_url);
+    if (!srcImg.ok) return json({ error: "Could not fetch source image" }, 500);
+    const srcBlob = await srcImg.blob();
+    const form = new FormData();
+    form.append("model", "gpt-image-1");
+    form.append("prompt", "Remove the background completely. Keep only the main subject. Return a clean PNG with a fully transparent background.");
+    form.append("background", "transparent");
+    form.append("size", "1024x1024");
+    form.append("image[]", srcBlob, "source.png");
+    const ai = await fetch("https://api.openai.com/v1/images/edits", {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "gpt-4o-mini-image",
-        messages: [{ role: "user", content: [
-          { type: "text", text: "Remove the background completely. Keep only the main subject. Return a clean PNG with a fully transparent background." },
-          { type: "image_url", image_url: { url: src.public_url } },
-        ] }],
-        modalities: ["image", "text"],
-      }),
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
     });
     if (!ai.ok) {
       if (ai.status === 429) return json({ error: "AI rate limit, try again shortly" }, 429);
@@ -41,12 +43,11 @@ Deno.serve(async (req) => {
       return json({ error: `AI error: ${await ai.text()}`, fallback: true }, 200);
     }
     const data = await ai.json();
-    const dataUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    if (!dataUrl?.startsWith("data:image/")) return json({ error: "Background removal didn't return an image. Try again.", fallback: true }, 200);
-    const [meta, b64] = dataUrl.split(",");
-    const mime = meta.match(/data:([^;]+);/)?.[1] ?? "image/png";
+    const b64 = data.data?.[0]?.b64_json;
+    if (!b64) return json({ error: "Background removal didn't return an image. Try again.", fallback: true }, 200);
+    const mime = "image/png";
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    const ext = mime.split("/")[1] ?? "png";
+    const ext = "png";
     const path = `${user.id}/bg-${crypto.randomUUID()}.${ext}`;
     const { error: upErr } = await supabase.storage.from("design-assets").upload(path, bytes, { contentType: mime });
     if (upErr) return json({ error: upErr.message }, 500);
