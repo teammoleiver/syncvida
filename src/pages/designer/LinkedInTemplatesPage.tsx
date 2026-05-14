@@ -637,6 +637,12 @@ export default function LinkedInTemplatesPage() {
       </div>
 
       <AssetPickerDialog open={assetPickerOpen} onClose={() => setAssetPickerOpen(false)} onPick={addImageFromAsset} />
+      <TemplateStylePicker
+        open={stylePickerOpen}
+        current={currentTheme}
+        onPick={applyTheme}
+        onClose={() => setStylePickerOpen(false)}
+      />
     </section>
   );
 }
