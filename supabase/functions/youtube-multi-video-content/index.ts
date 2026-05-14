@@ -189,10 +189,10 @@ async function callBestAiProvider(args: { openAiKey?: string | null; lovableKey?
           method: "POST",
           headers: { Authorization: `Bearer ${args.openAiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "gpt-5-mini",
+            model: "gpt-4o-mini",
             messages: [{ role: "system", content: args.systemPrompt }, { role: "user", content: args.userPrompt }],
             response_format: { type: "json_object" },
-            max_completion_tokens: 5000,
+            max_tokens: 5000,
           }),
         });
         if (response.ok) return { response, provider, errorStatus: 0 };
