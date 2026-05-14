@@ -107,7 +107,7 @@ Return ${wantIdeas ? `exactly ${count} ideas` : ""}${wantIdeas && wantPosts ? " 
     const { response: ai, provider, errorStatus } = await callBestAiProvider({ openAiKey, lovableKey, systemPrompt, userPrompt });
     if (!ai?.ok) {
       if (errorStatus === 429) return json({ error: "AI rate limit, try again shortly" }, 429);
-      if (errorStatus === 402) return json({
+      if (errorStatus === 402 || errorStatus === 401) return json({
         ...fallbackSynthesis(vids, chMap, count, platforms, intent, sources),
         ai_unavailable: true,
         warning: "AI provider credits are unavailable, so this draft was generated locally from the selected transcripts.",
@@ -189,10 +189,10 @@ async function callBestAiProvider(args: { openAiKey?: string | null; lovableKey?
           method: "POST",
           headers: { Authorization: `Bearer ${args.openAiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "gpt-5-mini",
+            model: "gpt-4o-mini",
             messages: [{ role: "system", content: args.systemPrompt }, { role: "user", content: args.userPrompt }],
             response_format: { type: "json_object" },
-            max_completion_tokens: 5000,
+            max_tokens: 5000,
           }),
         });
         if (response.ok) return { response, provider, errorStatus: 0 };

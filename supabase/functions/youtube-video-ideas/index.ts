@@ -74,9 +74,11 @@ Give me ${count} content ideas.`;
       }),
     });
     if (!ai.ok) {
-      if (ai.status === 429) return json({ error: "AI rate limit, try again shortly" }, 429);
-      if (ai.status === 402) return json({ error: "AI credits exhausted" }, 402);
-      return json({ error: `AI error: ${await ai.text()}` }, 500);
+      const txt = await ai.text();
+      if (ai.status === 429) return json({ error: "AI rate limit or quota exhausted. Check your OpenAI billing and try again." }, 200);
+      if (ai.status === 402) return json({ error: "AI credits exhausted. Add funds to your OpenAI account." }, 200);
+      if (ai.status === 401) return json({ error: "OpenAI API key invalid. Update OPENAI_API_KEY in secrets." }, 200);
+      return json({ error: `AI error: ${txt}` }, 200);
     }
     const aiBody = await ai.json();
     const content: string = aiBody.choices?.[0]?.message?.content ?? "";
