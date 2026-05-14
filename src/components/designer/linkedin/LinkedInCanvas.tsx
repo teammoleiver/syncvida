@@ -489,6 +489,27 @@ function clip(s: string | undefined, n: number): string {
   return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s;
 }
 
+/**
+ * True when `b` substantially repeats `a`. Used to suppress small-font
+ * paragraphs that just restate the big headline above them. Compares on
+ * lowercased word sets — duplicate when 60%+ of `b`'s words are also in
+ * `a`, OR when one is a long prefix of the other.
+ */
+function isSameContent(a?: string, b?: string): boolean {
+  const A = (a || "").trim().toLowerCase();
+  const B = (b || "").trim().toLowerCase();
+  if (!A || !B) return false;
+  if (A === B) return true;
+  const stripA = A.replace(/[^a-z0-9 ]/g, "");
+  const stripB = B.replace(/[^a-z0-9 ]/g, "");
+  if (stripA.startsWith(stripB.slice(0, 30)) || stripB.startsWith(stripA.slice(0, 30))) return true;
+  const wordsA = new Set(stripA.split(/\s+/).filter((w) => w.length > 2));
+  const wordsB = stripB.split(/\s+/).filter((w) => w.length > 2);
+  if (wordsB.length === 0) return false;
+  const overlap = wordsB.filter((w) => wordsA.has(w)).length;
+  return overlap / wordsB.length >= 0.6;
+}
+
 function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: string; handleShort?: string; avatarUrl?: string; photoKey?: AccentKey; } }) {
   const layout: CarouselLayout = slide.layout || "text";
 
@@ -497,7 +518,9 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
       <div className="carousel-body carousel-cover">
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
         <h1 className="carousel-cover-title">{slide.title}</h1>
-        {slide.body && <p className="carousel-cover-sub">{clip(slide.body, 120)}</p>}
+        {slide.body && !isSameContent(slide.title, slide.body) && (
+          <p className="carousel-cover-sub">{clip(slide.body, 120)}</p>
+        )}
       </div>
     );
   }
@@ -508,7 +531,9 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
         <div className="carousel-stat-value">{slide.statValue || "—"}</div>
         {slide.statLabel && <div className="carousel-stat-label">{slide.statLabel}</div>}
-        {slide.body && <p className="carousel-stat-body">{clip(slide.body, STAT_BODY_MAX)}</p>}
+        {slide.body && !isSameContent(slide.statLabel, slide.body) && (
+          <p className="carousel-stat-body">{clip(slide.body, STAT_BODY_MAX)}</p>
+        )}
       </div>
     );
   }
@@ -588,7 +613,9 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
     <div className="carousel-body">
       {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
       <h1 className="carousel-title">{slide.title}</h1>
-      {slide.body && <p>{clip(slide.body, TEXT_BODY_MAX)}</p>}
+      {slide.body && !isSameContent(slide.title, slide.body) && (
+        <p>{clip(slide.body, TEXT_BODY_MAX)}</p>
+      )}
     </div>
   );
 }
