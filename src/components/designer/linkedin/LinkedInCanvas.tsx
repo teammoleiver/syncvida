@@ -95,6 +95,7 @@ export type CheatSheetData = {
   attribution?: string;
   sections: SheetSection[];
   overlays?: Overlay[];
+  themeKey?: ThemeKey;
 };
 
 /**
@@ -140,6 +141,7 @@ export type CarouselData = {
   slides: CarouselSlide[];
   /** Per-slide overlays: overlays[slideIndex] = Overlay[] */
   overlays?: Record<number, Overlay[]>;
+  themeKey?: ThemeKey;
 };
 
 export type SquareData = {
@@ -154,7 +156,45 @@ export type SquareData = {
   closer?: string;
   attribution?: string;
   overlays?: Overlay[];
+  themeKey?: ThemeKey;
 };
+
+/**
+ * Visual style themes — applied to the canvas root via `data-theme` so all
+ * typography, colors, and surface tokens swap together. Picked once via the
+ * Template Style dialog right after the post is generated.
+ */
+export type ThemeKey =
+  | "editorial-dark"
+  | "editorial-light"
+  | "mono-minimal"
+  | "bold-pop"
+  | "magazine-serif"
+  | "tech-neon"
+  | "pastel-soft"
+  | "corporate-clean";
+
+export const THEME_KEYS: ThemeKey[] = [
+  "editorial-dark",
+  "editorial-light",
+  "mono-minimal",
+  "bold-pop",
+  "magazine-serif",
+  "tech-neon",
+  "pastel-soft",
+  "corporate-clean",
+];
+
+export const THEMES: { key: ThemeKey; label: string; description: string; preview: { bg: string; fg: string; accent: string } }[] = [
+  { key: "editorial-dark", label: "Editorial Dark", description: "Default — bold sans, deep navy, coral accent.", preview: { bg: "#0B0F1A", fg: "#F5F1E8", accent: "#E8654A" } },
+  { key: "editorial-light", label: "Editorial Light", description: "Same energy, light paper background.", preview: { bg: "#F5F1E8", fg: "#0B0F1A", accent: "#E8654A" } },
+  { key: "mono-minimal", label: "Mono Minimal", description: "Black & white, system mono, brutalist.", preview: { bg: "#FFFFFF", fg: "#000000", accent: "#000000" } },
+  { key: "bold-pop", label: "Bold Pop", description: "Saturated coral background, white display type.", preview: { bg: "#E8654A", fg: "#FFFFFF", accent: "#0B0F1A" } },
+  { key: "magazine-serif", label: "Magazine Serif", description: "Serif headlines, cream paper, gold accent.", preview: { bg: "#F3EAD8", fg: "#1A1410", accent: "#A16A2C" } },
+  { key: "tech-neon", label: "Tech Neon", description: "Pure black, mint accent, mono labels.", preview: { bg: "#050507", fg: "#E8F8EE", accent: "#36F1A6" } },
+  { key: "pastel-soft", label: "Pastel Soft", description: "Lavender background, deep plum text.", preview: { bg: "#F2EAF7", fg: "#3B1B5B", accent: "#7C4DD1" } },
+  { key: "corporate-clean", label: "Corporate Clean", description: "Fresh white, navy text, sharp blue accent.", preview: { bg: "#FFFFFF", fg: "#0F1B3D", accent: "#1B5BFF" } },
+];
 
 function pickPhoto(data: any): string {
   if (data.avatarUrl) return data.avatarUrl;
@@ -426,7 +466,7 @@ export function CheatSheetCanvas({
   const accentOrder: AccentKey[] = ["coral", "amber", "teal", "indigo", "plum", "olive", "sky"];
   const sections = safeSections(data.sections);
   return (
-    <div className="canvas" data-format="cheatsheet" id={idForExport}>
+    <div className="canvas" data-format="cheatsheet" data-theme={data.themeKey || undefined} id={idForExport}>
       <TopChrome typeLabel={data.typeLabel || "Cheat Sheet"} />
       <div className="cnv-hero">
         {data.eyebrow && <div className="eyebrow">{data.eyebrow}</div>}
