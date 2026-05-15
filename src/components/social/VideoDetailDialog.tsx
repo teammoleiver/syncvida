@@ -272,10 +272,20 @@ export default function VideoDetailDialog({
                   {generating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
                   {ideas && ideas.length > 0 ? "View ideas" : "Generate ideas"}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => genPosts(false)} disabled={generatingPosts}>
-                  {generatingPosts ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
-                  {posts && posts.length > 0 ? "View posts" : "Generate social posts"}
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Select value={postLength} onValueChange={(v) => setPostLength(v as any)}>
+                    <SelectTrigger className="h-8 w-[110px] text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="short">Short</SelectItem>
+                      <SelectItem value="long">Long</SelectItem>
+                      <SelectItem value="both">Short + Long</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" variant="outline" onClick={() => genPosts(false)} disabled={generatingPosts}>
+                    {generatingPosts ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
+                    {posts && posts.length > 0 ? "View posts" : "Generate social posts"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -391,6 +401,9 @@ export default function VideoDetailDialog({
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-[10px] gap-1 capitalize"><Icon className="w-3 h-3" />{p.platform}</Badge>
+                          {p.variant && (
+                            <Badge variant={p.variant === "long" ? "default" : "secondary"} className="text-[10px] capitalize">{p.variant}</Badge>
+                          )}
                           <span className="text-[10px] text-muted-foreground">{p.length} chars</span>
                         </div>
                         <div className="flex gap-1">
