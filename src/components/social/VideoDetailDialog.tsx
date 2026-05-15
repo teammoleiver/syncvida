@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, ExternalLink, FileText, Sparkles, Plus, RefreshCw, Check, ChevronDown, ChevronUp, Copy, Clock, Linkedin, Twitter, Instagram, Send, Heart, ListChecks, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -39,6 +40,7 @@ export default function VideoDetailDialog({
   const [generatingPosts, setGeneratingPosts] = useState(false);
   const [savedPostIds, setSavedPostIds] = useState<Set<number>>(new Set());
   const [savingPostIdx, setSavingPostIdx] = useState<number | null>(null);
+  const [postLength, setPostLength] = useState<"short" | "long" | "both">("both");
 
   const [summary, setSummary] = useState<SummaryPoint[] | null>(null);
   const [summarizing, setSummarizing] = useState(false);
@@ -151,7 +153,7 @@ export default function VideoDetailDialog({
     if (!video) return;
     setGeneratingPosts(true);
     try {
-      const r = await generateVideoPosts(video.video_id, 5, ["linkedin", "twitter", "instagram"], refresh);
+      const r = await generateVideoPosts(video.video_id, 3, ["linkedin", "twitter", "instagram"], refresh, postLength);
       setPosts(r.posts);
       setSource(r.source_video);
       setSavedPostIds(new Set());
