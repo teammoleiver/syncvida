@@ -106,10 +106,20 @@ export default function LinkedInTemplatesPage() {
         setTitle(d.title || "");
         const data = (d as any).template_data;
         if (d.kind === "linkedin_cheatsheet" && data) {
-          setCheatData({ ...SEED_CHEAT_SHEET, ...data, sections: data.sections ?? SEED_CHEAT_SHEET.sections });
+          setCheatData({
+            ...SEED_CHEAT_SHEET,
+            ...data,
+            sections: Array.isArray(data.sections) ? data.sections : SEED_CHEAT_SHEET.sections,
+            overlays: Array.isArray(data.overlays) ? data.overlays : [],
+          });
           setActive("cheatsheet");
         } else if (d.kind === "linkedin_carousel" && data) {
-          setCarouselData({ ...SEED_CAROUSEL, ...data, slides: data.slides ?? SEED_CAROUSEL.slides });
+          setCarouselData({
+            ...SEED_CAROUSEL,
+            ...data,
+            slides: Array.isArray(data.slides) ? data.slides : SEED_CAROUSEL.slides,
+            overlays: Array.isArray(data.overlays) ? data.overlays : [],
+          });
           setActive("carousel");
         } else if (d.kind === "linkedin_square" && data) {
           setSquareData({ ...SEED_SQUARE, ...data });
