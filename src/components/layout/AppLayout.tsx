@@ -8,7 +8,6 @@ import {
   PanelLeftClose, PanelLeft, Megaphone, Library, ClipboardList, Palette,
   Shield, User as UserIcon,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import syncvidaLogo from "@/assets/syncvida-icon.png";
 import { getTodayWaterLog } from "@/lib/supabase-queries";
 
@@ -212,11 +211,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 </span>
               </div>
               <div className="h-[3px] bg-sidebar-border rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-500"
-                  initial={false}
-                  animate={{ width: `${Math.min((waterMl / 3000) * 100, 100)}%` }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-500 transition-[width] duration-300 ease-out"
+                  style={{ width: `${Math.min((waterMl / 3000) * 100, 100)}%` }}
                 />
               </div>
             </div>
@@ -269,17 +266,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </button>
         </header>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
+        <div key={location.pathname} className="animate-in fade-in duration-200">
+          {children}
+        </div>
       </main>
 
       {/* Mobile Bottom Nav — 5 key items */}
