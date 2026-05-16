@@ -31,6 +31,7 @@ export default function YouTubePage() {
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [transcriptFilter, setTranscriptFilter] = useState<"all" | "with" | "without">("all");
   const [sort, setSort] = useState<"newest" | "oldest">("newest");
   const [groupBy, setGroupBy] = useState<"none" | "month" | "year">("month");
 
@@ -186,9 +187,11 @@ export default function YouTubePage() {
         if (!v.published_at) return false;
         if (new Date(v.published_at).getUTCMonth() + 1 !== Number(monthFilter)) return false;
       }
+      if (transcriptFilter === "with" && !v.has_transcript) return false;
+      if (transcriptFilter === "without" && v.has_transcript) return false;
       return true;
     });
-  }, [videos, search, yearFilter, monthFilter]);
+  }, [videos, search, yearFilter, monthFilter, transcriptFilter]);
 
   // Group by month or year for sectioned display
   type Section = { key: string; label: string; items: YouTubeVideo[] };
@@ -450,10 +453,10 @@ export default function YouTubePage() {
             </Select>
           </div>
         </div>
-        {(search || yearFilter !== "all" || monthFilter !== "all" || pickedChannels.size > 0) && (
+        {(search || yearFilter !== "all" || monthFilter !== "all" || transcriptFilter !== "all" || pickedChannels.size > 0) && (
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>{filteredVideos.length} video{filteredVideos.length === 1 ? "" : "s"} matching</span>
-            <button onClick={() => { setSearch(""); setYearFilter("all"); setMonthFilter("all"); setPickedChannels(new Set()); }} className="underline">Clear filters</button>
+            <button onClick={() => { setSearch(""); setYearFilter("all"); setMonthFilter("all"); setTranscriptFilter("all"); setPickedChannels(new Set()); }} className="underline">Clear filters</button>
           </div>
         )}
       </Card>
