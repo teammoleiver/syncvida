@@ -708,7 +708,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
                     });
                     if (form.hook) params.set("hook", form.hook);
                     if (form.body) params.set("body", form.body);
-                    window.open(`/designer/linkedin-templates?${params.toString()}`, "_blank");
+                    navigate(`/designer/linkedin-templates?${params.toString()}`);
                   }}>
                   <Sparkles className="w-4 h-4 mr-1" /> LinkedIn Template
                 </Button>
