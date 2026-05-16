@@ -353,13 +353,13 @@ export default function VideoDetailDialog({
                   {loadingTranscript ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <FileText className="w-3.5 h-3.5 mr-1" />}
                   {transcript ? "View transcript" : "Get transcript"}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => summarize(false)} disabled={summarizing}>
+                <Button size="sm" variant="outline" onClick={() => summarize()} disabled={summarizing}>
                   {summarizing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <ListChecks className="w-3.5 h-3.5 mr-1" />}
-                  {summary ? "View summary" : "Summarize"}
+                  {summaryRuns.length > 0 ? "Summarize again" : "Summarize"}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => genIdeas(false)} disabled={generating}>
+                <Button size="sm" variant="outline" onClick={() => genIdeas()} disabled={generating}>
                   {generating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
-                  {ideas && ideas.length > 0 ? "View ideas" : "Generate ideas"}
+                  {ideaRuns.length > 0 ? "Generate more ideas" : "Generate ideas"}
                 </Button>
                 <div className="flex items-center gap-1">
                   <Select value={postLength} onValueChange={(v) => setPostLength(v as any)}>
@@ -370,9 +370,9 @@ export default function VideoDetailDialog({
                       <SelectItem value="both">Short + Long</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button size="sm" variant="outline" onClick={() => genPosts(false)} disabled={generatingPosts}>
+                  <Button size="sm" variant="outline" onClick={() => genPosts()} disabled={generatingPosts}>
                     {generatingPosts ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
-                    {posts && posts.length > 0 ? "View posts" : "Generate social posts"}
+                    {postRuns.length > 0 ? "Generate more posts" : "Generate social posts"}
                   </Button>
                 </div>
               </div>
