@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -9,41 +9,41 @@ import AppLayout from "@/components/layout/AppLayout";
 import { scheduleEndOfDaySnapshot, checkMissedSnapshot } from "@/lib/daily-snapshot";
 import { getProfile } from "@/lib/supabase-queries";
 import OnboardingWizard from "@/components/OnboardingWizard";
-import Dashboard from "./pages/Dashboard";
-import HealthRecords from "./pages/HealthRecords";
-import FastingModule from "./pages/FastingModule";
-import NutritionModule from "./pages/NutritionModule";
-import ExerciseModule from "./pages/ExerciseModule";
-import BodyMetrics from "./pages/BodyMetrics";
-import GoalsModule from "./pages/GoalsModule";
-import AssistantModule from "./pages/AssistantModule";
-import SleepModule from "./pages/SleepModule";
-import SettingsModule from "./pages/SettingsModule";
-import AdminPanel from "./pages/AdminPanel";
-import ProjectsModule from "./pages/ProjectsModule";
-import TasksModule from "./pages/TasksModule";
-import CalendarModule from "./pages/CalendarModule";
-import SocialMediaModule from "./pages/SocialMediaModule";
-import SocialStudioLayout from "./pages/social/SocialStudioLayout";
-import SocialOverview from "./pages/social/SocialOverview";
-import NewsPage from "./pages/social/NewsPage";
-import ContentPlannerPage from "./pages/social/ContentPlannerPage";
-import SearchPage from "./pages/social/SearchPage";
-import YouTubePage from "./pages/social/YouTubePage";
-import ContentStudioPage from "./pages/social/ContentStudioPage";
-import CarouselGenerator from "./pages/CarouselGenerator";
-import CarouselHistory from "./pages/CarouselHistory";
-import DesignerHome from "./pages/designer/DesignerHome";
-import BrandKitPage from "./pages/designer/BrandKitPage";
-import AssetLibraryPage from "./pages/designer/AssetLibraryPage";
-import DesignEditor from "./pages/designer/DesignEditor";
-import LinkedInTemplatesPage from "./pages/designer/LinkedInTemplatesPage";
-import Auth from "./pages/Auth";
-import ResetPassword from "./pages/ResetPassword";
-import LinkedInCallback from "./pages/oauth/LinkedInCallback";
-import CanvaCallback from "./pages/oauth/CanvaCallback";
-import MetaCallback from "./pages/oauth/MetaCallback";
-import NotFound from "./pages/NotFound";
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const HealthRecords = lazy(() => import("./pages/HealthRecords"));
+const FastingModule = lazy(() => import("./pages/FastingModule"));
+const NutritionModule = lazy(() => import("./pages/NutritionModule"));
+const ExerciseModule = lazy(() => import("./pages/ExerciseModule"));
+const BodyMetrics = lazy(() => import("./pages/BodyMetrics"));
+const GoalsModule = lazy(() => import("./pages/GoalsModule"));
+const AssistantModule = lazy(() => import("./pages/AssistantModule"));
+const SleepModule = lazy(() => import("./pages/SleepModule"));
+const SettingsModule = lazy(() => import("./pages/SettingsModule"));
+const AdminPanel = lazy(() => import("./pages/AdminPanel"));
+const ProjectsModule = lazy(() => import("./pages/ProjectsModule"));
+const TasksModule = lazy(() => import("./pages/TasksModule"));
+const CalendarModule = lazy(() => import("./pages/CalendarModule"));
+const SocialMediaModule = lazy(() => import("./pages/SocialMediaModule"));
+const SocialStudioLayout = lazy(() => import("./pages/social/SocialStudioLayout"));
+const SocialOverview = lazy(() => import("./pages/social/SocialOverview"));
+const NewsPage = lazy(() => import("./pages/social/NewsPage"));
+const ContentPlannerPage = lazy(() => import("./pages/social/ContentPlannerPage"));
+const SearchPage = lazy(() => import("./pages/social/SearchPage"));
+const YouTubePage = lazy(() => import("./pages/social/YouTubePage"));
+const ContentStudioPage = lazy(() => import("./pages/social/ContentStudioPage"));
+const CarouselGenerator = lazy(() => import("./pages/CarouselGenerator"));
+const CarouselHistory = lazy(() => import("./pages/CarouselHistory"));
+const DesignerHome = lazy(() => import("./pages/designer/DesignerHome"));
+const BrandKitPage = lazy(() => import("./pages/designer/BrandKitPage"));
+const AssetLibraryPage = lazy(() => import("./pages/designer/AssetLibraryPage"));
+const DesignEditor = lazy(() => import("./pages/designer/DesignEditor"));
+const LinkedInTemplatesPage = lazy(() => import("./pages/designer/LinkedInTemplatesPage"));
+const Auth = lazy(() => import("./pages/Auth"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const LinkedInCallback = lazy(() => import("./pages/oauth/LinkedInCallback"));
+const CanvaCallback = lazy(() => import("./pages/oauth/CanvaCallback"));
+const MetaCallback = lazy(() => import("./pages/oauth/MetaCallback"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -93,11 +93,23 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   useEffect(() => {
-    scheduleEndOfDaySnapshot();
-    checkMissedSnapshot();
+    const run = () => {
+      scheduleEndOfDaySnapshot();
+      checkMissedSnapshot();
+    };
+    if (typeof (window as any).requestIdleCallback === "function") {
+      (window as any).requestIdleCallback(run);
+    } else {
+      setTimeout(run, 1);
+    }
   }, []);
 
   return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    }>
     <Routes>
       <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
       <Route path="/reset-password" element={<ResetPassword />} />
@@ -137,6 +149,7 @@ function AppRoutes() {
       <Route path="/admin" element={<ProtectedRoute><AppLayout><AdminPanel /></AppLayout></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   );
 }
 
