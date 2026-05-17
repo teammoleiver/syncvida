@@ -672,6 +672,15 @@ export default function VideoDetailDialog({
               </Card>
             );
           })}
+
+          {searchQuery.trim() &&
+            !summaryRuns.some((r) => r.items.some((p) => itemMatches(searchQuery, p, "summary"))) &&
+            !postRuns.some((r) => r.items.some((p) => itemMatches(searchQuery, p, "post"))) &&
+            !ideaRuns.some((r) => r.items.some((it) => itemMatches(searchQuery, it, "idea"))) && (
+              <div className="text-center text-sm text-muted-foreground py-8">
+                No matches for "{searchQuery.trim()}"
+              </div>
+            )}
         </div>
       </DialogContent>
     </Dialog>
