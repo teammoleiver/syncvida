@@ -18,6 +18,7 @@ type SourceVideo = { video_id: string; title: string; channel: string };
 type Run<T> = { id: string; createdAt: string; items: T[] };
 
 const HISTORY_KEY = (vid: string) => `yt-history-v1:${vid}`;
+const MAX_RUNS = 10;
 
 function loadHistory(vid: string): { ideas: Run<VideoIdea>[]; posts: Run<VideoPost>[]; summary: Run<SummaryPoint>[] } {
   try {
