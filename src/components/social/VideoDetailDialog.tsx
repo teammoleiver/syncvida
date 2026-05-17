@@ -470,13 +470,18 @@ export default function VideoDetailDialog({
           )}
 
           {/* Summary points — historical runs */}
-          {summaryRuns.map((run, runIdx) => (
+          {summaryRuns.map((run, runIdx) => {
+            const visibleItems = searchQuery.trim()
+              ? run.items.filter((p) => itemMatches(searchQuery, p, "summary"))
+              : run.items;
+            if (visibleItems.length === 0) return null;
+            return (
             <Card key={run.id} className="p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ListChecks className="w-4 h-4 text-primary" />
                   <h3 className="font-medium text-sm">Key points</h3>
-                  <Badge variant="secondary" className="text-[10px]">{run.items.length}</Badge>
+                  <Badge variant="secondary" className="text-[10px]">{visibleItems.length}</Badge>
                   <span className="text-[10px] text-muted-foreground">
                     Run {summaryRuns.length - runIdx} · {timeAgo(run.createdAt)}
                   </span>
@@ -493,7 +498,7 @@ export default function VideoDetailDialog({
                 </div>
               </div>
               <ol className="space-y-2">
-                {run.items.map((p, i) => {
+                {visibleItems.map((p, i) => {
                   const key = `${run.id}:${i}`;
                   const tasked = taskedKeys.has(key);
                   return (
