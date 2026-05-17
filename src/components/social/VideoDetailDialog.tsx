@@ -279,7 +279,7 @@ export default function VideoDetailDialog({
       const r = await generateVideoSummary(video.video_id, true);
       if (Array.isArray(r.points) && r.points.length > 0) {
         const run = makeRun<SummaryPoint>(r.points);
-        const next = [run, ...summaryRuns];
+        const next = [run, ...summaryRuns].slice(0, MAX_RUNS);
         setSummaryRuns(next);
         persist({ summary: next });
         toast.success(`${r.points.length} new key points added`);
