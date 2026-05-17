@@ -531,13 +531,18 @@ export default function VideoDetailDialog({
         })}
 
           {/* Generated social posts — historical runs */}
-          {postRuns.map((run, runIdx) => (
+          {postRuns.map((run, runIdx) => {
+            const visibleItems = searchQuery.trim()
+              ? run.items.filter((p) => itemMatches(searchQuery, p, "post"))
+              : run.items;
+            if (visibleItems.length === 0) return null;
+            return (
             <Card key={run.id} className="p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Send className="w-4 h-4 text-primary" />
                   <h3 className="font-medium text-sm">Ready-to-publish social posts</h3>
-                  <Badge variant="secondary" className="text-[10px]">{run.items.length}</Badge>
+                  <Badge variant="secondary" className="text-[10px]">{visibleItems.length}</Badge>
                   <span className="text-[10px] text-muted-foreground">
                     Run {postRuns.length - runIdx} · {timeAgo(run.createdAt)}
                   </span>
@@ -554,7 +559,7 @@ export default function VideoDetailDialog({
                 </div>
               </div>
               <div className="space-y-2">
-                {run.items.map((p, i) => {
+                {visibleItems.map((p, i) => {
                   const key = `${run.id}:${i}`;
                   const saved = savedPostKeys.has(key);
                   const Icon = p.platform === "linkedin" ? Linkedin : p.platform === "twitter" ? Twitter : Instagram;
