@@ -639,7 +639,7 @@ export default function VideoDetailDialog({
                   </div>
                 </div>
                 <div className="space-y-2">
-                  {run.items.map((it, i) => {
+                  {visibleItems.map((it, i) => {
                     const key = `${run.id}:${i}`;
                     const saved = savedIdeaKeys.has(key);
                     return (
