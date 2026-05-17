@@ -6,10 +6,11 @@ import {
   MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun,
   Droplets, FolderKanban, CheckSquare, CalendarDays,
   PanelLeftClose, PanelLeft, Megaphone, Library, ClipboardList, Palette,
-  Shield, User as UserIcon,
+  Shield, User as UserIcon, Menu,
 } from "lucide-react";
 import syncvidaLogo from "@/assets/syncvida-icon.png";
 import { getTodayWaterLog } from "@/lib/supabase-queries";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 // ── Grouped navigation ──
 interface NavItem {
@@ -91,6 +92,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   });
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [waterGlasses, setWaterGlasses] = useState(0);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // Close the mobile sheet on route change
+  useEffect(() => { setMobileNavOpen(false); }, [location.pathname]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
@@ -255,12 +260,84 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {/* Mobile Header */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-card sticky top-0 z-30">
           <div className="flex items-center gap-2">
-            <img src={syncvidaLogo} alt="Syncvida" className="w-7 h-7" />
-            <span className="font-display font-bold text-foreground">Syncvida</span>
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+              <SheetTrigger asChild>
+                <button
+                  className="p-2 -ml-2 rounded-lg text-foreground hover:bg-secondary min-h-11 min-w-11 flex items-center justify-center"
+                  aria-label="Open menu"
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-0 flex flex-col">
+                <SheetHeader className="px-4 py-3 border-b border-border">
+                  <SheetTitle className="flex items-center gap-2 text-left">
+                    <img src={syncvidaLogo} alt="" className="w-6 h-6" />
+                    <span className="font-display font-bold">Syncvida</span>
+                  </SheetTitle>
+                </SheetHeader>
+                <nav className="flex-1 overflow-y-auto py-2 px-2">
+                  {navGroups.map((group, gi) => (
+                    <div key={gi} className={gi > 0 ? "mt-3" : ""}>
+                      {group.label && (
+                        <div className="px-3 pt-1 pb-1">
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                            {group.label}
+                          </span>
+                        </div>
+                      )}
+                      <div className="space-y-0.5">
+                        {group.items.map((item) => {
+                          const active = location.pathname === item.path;
+                          return (
+                            <Link
+                              key={item.path}
+                              to={item.path}
+                              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm min-h-11 ${
+                                active
+                                  ? "bg-primary/10 text-primary font-medium"
+                                  : "text-foreground/80 hover:bg-accent"
+                              }`}
+                            >
+                              <item.icon className="w-5 h-5 shrink-0" />
+                              <span>{item.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </nav>
+                <div className="border-t border-border px-2 py-2 space-y-0.5">
+                  {bottomNavItems.map((item) => {
+                    const active = location.pathname === item.path;
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm min-h-11 ${
+                          active
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "text-foreground/80 hover:bg-accent"
+                        }`}
+                      >
+                        <item.icon className="w-5 h-5 shrink-0" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </SheetContent>
+            </Sheet>
+            <div className="flex items-center gap-2">
+              <img src={syncvidaLogo} alt="Syncvida" className="w-7 h-7" />
+              <span className="font-display font-bold text-foreground">Syncvida</span>
+            </div>
           </div>
           <button
             onClick={() => setDark(!dark)}
-            className="p-2 rounded-lg bg-secondary text-foreground"
+            className="p-2 rounded-lg bg-secondary text-foreground min-h-11 min-w-11 flex items-center justify-center"
+            aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
           >
             {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
