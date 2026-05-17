@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ExternalLink, FileText, Sparkles, Plus, RefreshCw, Check, ChevronDown, ChevronUp, Copy, Clock, Linkedin, Twitter, Instagram, Send, Heart, ListChecks, CheckSquare, Trash2 } from "lucide-react";
+import { Loader2, ExternalLink, FileText, Sparkles, Plus, RefreshCw, Check, ChevronDown, ChevronUp, Copy, Clock, Linkedin, Twitter, Instagram, Send, Heart, ListChecks, CheckSquare, Trash2, Search, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   fetchVideoTranscript, generateVideoIdeas, generateVideoPosts, generateVideoSummary, getVideoDetail, addIdeaToPlanner, addPostToPlanner, addPointToTasks, toggleVideoLike,
@@ -37,6 +38,26 @@ function saveHistory(vid: string, h: { ideas: Run<VideoIdea>[]; posts: Run<Video
 
 function makeRun<T>(items: T[]): Run<T> {
   return { id: (crypto as any)?.randomUUID?.() ?? `r_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, createdAt: new Date().toISOString(), items };
+}
+
+function itemMatches(query: string, item: any, type: "idea" | "post" | "summary"): boolean {
+  const t = query.trim().toLowerCase();
+  if (!t) return true;
+  if (type === "idea") {
+    return (item.hook ?? "").toLowerCase().includes(t)
+        || (item.body ?? "").toLowerCase().includes(t)
+        || (item.angle ?? "").toLowerCase().includes(t)
+        || (item.format ?? "").toLowerCase().includes(t);
+  }
+  if (type === "post") {
+    return (item.hook ?? "").toLowerCase().includes(t)
+        || (item.body ?? "").toLowerCase().includes(t)
+        || (item.platform ?? "").toLowerCase().includes(t)
+        || (item.variant ?? "").toLowerCase().includes(t)
+        || (item.hashtags ?? []).some((h: string) => h.toLowerCase().includes(t));
+  }
+  return (item.headline ?? "").toLowerCase().includes(t)
+      || (item.detail ?? "").toLowerCase().includes(t);
 }
 
 export default function VideoDetailDialog({
@@ -74,6 +95,8 @@ export default function VideoDetailDialog({
 
   const [liked, setLiked] = useState(false);
   const [likingBusy, setLikingBusy] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Reset and load existing transcript when video changes
   useEffect(() => {
@@ -379,6 +402,28 @@ export default function VideoDetailDialog({
             </div>
           </div>
 
+          {/* Search across all generated content */}
+          {(ideaRuns.length > 0 || postRuns.length > 0 || summaryRuns.length > 0) && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search ideas, key points, or posts…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-9"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Transcript debug (when actor returned items but parser couldn't extract) */}
           {transcriptDebug && (
             <Card className="p-3 border-destructive/40 bg-destructive/5">
@@ -425,13 +470,18 @@ export default function VideoDetailDialog({
           )}
 
           {/* Summary points — historical runs */}
-          {summaryRuns.map((run, runIdx) => (
+          {summaryRuns.map((run, runIdx) => {
+            const visibleItems = searchQuery.trim()
+              ? run.items.filter((p) => itemMatches(searchQuery, p, "summary"))
+              : run.items;
+            if (visibleItems.length === 0) return null;
+            return (
             <Card key={run.id} className="p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ListChecks className="w-4 h-4 text-primary" />
                   <h3 className="font-medium text-sm">Key points</h3>
-                  <Badge variant="secondary" className="text-[10px]">{run.items.length}</Badge>
+                  <Badge variant="secondary" className="text-[10px]">{visibleItems.length}</Badge>
                   <span className="text-[10px] text-muted-foreground">
                     Run {summaryRuns.length - runIdx} · {timeAgo(run.createdAt)}
                   </span>
@@ -448,7 +498,7 @@ export default function VideoDetailDialog({
                 </div>
               </div>
               <ol className="space-y-2">
-                {run.items.map((p, i) => {
+                {visibleItems.map((p, i) => {
                   const key = `${run.id}:${i}`;
                   const tasked = taskedKeys.has(key);
                   return (
@@ -477,16 +527,22 @@ export default function VideoDetailDialog({
                 })}
               </ol>
             </Card>
-          ))}
+          );
+        })}
 
           {/* Generated social posts — historical runs */}
-          {postRuns.map((run, runIdx) => (
+          {postRuns.map((run, runIdx) => {
+            const visibleItems = searchQuery.trim()
+              ? run.items.filter((p) => itemMatches(searchQuery, p, "post"))
+              : run.items;
+            if (visibleItems.length === 0) return null;
+            return (
             <Card key={run.id} className="p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Send className="w-4 h-4 text-primary" />
                   <h3 className="font-medium text-sm">Ready-to-publish social posts</h3>
-                  <Badge variant="secondary" className="text-[10px]">{run.items.length}</Badge>
+                  <Badge variant="secondary" className="text-[10px]">{visibleItems.length}</Badge>
                   <span className="text-[10px] text-muted-foreground">
                     Run {postRuns.length - runIdx} · {timeAgo(run.createdAt)}
                   </span>
@@ -503,7 +559,7 @@ export default function VideoDetailDialog({
                 </div>
               </div>
               <div className="space-y-2">
-                {run.items.map((p, i) => {
+                {visibleItems.map((p, i) => {
                   const key = `${run.id}:${i}`;
                   const saved = savedPostKeys.has(key);
                   const Icon = p.platform === "linkedin" ? Linkedin : p.platform === "twitter" ? Twitter : Instagram;
@@ -539,10 +595,15 @@ export default function VideoDetailDialog({
                 })}
               </div>
             </Card>
-          ))}
+          );
+        })}
 
           {/* Ideas — historical runs */}
           {ideaRuns.map((run, runIdx) => {
+            const visibleItems = searchQuery.trim()
+              ? run.items.filter((it) => itemMatches(searchQuery, it, "idea"))
+              : run.items;
+            if (visibleItems.length === 0) return null;
             const allSaved = run.items.every((_, i) => savedIdeaKeys.has(`${run.id}:${i}`));
             const busyAll = savingIdeaKey === `__all:${run.id}`;
             return (
@@ -551,7 +612,7 @@ export default function VideoDetailDialog({
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-primary" />
                     <h3 className="font-medium text-sm">Content ideas based on this video</h3>
-                    <Badge variant="secondary" className="text-[10px]">{run.items.length}</Badge>
+                    <Badge variant="secondary" className="text-[10px]">{visibleItems.length}</Badge>
                     <span className="text-[10px] text-muted-foreground">
                       Run {ideaRuns.length - runIdx} · {timeAgo(run.createdAt)}
                     </span>
@@ -578,7 +639,7 @@ export default function VideoDetailDialog({
                   </div>
                 </div>
                 <div className="space-y-2">
-                  {run.items.map((it, i) => {
+                  {visibleItems.map((it, i) => {
                     const key = `${run.id}:${i}`;
                     const saved = savedIdeaKeys.has(key);
                     return (
@@ -611,6 +672,15 @@ export default function VideoDetailDialog({
               </Card>
             );
           })}
+
+          {searchQuery.trim() &&
+            !summaryRuns.some((r) => r.items.some((p) => itemMatches(searchQuery, p, "summary"))) &&
+            !postRuns.some((r) => r.items.some((p) => itemMatches(searchQuery, p, "post"))) &&
+            !ideaRuns.some((r) => r.items.some((it) => itemMatches(searchQuery, it, "idea"))) && (
+              <div className="text-center text-sm text-muted-foreground py-8">
+                No matches for "{searchQuery.trim()}"
+              </div>
+            )}
         </div>
       </DialogContent>
     </Dialog>
