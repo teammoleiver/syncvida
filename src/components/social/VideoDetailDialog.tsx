@@ -242,7 +242,7 @@ export default function VideoDetailDialog({
       setSource(r.source_video);
       if (Array.isArray(r.posts) && r.posts.length > 0) {
         const run = makeRun<VideoPost>(r.posts);
-        const next = [run, ...postRuns];
+        const next = [run, ...postRuns].slice(0, MAX_RUNS);
         setPostRuns(next);
         persist({ posts: next });
         toast.success(`${r.posts.length} new posts added`);
