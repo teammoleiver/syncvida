@@ -595,7 +595,8 @@ export default function VideoDetailDialog({
                 })}
               </div>
             </Card>
-          ))}
+          );
+        })}
 
           {/* Ideas — historical runs */}
           {ideaRuns.map((run, runIdx) => {
