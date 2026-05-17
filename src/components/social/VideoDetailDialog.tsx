@@ -190,7 +190,7 @@ export default function VideoDetailDialog({
       setSource(r.source_video);
       if (Array.isArray(r.ideas) && r.ideas.length > 0) {
         const run = makeRun<VideoIdea>(r.ideas);
-        const next = [run, ...ideaRuns];
+        const next = [run, ...ideaRuns].slice(0, MAX_RUNS);
         setIdeaRuns(next);
         persist({ ideas: next });
         toast.success(`${r.ideas.length} new ideas added`);
