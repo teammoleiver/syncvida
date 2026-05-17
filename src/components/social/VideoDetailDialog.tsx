@@ -382,6 +382,28 @@ export default function VideoDetailDialog({
             </div>
           </div>
 
+          {/* Search across all generated content */}
+          {(ideaRuns.length > 0 || postRuns.length > 0 || summaryRuns.length > 0) && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search ideas, key points, or posts…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-9"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Transcript debug (when actor returned items but parser couldn't extract) */}
           {transcriptDebug && (
             <Card className="p-3 border-destructive/40 bg-destructive/5">
