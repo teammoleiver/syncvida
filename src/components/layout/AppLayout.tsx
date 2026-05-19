@@ -6,7 +6,7 @@ import {
   MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun,
   Droplets, FolderKanban, CheckSquare, CalendarDays,
   PanelLeftClose, PanelLeft, Megaphone, Library, ClipboardList, Palette,
-  Shield, User as UserIcon, Menu,
+  Shield, User as UserIcon, Menu, MoreHorizontal,
 } from "lucide-react";
 import syncvidaLogo from "@/assets/syncvida-icon.png";
 import { getTodayWaterLog } from "@/lib/supabase-queries";
@@ -72,13 +72,12 @@ const bottomNavItems: NavItem[] = [
 // Flat list for lookups
 const allNavItems = navGroups.flatMap(g => g.items);
 
-// Mobile: show the most important 5 + a "more" concept via the 6 most used
-const mobileNavItems = [
+// Mobile bottom nav: 4 key sections + More (opens full menu)
+const mobileNavItems: NavItem[] = [
   allNavItems.find(i => i.path === "/")!,
   allNavItems.find(i => i.path === "/nutrition")!,
-  allNavItems.find(i => i.path === "/exercise")!,
-  allNavItems.find(i => i.path === "/tasks")!,
-  allNavItems.find(i => i.path === "/calendar")!,
+  allNavItems.find(i => i.path === "/health")!,
+  allNavItems.find(i => i.path === "/goals")!,
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -138,7 +137,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           )}
         </div>
 
-        {/* Navigation groups */}
+        {/* Navigation groups (includes bottom items + water widget so the
+            whole list scrolls together on short viewports) */}
         <nav className="flex-1 min-h-0 py-1 px-2 overflow-y-auto scrollbar-none">
           {navGroups.map((group, gi) => (
             <div key={gi} className={gi > 0 ? "mt-1.5" : ""}>
@@ -176,10 +176,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </div>
             </div>
           ))}
-        </nav>
 
-        {/* Bottom-pinned: Assistant & Settings */}
-        <div className="px-2 pt-1.5 pb-1 space-y-[1px] border-t border-sidebar-border/50">
+          {/* Bottom items kept inside the scroll area so nothing is hidden
+              when the viewport is short */}
+          <div className="mt-2 pt-1.5 space-y-[1px] border-t border-sidebar-border/50">
           {bottomNavItems.map((item) => {
             const active = location.pathname === item.path;
             return (
@@ -197,12 +197,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
-        </div>
+          </div>
 
-        {/* Water progress widget */}
-        <Link
+          {/* Water progress widget */}
+          <Link
           to="/nutrition"
-          className="mx-2 mt-1 mb-1 px-2.5 py-1.5 rounded-lg bg-sidebar-accent/40 hover:bg-sidebar-accent/70 transition block"
+          className="mt-2 px-2.5 py-1.5 rounded-lg bg-sidebar-accent/40 hover:bg-sidebar-accent/70 transition block"
         >
           {sidebarOpen ? (
             <div className="space-y-1">
@@ -228,7 +228,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <span className="text-[8px] font-bold text-sidebar-foreground/50">{(waterMl / 1000).toFixed(1)}L</span>
             </div>
           )}
-        </Link>
+          </Link>
+        </nav>
 
         {/* Footer */}
         <div className="px-2 py-1 border-t border-sidebar-border flex items-center gap-1.5">
@@ -366,6 +367,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          <button
+            onClick={() => setMobileNavOpen(true)}
+            className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg text-muted-foreground"
+            aria-label="More"
+          >
+            <MoreHorizontal className="w-5 h-5" />
+            <span className="text-[10px] font-medium">More</span>
+          </button>
         </div>
       </nav>
     </div>
