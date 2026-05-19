@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, Suspense } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { onSync } from "@/lib/sync-events";
 import {
@@ -344,9 +344,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </button>
         </header>
 
-        <div key={location.pathname} className="animate-in fade-in duration-200">
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-16">
+              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+            </div>
+          }
+        >
           {children}
-        </div>
+        </Suspense>
       </main>
 
       {/* Mobile Bottom Nav — 5 key items */}
