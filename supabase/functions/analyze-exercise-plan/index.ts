@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds to your Lovable workspace." }), {
+        return new Response(JSON.stringify({ error: "OpenAI credits exhausted. Please add funds to your OpenAI account." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }

@@ -125,7 +125,7 @@ serve(async (req) => {
         }),
       });
       if (r.status === 429) return new Response(JSON.stringify({ error: "Rate limit, try again." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (r.status === 402) return new Response(JSON.stringify({ error: "Add credits to your Lovable workspace." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (r.status === 402) return new Response(JSON.stringify({ error: "OpenAI credits exhausted. Add funds to your OpenAI account." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (!r.ok) {
         const t = await r.text();
         console.error("AI gateway error:", r.status, t);
