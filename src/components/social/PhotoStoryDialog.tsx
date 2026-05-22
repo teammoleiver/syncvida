@@ -48,7 +48,7 @@ export default function PhotoStoryDialog({
   const [body, setBody] = useState("");
   const [userNote, setUserNote] = useState("");
   const [writing, setWriting] = useState(false);
-  const [framework, setFramework] = useState<string>("PersonalExperience");
+  const [framework, setFramework] = useState<string>("");
   const [pickingStyle, setPickingStyle] = useState(false);
 
   const [scheduledDate, setScheduledDate] = useState(defaultDate ?? "");
@@ -61,7 +61,8 @@ export default function PhotoStoryDialog({
   function reset() {
     setImageUrl(""); setSuggestion(null); setHook(""); setBody(""); setUserNote("");
     setScheduledDate(defaultDate ?? ""); setScheduledTime(""); setPlatforms(["linkedin"]);
-    setFramework("PersonalExperience");
+    setFramework("");
+    setPickingStyle(false);
   }
 
   async function handleFile(file: File) {
@@ -73,6 +74,7 @@ export default function PhotoStoryDialog({
       setImageUrl(url);
       toast.success("Photo uploaded — asking AI for ideas…");
       runSuggest(url);
+      setPickingStyle(true);
     } catch (e: any) {
       toast.error(e?.message ?? "Upload failed");
     } finally {
@@ -257,9 +259,13 @@ export default function PhotoStoryDialog({
             <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={() => setPickingStyle(true)} disabled={writing || (!imageUrl && !userNote.trim())}>
                 {writing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 mr-1" />}
-                {body || hook ? "Rewrite in my voice" : "Write post with AI"}
+                {body || hook ? "Rewrite in another style" : "Choose style & write post"}
               </Button>
-              <span className="text-[11px] text-muted-foreground self-center">Current style: <b>{framework}</b></span>
+              {framework && (
+                <span className="text-[11px] text-muted-foreground self-center">
+                  Current style: <b>{FRAMEWORK_OPTIONS.find((f) => f.id === framework)?.name ?? framework}</b>
+                </span>
+              )}
               {imageUrl && (
                 <Button size="sm" variant="outline" onClick={() => runSuggest()} disabled={analyzing}>
                   {analyzing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Lightbulb className="w-3.5 h-3.5 mr-1" />}
@@ -271,7 +277,7 @@ export default function PhotoStoryDialog({
             {pickingStyle && (
               <Card className="p-3 space-y-2 border-primary/40">
                 <div className="flex items-center justify-between">
-                  <div className="text-xs font-medium">Choose a writing style</div>
+                  <div className="text-xs font-medium">Which style should AI write in?</div>
                   <button onClick={() => setPickingStyle(false)} className="text-[11px] text-muted-foreground hover:text-foreground">Cancel</button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -285,7 +291,7 @@ export default function PhotoStoryDialog({
                     </button>
                   ))}
                 </div>
-                <p className="text-[10px] text-muted-foreground">Tip: <b>Personal Experience</b> sounds most human — best when sharing a real moment from the photo.</p>
+                <p className="text-[10px] text-muted-foreground">Pick any style — you can rewrite in a different one anytime.</p>
               </Card>
             )}
 
