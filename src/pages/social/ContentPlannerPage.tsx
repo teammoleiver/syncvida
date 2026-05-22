@@ -134,7 +134,7 @@ export default function ContentPlannerPage() {
   }
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-[1400px] mx-auto w-full">
       {/* Mode switcher */}
       <div className="flex items-center gap-1 bg-muted rounded-md p-0.5 w-fit flex-wrap">
         {([
