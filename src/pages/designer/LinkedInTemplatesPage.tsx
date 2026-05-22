@@ -23,7 +23,7 @@ import {
   saveCarouselAsPdf, linkPdfToPlan, renderNodeToDataUrl,
   buildCarouselFromPost, buildCheatSheetFromPost, buildSquareFromPost,
 } from "@/components/designer/linkedin/editorHelpers";
-import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, listAssets, type DesignAsset } from "@/lib/designer-queries";
+import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, listAssets, uploadAsset, type DesignAsset } from "@/lib/designer-queries";
 import { detectMentionedLogos, type DetectedLogo } from "@/components/designer/linkedin/detectLogos";
 
 type TemplateKey = "cheatsheet" | "carousel" | "square";
@@ -1162,24 +1162,50 @@ function NumField({ label, value, onChange }: { label: string; value: number; on
 function AssetPickerDialog({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (a: DesignAsset) => void }) {
   const [assets, setAssets] = useState<DesignAsset[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     listAssets().then((a) => setAssets(a)).finally(() => setLoading(false));
   }, [open]);
+  async function onUpload(file: File) {
+    setUploading(true);
+    try {
+      const a = await uploadAsset(file);
+      setAssets((cur) => [a, ...cur]);
+      toast.success("Uploaded to asset library");
+      onPick(a);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Upload failed");
+    } finally { setUploading(false); }
+  }
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6" onClick={onClose}>
       <div className="bg-background rounded-lg border border-border w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="font-semibold">Pick an asset</h3>
-          <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.currentTarget.value = ""; }}
+            />
+            <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading}>
+              {uploading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5 mr-1" />}
+              Upload photo
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
+          </div>
         </div>
         <div className="flex-1 overflow-auto p-4">
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>
           ) : assets.length === 0 ? (
-            <div className="text-sm text-muted-foreground italic">No assets yet. Upload some at <code>/designer/assets</code> first.</div>
+            <div className="text-sm text-muted-foreground italic">No assets yet — click <strong>Upload photo</strong> above to add one.</div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
               {assets.map((a) => (
