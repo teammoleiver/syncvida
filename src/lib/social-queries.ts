@@ -337,6 +337,7 @@ export async function analyzePhotoPost(args: {
   hook?: string;
   current_draft?: string;
   platform?: string;
+  framework?: string;
 }) {
   return supabase.functions.invoke("analyze-photo-post", { body: args });
 }
@@ -634,6 +635,7 @@ export const FRAMEWORK_OPTIONS = [
   { id: "Contrarian", name: "Contrarian", description: "Pick a fight with consensus" },
   { id: "BuildInPublic", name: "Build-in-Public", description: "Show your real work" },
   { id: "Listicle", name: "Listicle", description: "Numbered insights · most-saved" },
+  { id: "PersonalExperience", name: "Personal Experience", description: "Humanized story · share a real moment or lesson" },
 ];
 
 // ── Content Studio ──
