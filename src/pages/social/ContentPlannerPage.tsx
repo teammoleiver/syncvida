@@ -25,6 +25,7 @@ import LinkedInReview from "./LinkedInReview";
 import PlatformReview from "./PlatformReview";
 import { PostPreview } from "@/components/social/PostPreview";
 import { resolveAvatarUrl } from "@/lib/avatar";
+import PhotoStoryDialog from "@/components/social/PhotoStoryDialog";
 
 const STATUSES = ["planned", "drafting", "ready", "scheduled", "posted", "failed"];
 const PLATFORM_ICONS: Record<string, any> = { linkedin: Linkedin, facebook: Facebook, instagram: Instagram, twitter: Twitter, youtube: Youtube };
@@ -110,6 +111,7 @@ export default function ContentPlannerPage() {
   const [cursor, setCursor] = useState(new Date());
   const [editing, setEditing] = useState<any | null>(null);
   const [creatingFor, setCreatingFor] = useState<string | null>(null);
+  const [photoStoryOpen, setPhotoStoryOpen] = useState(false);
 
   async function load() { setLoading(true); setEntries(await listContentPlan()); setLoading(false); }
   useEffect(() => { if (mode === "calendar") load(); }, [mode]);
@@ -174,6 +176,9 @@ export default function ContentPlannerPage() {
             </button>
           ))}
           <Button size="sm" className="ml-1" onClick={() => setCreatingFor(ymd(new Date()))}><Plus className="w-4 h-4 mr-1" /> New</Button>
+          <Button size="sm" variant="secondary" className="ml-1" onClick={() => setPhotoStoryOpen(true)}>
+            <ImageIcon className="w-4 h-4 mr-1" /> Photo → Post
+          </Button>
         </div>
       </div>
 
@@ -185,6 +190,11 @@ export default function ContentPlannerPage() {
 
       {editing && <PostEditor entry={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
       {creatingFor && <PostEditor entry={{ scheduled_date: creatingFor, status: "planned", platforms: [] }} isNew onClose={() => setCreatingFor(null)} onSaved={() => { setCreatingFor(null); load(); }} />}
+      <PhotoStoryDialog
+        open={photoStoryOpen}
+        onClose={() => setPhotoStoryOpen(false)}
+        onSaved={() => { setPhotoStoryOpen(false); load(); }}
+      />
       </>
       )}
     </section>
