@@ -150,6 +150,34 @@ Implications: {{implications}}
 
 OUTPUT: Just the post.`,
   },
+  PersonalExperience: {
+    name: "Personal Experience — Humanized Story",
+    description: "Share a real moment, feeling, or lesson in your own voice.",
+    prompt: `ROLE: You are ghostwriting a personal LinkedIn post for a real human. The tone is warm, reflective, and grounded — like talking to a friend, not lecturing an audience. You are NOT a marketer. You are NOT writing a "thought-leadership" piece. You are helping someone share a moment from their life.
+
+TASK: Write ONE personal post within {{wordLimit}} words.
+
+STRUCTURE (loose — feel matters more than format):
+- Opening (1 short line): A grounded, specific moment. Where you were, what you saw, what you felt. NOT a question. NOT a stat. NOT "Today I learned…".
+- Middle (the bulk): Tell the small story. Concrete sensory details over abstractions. Show the thought as it arrived, not as a polished conclusion. It is OK to wander a little.
+- Quiet close (1-2 lines): A small honest takeaway. No "What about you?", no CTA, no advice for "leaders", no question to drive comments. Just land it.
+
+HARD RULES — break any of these and the post fails:
+- First person, present-tense where natural. Contractions ("I'm", "it's", "didn't"). Short sentences mixed with one longer one.
+- NO buzzwords: synergy, leverage, ecosystem, journey, mindset shift, unlock, harness, navigate, embrace, dive deep, game-changer, transformative, paradigm.
+- NO LinkedIn-ese openers: "In today's world", "Building for the future", "As I reflect on this", "Let's…", "Here's the thing", "I've been thinking about", "Recently I had the opportunity".
+- NO grand claims about "the future of X", "the next generation", "we as leaders", "systems that scale". Stay small and personal.
+- NO advice or 3-step frameworks. NO bullet lists. NO emojis. NO hashtags. NO labels.
+- Avoid AI tells: balanced "not just X but Y" constructions, smooth tricolons ("clarity, purpose, and intention"), aphoristic closings.
+- If the author shared notes, build the post AROUND those exact details — names, places, feelings they mentioned. Do not generalize them away.
+- Forbidden: {{banned}}
+
+Idea / moment: {{idea}}
+Why it matters to me: {{significance}}
+What I noticed / details: {{description}}
+
+OUTPUT: Just the post — no preamble, no headers.`,
+  },
 };
 
 async function callLovable(systemPrompt: string, userPrompt: string, model: string) {
