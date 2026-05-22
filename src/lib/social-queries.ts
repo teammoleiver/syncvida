@@ -313,6 +313,33 @@ export async function scrapeProfile(profile_id: string) {
 export async function generatePostImage(args: { hook: string; post_body?: string; entry_id?: string | null }) {
   return supabase.functions.invoke("generate-post-image", { body: args });
 }
+
+// Upload a user-provided photo to the public post-images bucket and return its public URL.
+export async function uploadPostImage(file: File): Promise<string> {
+  const u = await uid();
+  if (!u) throw new Error("Not signed in");
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `${u}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("post-images")
+    .upload(path, file, { contentType: file.type || "image/jpeg", upsert: false });
+  if (error) throw error;
+  const { data } = supabase.storage.from("post-images").getPublicUrl(path);
+  if (!data?.publicUrl) throw new Error("Upload succeeded but no public URL");
+  return data.publicUrl;
+}
+
+// Vision + voice assistant for photo-based posts (uses OpenAI directly).
+export async function analyzePhotoPost(args: {
+  mode: "suggest" | "write";
+  image_url?: string | null;
+  user_note?: string;
+  hook?: string;
+  current_draft?: string;
+  platform?: string;
+}) {
+  return supabase.functions.invoke("analyze-photo-post", { body: args });
+}
 export async function generateCarousel(posts: string[]) {
   return supabase.functions.invoke("generate-carousel", { body: { posts } });
 }
