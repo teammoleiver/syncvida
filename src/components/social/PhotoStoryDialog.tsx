@@ -13,6 +13,7 @@ import {
   analyzePhotoPost,
   createPlannerPost,
   PLANNER_PLATFORMS,
+  FRAMEWORK_OPTIONS,
 } from "@/lib/social-queries";
 import { Linkedin, Facebook, Instagram, Twitter, Youtube } from "lucide-react";
 
@@ -47,6 +48,8 @@ export default function PhotoStoryDialog({
   const [body, setBody] = useState("");
   const [userNote, setUserNote] = useState("");
   const [writing, setWriting] = useState(false);
+  const [framework, setFramework] = useState<string>("PersonalExperience");
+  const [pickingStyle, setPickingStyle] = useState(false);
 
   const [scheduledDate, setScheduledDate] = useState(defaultDate ?? "");
   const [scheduledTime, setScheduledTime] = useState("");
@@ -58,6 +61,7 @@ export default function PhotoStoryDialog({
   function reset() {
     setImageUrl(""); setSuggestion(null); setHook(""); setBody(""); setUserNote("");
     setScheduledDate(defaultDate ?? ""); setScheduledTime(""); setPlatforms(["linkedin"]);
+    setFramework("PersonalExperience");
   }
 
   async function handleFile(file: File) {
@@ -96,8 +100,11 @@ export default function PhotoStoryDialog({
     } finally { setAnalyzing(false); }
   }
 
-  async function runWrite() {
+  async function runWrite(chosenFramework?: string) {
     if (!imageUrl && !userNote.trim()) { toast.error("Upload a photo or add notes first"); return; }
+    const fw = chosenFramework ?? framework;
+    setFramework(fw);
+    setPickingStyle(false);
     setWriting(true);
     try {
       const { data, error } = await analyzePhotoPost({
@@ -107,13 +114,14 @@ export default function PhotoStoryDialog({
         hook: hook,
         current_draft: body,
         platform: platforms[0] ?? "linkedin",
+        framework: fw,
       });
       if (error) throw error;
       const d = data as any;
       if (d?.error) throw new Error(d.error);
       if (d?.hook) setHook(d.hook);
       if (d?.body) setBody(d.body);
-      toast.success("Draft generated in your voice");
+      toast.success(`Draft written in "${fw}" style`);
     } catch (e: any) {
       toast.error(e?.message ?? "AI write failed");
     } finally { setWriting(false); }
@@ -247,10 +255,11 @@ export default function PhotoStoryDialog({
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={runWrite} disabled={writing || (!imageUrl && !userNote.trim())}>
+              <Button size="sm" onClick={() => setPickingStyle(true)} disabled={writing || (!imageUrl && !userNote.trim())}>
                 {writing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 mr-1" />}
                 {body || hook ? "Rewrite in my voice" : "Write post with AI"}
               </Button>
+              <span className="text-[11px] text-muted-foreground self-center">Current style: <b>{framework}</b></span>
               {imageUrl && (
                 <Button size="sm" variant="outline" onClick={() => runSuggest()} disabled={analyzing}>
                   {analyzing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Lightbulb className="w-3.5 h-3.5 mr-1" />}
@@ -258,6 +267,27 @@ export default function PhotoStoryDialog({
                 </Button>
               )}
             </div>
+
+            {pickingStyle && (
+              <Card className="p-3 space-y-2 border-primary/40">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-medium">Choose a writing style</div>
+                  <button onClick={() => setPickingStyle(false)} className="text-[11px] text-muted-foreground hover:text-foreground">Cancel</button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {FRAMEWORK_OPTIONS.map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => runWrite(f.id)}
+                      className={`text-left px-2.5 py-2 rounded-md border transition ${framework === f.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
+                      <div className="text-xs font-medium">{f.name}</div>
+                      <div className="text-[10px] text-muted-foreground leading-snug">{f.description}</div>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted-foreground">Tip: <b>Personal Experience</b> sounds most human — best when sharing a real moment from the photo.</p>
+              </Card>
+            )}
 
             <div>
               <Label>Hook / headline</Label>
