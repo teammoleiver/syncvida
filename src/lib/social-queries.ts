@@ -337,6 +337,7 @@ export async function analyzePhotoPost(args: {
   hook?: string;
   current_draft?: string;
   platform?: string;
+  framework?: string;
 }) {
   return supabase.functions.invoke("analyze-photo-post", { body: args });
 }
