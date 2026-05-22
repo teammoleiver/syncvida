@@ -2926,7 +2926,42 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      social_apify_accounts_safe: {
+        Row: {
+          active: boolean | null
+          actor_id: string | null
+          created_at: string | null
+          id: string | null
+          label: string | null
+          monthly_budget_usd: number | null
+          period_start: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          actor_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          label?: string | null
+          monthly_budget_usd?: number | null
+          period_start?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          actor_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          label?: string | null
+          monthly_budget_usd?: number | null
+          period_start?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_my_social_connections: {
