@@ -338,7 +338,7 @@ export async function suggestFrameworks(args: { source_post_id?: string; source_
 // ── Apify accounts (rotating fallback pool) ──
 export async function listApifyAccounts() {
   const u = await uid(); if (!u) return [];
-  const { data } = await supabase.from("social_apify_accounts" as any).select("*").eq("user_id", u).order("created_at", { ascending: true });
+  const { data } = await supabase.from("social_apify_accounts_safe" as any).select("*").eq("user_id", u).order("created_at", { ascending: true });
   return (data as any[]) ?? [];
 }
 export async function createApifyAccount(p: { label: string; api_token: string; actor_id?: string; monthly_budget_usd?: number }) {
