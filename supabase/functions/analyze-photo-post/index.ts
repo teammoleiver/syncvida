@@ -37,6 +37,7 @@ Deno.serve(async (req) => {
     const hook: string = String(body?.hook ?? "").slice(0, 500);
     const platform: string = String(body?.platform ?? "linkedin");
     const current_draft: string = String(body?.current_draft ?? "").slice(0, 4000);
+    const framework: string = String(body?.framework ?? "PersonalExperience");
     if (!image_url && !user_note && !current_draft) {
       return json({ error: "image_url, user_note or current_draft required" }, 400);
     }
@@ -62,8 +63,37 @@ Deno.serve(async (req) => {
     }
     const bannedWords: string[] = (settings as any)?.banned_words ?? [];
     const wordLimit: number = (settings as any)?.default_word_limit || 180;
+    const userFrameworkPrompt: string | null =
+      ((settings as any)?.framework_prompts ?? {})[framework] ?? null;
 
     const personaBlock = personaParts.length ? `\n--- AUTHOR CONTEXT ---\n${personaParts.join("\n")}\n--- END ---\n` : "";
+
+    // Default frameworks used when the user hasn't customized one for the photo flow.
+    const FRAMEWORK_DEFAULTS: Record<string, string> = {
+      PersonalExperience: `Write a warm, first-person personal post about this moment. Small story, sensory detail, one honest takeaway. NO advice, NO frameworks, NO "leaders / future / journey", NO closing question. Contractions OK. Sound like a real human texting a thoughtful friend, not a LinkedIn thought-leader.`,
+      PPPP: `Use PPPP: Promise (specific outcome as hook) → Picture (daily reality) → Proof (numbers/specifics) → Push (one low-friction action).`,
+      BAB: `Use BAB: Before (vivid pain) → After (specific new state) → Bridge (how to get there, concrete steps).`,
+      CIII: `Use CIII: Connect (shared reality) → Inform (the shift) → Inspire (reframe as opportunity) → Interact (one real question, never "Thoughts?").`,
+      AICPBSAWR: `Compress AICPBSAWR into 5 beats: Attention → Interest+Proof → Benefit → Scarcity → Action.`,
+      Contrarian: `Contrarian take: state consensus, reject it, prove it wrong with specifics, land a stake-in-the-ground close (no question).`,
+      BuildInPublic: `Build-in-Public: concrete first line of what was built/tested, the setup, the insight with a specific mechanism, transferable takeaway.`,
+      Listicle: `Numbered insights (3-5 items): specific frame, then number + insight + why-it-matters per item. NOT "Here are 5 tips".`,
+    };
+    const frameworkBlock =
+      userFrameworkPrompt ||
+      FRAMEWORK_DEFAULTS[framework] ||
+      FRAMEWORK_DEFAULTS.PersonalExperience;
+
+    const ANTI_AI_RULES = `
+ANTI-AI VOICE RULES — these are non-negotiable, the post must NOT sound like ChatGPT:
+- Sound like a human typing on their phone. Contractions. Short sentences mixed with one longer one.
+- BANNED openers: "In today's...", "Building for the future...", "As I reflect...", "Let me share...", "Here's the thing...", "Recently I had the opportunity...".
+- BANNED words/phrases: synergy, leverage, ecosystem, journey, mindset shift, unlock, harness, navigate, embrace, dive deep, game-changer, transformative, paradigm, "intention", "grounded in", "pave the way", "for us and the next generation", "let's create", "thought leadership".
+- BANNED structures: "It's not just X — it's Y", smooth tricolons ("clarity, purpose, and intention"), aphoristic moralizing endings.
+- NO closing question / CTA / "What about you?" unless the framework explicitly says so.
+- NO advice to "leaders" or abstract pronouncements about "the future of X". Stay personal and specific.
+- Use the author's own details from their note. Do NOT generalize them away.
+- NO emojis. NO hashtags. NO labels like "Hook:" or "Takeaway:".`;
 
     const systemPrompt = mode === "suggest"
       ? `You are a senior social media copy coach helping ${authorName} brainstorm a post.
@@ -76,19 +106,24 @@ Return STRICT JSON only (no markdown), with this shape:
   "questions": ["2 short questions to help the author decide what to say"]
 }
 ${personaBlock}`
-      : `You are a ghostwriter for ${authorName}. Write ONE ${platform} post in the author's voice using the photo, the author's notes, and the context below.
+      : `You are ghostwriting ONE ${platform} post for ${authorName} based on their photo and notes.
 
-RULES
-- Sound like a real practitioner, not an LLM. Active voice. Short sentences. Line breaks every 1-2 sentences.
-- Use first-person where natural. Be concrete — reference what's in the photo when relevant.
-- Max ${wordLimit} words. No emojis. No hashtags. No labels like "Hook:" or "Body:".
-${bannedWords.length ? `- Forbidden words: ${bannedWords.join(", ")}` : ""}
-- If the author included an existing draft, refine it; do not start over unless it's empty.
+CHOSEN STYLE: ${framework}
+STYLE INSTRUCTIONS:
+${frameworkBlock}
+
+${ANTI_AI_RULES}
+
+HARD LIMITS:
+- Max ${wordLimit} words.
+${bannedWords.length ? `- Also forbidden (author's own banned list): ${bannedWords.join(", ")}` : ""}
+- If an existing draft is provided, REFINE it — keep the author's wording where it's already good; only fix what sounds AI-generated or off-voice.
+- Reference what is actually in the photo and in the author's notes. Do not invent details.
 
 Return STRICT JSON only (no markdown):
 {
-  "hook": "first line of the post (the headline)",
-  "body": "the rest of the post, separated from hook by newline"
+  "hook": "first line of the post",
+  "body": "the rest of the post (newline-separated from hook)"
 }
 ${personaBlock}`;
 
