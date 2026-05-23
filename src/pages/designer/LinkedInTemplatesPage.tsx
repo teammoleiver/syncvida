@@ -71,7 +71,22 @@ export default function LinkedInTemplatesPage() {
   // and the action buttons in the top header all share the same slide index.
   const [slideIdx, setSlideIdx] = useState(0);
   const [savingPdf, setSavingPdf] = useState(false);
-  const [zoom, setZoom] = useState(0.4);
+  const [zoom, setZoom] = useState(() => {
+    if (typeof window === "undefined") return 0.4;
+    const w = window.innerWidth;
+    if (w < 480) return Math.max(0.2, (w - 48) / 1080);
+    if (w < 1024) return 0.45;
+    return 0.5;
+  });
+  // Auto-fit zoom when viewport crosses mobile breakpoint
+  useEffect(() => {
+    function fit() {
+      const w = window.innerWidth;
+      if (w < 480) setZoom((z) => (z > 0.45 ? Math.max(0.2, (w - 48) / 1080) : z));
+    }
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
   // Overlay editing state
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);

@@ -254,7 +254,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Main Content */}
       <main
-        className={`flex-1 transition-all duration-300 pb-20 md:pb-0 ${
+        className={`flex-1 min-w-0 overflow-x-hidden transition-all duration-300 pb-20 md:pb-0 ${
           sidebarOpen ? "md:ml-56" : "md:ml-16"
         }`}
       >

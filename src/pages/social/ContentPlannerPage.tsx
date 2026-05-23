@@ -156,28 +156,30 @@ export default function ContentPlannerPage() {
         : mode === "instagram-review" ? <PlatformReview platform="instagram" />
         : mode === "twitter-review" ? <PlatformReview platform="twitter" /> : (
       <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
           <Button size="sm" variant="outline" onClick={() => shift(-1)}><ChevronLeft className="w-4 h-4" /></Button>
           <Button size="sm" variant="ghost" onClick={() => setCursor(new Date())}>Today</Button>
           <Button size="sm" variant="outline" onClick={() => shift(1)}><ChevronRight className="w-4 h-4" /></Button>
-          <span className="ml-2 text-sm font-medium">
+          <span className="ml-1 text-sm font-medium truncate">
             {view === "month" && fmtMonth(cursor)}
             {view === "week" && `Week of ${ymd(startOfWeek(cursor))}`}
             {view === "day" && cursor.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
             {view === "list" && "All entries"}
           </span>
         </div>
-        <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
-          {(["month","week","day","list"] as View[]).map((v) => (
-            <button key={v} onClick={() => setView(v)}
-              className={`text-xs px-2.5 py-1 rounded ${view === v ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
-              {v[0].toUpperCase() + v.slice(1)}
-            </button>
-          ))}
-          <Button size="sm" className="ml-1" onClick={() => setCreatingFor(ymd(new Date()))}><Plus className="w-4 h-4 mr-1" /> New</Button>
-          <Button size="sm" variant="secondary" className="ml-1" onClick={() => setPhotoStoryOpen(true)}>
-            <ImageIcon className="w-4 h-4 mr-1" /> Photo → Post
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+          <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+            {(["month","week","day","list"] as View[]).map((v) => (
+              <button key={v} onClick={() => setView(v)}
+                className={`text-xs px-2.5 py-1 rounded ${view === v ? "bg-background shadow-sm" : "text-muted-foreground"}`}>
+                {v[0].toUpperCase() + v.slice(1)}
+              </button>
+            ))}
+          </div>
+          <Button size="sm" onClick={() => setCreatingFor(ymd(new Date()))}><Plus className="w-4 h-4 mr-1" /> New</Button>
+          <Button size="sm" variant="secondary" onClick={() => setPhotoStoryOpen(true)}>
+            <ImageIcon className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">Photo → Post</span><span className="sm:hidden">Photo</span>
           </Button>
         </div>
       </div>
@@ -681,7 +683,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] overflow-hidden p-0 flex flex-col">
+      <DialogContent className="p-0 flex flex-col gap-0 w-screen max-w-none h-[100dvh] max-h-[100dvh] rounded-none border-0 sm:w-[95vw] sm:max-w-6xl sm:h-auto sm:max-h-[92vh] sm:rounded-lg sm:border overflow-hidden">
         <DialogHeader className="px-4 sm:px-6 pt-5 pb-3 border-b border-border shrink-0">
           <DialogTitle>{isNew ? "New post" : "Edit post"}</DialogTitle>
         </DialogHeader>
