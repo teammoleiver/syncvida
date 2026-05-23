@@ -692,3 +692,132 @@ export function buildSquareFromPost(
     overlays: [],
   };
 }
+
+/**
+ * Saleh's signature 8-slide LinkedIn carousel structure (per the
+ * `saleh-linkedin-carousel` skill). Used when the user picks the
+ * "Figma Template" theme — instead of just re-skinning the existing
+ * slides, we rebuild the deck to the full template library:
+ *   01 Cover · 02 Big Number · 03 Content · 04 Numbered List
+ *   05 Code/Workflow (text) · 06 Quote · 07 Comparison · 08 CTA
+ *
+ * Preserves the user's current cover title / handle / author so they
+ * don't lose their hook when switching theme.
+ */
+export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
+  const author = current.author || "Saleh Seddik";
+  const handle = current.handleShort || "Salehseddik";
+  const coverSlide = current.slides?.find((s) => s.layout === "cover") || current.slides?.[0];
+  const hook = (coverSlide?.title || "Stop chasing tool certifications. Build discipline instead.").trim();
+
+  const slides: CarouselSlide[] = [
+    // 01 — Cover · Hook
+    {
+      layout: "cover",
+      eyebrow: "GTM ENGINEERING / TACTIC",
+      title: hook,
+      body: "A field guide from the trenches.",
+      closer: "Swipe →",
+      accent: "teal",
+    },
+    // 02 — Big Number (Part One section break, rendered as stat)
+    {
+      layout: "stat",
+      eyebrow: "PART ONE",
+      title: "01",
+      statValue: "01",
+      statLabel: "Why most GTM playbooks quietly break at scale.",
+      body: "",
+      closer: "Swipe →",
+      accent: "teal",
+    },
+    // 03 — Content paragraph
+    {
+      layout: "text",
+      eyebrow: "THE DIAGNOSIS",
+      title: "Most GTM AI is an LLM hallucinating signals.",
+      body: "Real systems are boring: clean data in, scored intent out, sequenced touches that respect deliverability. Tools don't fix that. Discipline does.",
+      closer: "Swipe →",
+      accent: "teal",
+    },
+    // 04 — Numbered list (bullets)
+    {
+      layout: "bullets",
+      eyebrow: "THE 5-STEP CHECKLIST",
+      title: "What I run before every campaign.",
+      bullets: [
+        "Warm 65 domains across 3 ESPs.",
+        "Enrich with Clay + waterfall providers.",
+        "Score intent in n8n, not in the inbox.",
+        "Personalize the first line, never the offer.",
+        "Log every reply back into HubSpot.",
+      ],
+      closer: "Swipe →",
+      accent: "teal",
+    },
+    // 05 — Code / Workflow (rendered as text body styled mono)
+    {
+      layout: "text",
+      eyebrow: "THE n8n WORKFLOW",
+      title: "The webhook that replaces 4 SaaS subs.",
+      body: "trigger: clay.table.row_updated\n→ enrich: bettercontact + findymail\n→ score: claude(prompt=intent_v3)\n→ if score > 7 → smartlead.add_to_sequence\n→ log: hubspot.contact.upsert\nRuns on a $5/mo Hetzner box.",
+      closer: "Swipe →",
+      accent: "teal",
+    },
+    // 06 — Big Number (Part Two)
+    {
+      layout: "quote",
+      eyebrow: "MY THESIS, HACKBARNA 2026",
+      title: "Your stack is not the moat. Your discipline is.",
+      quote: "Your stack is not the moat. Your discipline is.",
+      quoteAuthor: author,
+      closer: "Swipe →",
+      accent: "teal",
+    },
+    // 07 — Comparison
+    {
+      layout: "comparison",
+      eyebrow: "WHAT MOST TEAMS DO / WHAT WORKS",
+      title: "Two ways to run outbound in 2026.",
+      leftLabel: "Wrong",
+      leftItems: [
+        "Buy 5 new AI SDR tools.",
+        "Blast 50k contacts a week.",
+        "Personalize the offer.",
+        "Score replies in the inbox.",
+        "Hope the domain survives.",
+      ],
+      rightLabel: "Right",
+      rightItems: [
+        "Buy zero. Wire what you own.",
+        "Send 2k to validated intent.",
+        "Personalize the first line only.",
+        "Score intent before send.",
+        "Rotate 65 warmed domains.",
+      ],
+      closer: "Swipe →",
+      accent: "teal",
+    },
+    // 08 — CTA
+    {
+      layout: "cta",
+      eyebrow: "FOLLOW FOR MORE GTM SYSTEMS",
+      title: "Agree or disagree?",
+      ctaPrompt: "Agree or disagree?",
+      ctaAction: `Follow @${handle} · built in public, shipped in prod`,
+      quoteAuthor: author,
+      closer: "DROP A COMMENT · FOLLOW + CONNECT",
+      accent: "teal",
+    },
+  ];
+
+  return {
+    ...current,
+    author,
+    handleShort: handle,
+    typeLabel: current.typeLabel ?? "Carousel",
+    themeKey: "figma-template",
+    slides,
+    overlays: {},
+  };
+}
