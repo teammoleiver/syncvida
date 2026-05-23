@@ -179,6 +179,13 @@ export async function renderNodeToDataUrl(nodeId: string): Promise<string> {
     pixelRatio: 2,
     cacheBust: true,
     fetchRequestInit: { mode: "cors", cache: "no-cache" },
+    filter: (n: HTMLElement) => {
+      if (!(n as any).classList) return true;
+      const cl = (n as any).classList as DOMTokenList;
+      if (cl.contains("cnv-type-pill")) return false;
+      if (cl.contains("export-hide")) return false;
+      return true;
+    },
   });
 }
 
