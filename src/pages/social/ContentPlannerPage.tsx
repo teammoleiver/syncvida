@@ -686,7 +686,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
           <DialogTitle>{isNew ? "New post" : "Edit post"}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] gap-0 flex-1 overflow-hidden">
-        <div className="space-y-3 overflow-y-auto px-6 py-4 border-r border-border">
+        <div className="space-y-3 overflow-y-auto px-4 sm:px-6 py-4 lg:border-r border-border">
           <div><Label>Hook / headline</Label><Input value={form.hook ?? ""} onChange={(e) => setForm({ ...form, hook: e.target.value })} /></div>
           <div><Label>Body</Label><Textarea rows={6} value={form.body ?? ""} onChange={(e) => setForm({ ...form, body: e.target.value })} /></div>
           <div className="space-y-2">
