@@ -179,7 +179,7 @@ export default function ContentPlannerPage() {
           </div>
           <Button size="sm" onClick={() => setCreatingFor(ymd(new Date()))}><Plus className="w-4 h-4 mr-1" /> New</Button>
           <Button size="sm" variant="secondary" onClick={() => setPhotoStoryOpen(true)}>
-            <ImageIcon className="w-4 h-4 mr-1" /> <span className="hidden xs:inline">Photo → Post</span><span className="xs:hidden">Photo</span>
+            <ImageIcon className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">Photo → Post</span><span className="sm:hidden">Photo</span>
           </Button>
         </div>
       </div>
