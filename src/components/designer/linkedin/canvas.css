@@ -1256,7 +1256,7 @@
 /* Cover hook must never overflow the slide. Cap to a sane size and let
    long titles shrink rather than push the sub-line off-canvas. */
 .canvas[data-theme="figma-template"] .carousel-cover-title {
-  font-size: clamp(56px, 8vw, 96px);
+  font-size: 88px;
   line-height: 1.05;
   letter-spacing: -0.025em;
   font-weight: 800;
