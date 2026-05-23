@@ -196,16 +196,16 @@ function ArticlesTab() {
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap gap-3 items-center">
-        <Input placeholder="Search articles…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+      <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
+        <Input placeholder="Search articles…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:max-w-sm" />
         <Select value={feedFilter} onValueChange={setFeedFilter}>
-          <SelectTrigger className="w-[200px]"><SelectValue placeholder="All feeds" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="All feeds" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All feeds</SelectItem>
             {feeds.map((f) => <SelectItem key={f.id} value={f.id}>{f.label || f.feed_url.slice(0, 30)}</SelectItem>)}
           </SelectContent>
         </Select>
-        <span className="text-xs text-muted-foreground ml-auto">{filtered.length} articles</span>
+        <span className="text-xs text-muted-foreground sm:ml-auto">{filtered.length} articles</span>
       </div>
 
       {loading ? <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div> :
