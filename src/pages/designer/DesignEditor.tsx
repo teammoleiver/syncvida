@@ -420,10 +420,10 @@ export default function DesignEditor() {
         </div>
       </header>
 
-      {/* Main grid */}
-      <div className="flex-1 grid grid-cols-[60px_1fr_340px] min-h-0">
-        {/* Left toolbar */}
-        <div className="border-r border-border p-2 flex flex-col gap-1 overflow-auto">
+      {/* Main grid — stacks on mobile so the canvas isn't squeezed by side rails. */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[60px_1fr_340px] min-h-0">
+        {/* Left toolbar — horizontal strip on mobile, vertical rail on lg+ */}
+        <div className="border-b lg:border-b-0 lg:border-r border-border p-2 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-y-auto shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="aspect-square rounded-md hover:bg-muted flex flex-col items-center justify-center text-[10px] gap-1 text-muted-foreground hover:text-foreground">
