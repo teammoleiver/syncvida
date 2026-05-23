@@ -490,8 +490,8 @@ export default function DesignEditor() {
           )}
         </div>
 
-        {/* Right tabs */}
-        <div className="border-l border-border flex flex-col min-h-0">
+        {/* Right tabs — bottom drawer on mobile, side panel on lg+ */}
+        <div className="border-t lg:border-t-0 lg:border-l border-border flex flex-col min-h-0 max-h-[55vh] lg:max-h-none">
           <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as any)} className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid grid-cols-3 m-2">
               <TabsTrigger value="inspect"><Wand2 className="w-3.5 h-3.5 mr-1" />Inspect</TabsTrigger>
