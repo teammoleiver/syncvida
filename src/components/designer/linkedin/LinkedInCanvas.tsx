@@ -172,7 +172,8 @@ export type ThemeKey =
   | "magazine-serif"
   | "tech-neon"
   | "pastel-soft"
-  | "corporate-clean";
+  | "corporate-clean"
+  | "figma-template";
 
 export const THEME_KEYS: ThemeKey[] = [
   "editorial-dark",
@@ -183,6 +184,7 @@ export const THEME_KEYS: ThemeKey[] = [
   "tech-neon",
   "pastel-soft",
   "corporate-clean",
+  "figma-template",
 ];
 
 export const THEMES: { key: ThemeKey; label: string; description: string; preview: { bg: string; fg: string; accent: string } }[] = [
@@ -194,6 +196,7 @@ export const THEMES: { key: ThemeKey; label: string; description: string; previe
   { key: "tech-neon", label: "Tech Neon", description: "Pure black, mint accent, mono labels.", preview: { bg: "#050507", fg: "#E8F8EE", accent: "#36F1A6" } },
   { key: "pastel-soft", label: "Pastel Soft", description: "Lavender background, deep plum text.", preview: { bg: "#F2EAF7", fg: "#3B1B5B", accent: "#7C4DD1" } },
   { key: "corporate-clean", label: "Corporate Clean", description: "Fresh white, navy text, sharp blue accent.", preview: { bg: "#FFFFFF", fg: "#0F1B3D", accent: "#1B5BFF" } },
+  { key: "figma-template", label: "Figma Template", description: "Saleh personal-brand carousel — off-black #0E0E0E, mint #00E18A, Inter + JBM.", preview: { bg: "#0E0E0E", fg: "#FFFFFF", accent: "#00E18A" } },
 ];
 
 function pickPhoto(data: any): string {

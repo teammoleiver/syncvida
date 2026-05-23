@@ -1212,3 +1212,34 @@
   --accent-indigo: #1B5BFF; --accent-plum: #B43E96; --accent-olive: #6B7C2A; --accent-sky: #2F8FE0;
 }
 .canvas[data-theme="corporate-clean"]::before { display: none; }
+
+/* Figma Template — Saleh Seddik personal-brand carousel
+   Off-black background, mint accent, Inter + JetBrains Mono.
+   Based on the saleh-linkedin-carousel skill spec. */
+.canvas[data-theme="figma-template"] {
+  background: #0E0E0E;
+  --text-display: #FFFFFF;
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255,255,255,0.65);
+  --text-muted: rgba(255,255,255,0.45);
+  --text-stat: #FFFFFF;
+  --bg-card: #1A1A1A;
+  --bg-card-elev: #1A1A1A;
+  --border-subtle: #2A2A2A;
+  --brand-coral: #00E18A;
+  --accent-coral: #00E18A; --accent-amber: #F4C752; --accent-teal: #00E18A;
+  --accent-indigo: #00E18A; --accent-plum: #F26B2C; --accent-olive: #00E18A; --accent-sky: #00E18A;
+  --status-good: #00E18A; --status-warn: #F4C752; --status-bad: #F46B6B;
+  --font-display: "Inter", system-ui, -apple-system, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+.canvas[data-theme="figma-template"]::before { display: none; }
+.canvas[data-theme="figma-template"] .carousel-eyebrow,
+.canvas[data-theme="figma-template"] .cnv-tag {
+  font-family: var(--font-mono);
+  color: #00E18A;
+  background: transparent;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
