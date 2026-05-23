@@ -683,7 +683,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] overflow-hidden p-0 flex flex-col">
+      <DialogContent className="p-0 flex flex-col gap-0 w-screen max-w-none h-[100dvh] max-h-[100dvh] rounded-none border-0 sm:w-[95vw] sm:max-w-6xl sm:h-auto sm:max-h-[92vh] sm:rounded-lg sm:border overflow-hidden">
         <DialogHeader className="px-4 sm:px-6 pt-5 pb-3 border-b border-border shrink-0">
           <DialogTitle>{isNew ? "New post" : "Edit post"}</DialogTitle>
         </DialogHeader>
