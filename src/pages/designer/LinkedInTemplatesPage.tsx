@@ -523,17 +523,19 @@ export default function LinkedInTemplatesPage() {
         </div>
       )}
 
-      {/* Main grid: left preset sidebar | center preview | right form panel */}
-      <div className="flex-1 grid grid-cols-[80px_1fr_360px] min-h-0">
-        {/* Left: preset selector */}
-        <div className="border-r border-border p-2 flex flex-col gap-1 overflow-auto">
+      {/* Main grid: left preset sidebar | center preview | right form panel.
+          On <lg the right form panel stacks under the preview as a bottom
+          drawer so the editor doesn't collide with the side nav on mobile. */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[64px_1fr_360px] min-h-0">
+        {/* Left: preset selector — horizontal on mobile, vertical on lg */}
+        <div className="border-b lg:border-b-0 lg:border-r border-border p-2 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-y-auto">
           <PresetTile active={active === "cheatsheet"} onClick={() => editActive("cheatsheet")} icon={<LayoutGrid className="w-4 h-4" />} label="Sheet" />
           <PresetTile active={active === "carousel"} onClick={() => editActive("carousel")} icon={<Layers className="w-4 h-4" />} label="Slides" />
           <PresetTile active={active === "square"} onClick={() => editActive("square")} icon={<SquareIcon className="w-4 h-4" />} label="Square" />
         </div>
 
         {/* Center: live preview */}
-        <div className="overflow-auto bg-muted/30 flex items-start justify-center p-8">
+        <div className="overflow-auto bg-muted/30 flex items-start justify-center p-4 sm:p-6 lg:p-8 min-h-[40vh]">
           <div style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}>
             {active === "cheatsheet" && (
               <CheatSheetCanvas
@@ -570,7 +572,7 @@ export default function LinkedInTemplatesPage() {
         </div>
 
         {/* Right: form fields + elements layer for the active preset */}
-        <div className="border-l border-border overflow-auto p-3 space-y-3">
+        <div className="border-t lg:border-t-0 lg:border-l border-border overflow-auto p-3 sm:p-4 space-y-3 max-h-[60vh] lg:max-h-none">
           <ElementsPanel
             overlays={getOverlays()}
             selectedId={selectedOverlayId}
