@@ -649,7 +649,12 @@ export default function LinkedInTemplatesPage() {
         </div>
       </div>
 
-      <AssetPickerDialog open={assetPickerOpen} onClose={() => setAssetPickerOpen(false)} onPick={addImageFromAsset} />
+      <AssetPickerDialog
+        open={assetPickerOpen}
+        onClose={() => setAssetPickerOpen(false)}
+        onPick={(a) => { addImageFromAsset(a); setAssetPickerOpen(false); }}
+        defaultAspect={active === "square" ? "1:1" : "4:5"}
+      />
       <TemplateStylePicker
         open={stylePickerOpen}
         current={currentTheme}
