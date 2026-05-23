@@ -23,6 +23,7 @@ import {
   saveCanvasAsAsset, linkAssetToPlan, getPlanEntry,
   saveCarouselAsPdf, linkPdfToPlan, renderNodeToDataUrl,
   buildCarouselFromPost, buildCheatSheetFromPost, buildSquareFromPost,
+  buildSalehFigmaCarousel,
 } from "@/components/designer/linkedin/editorHelpers";
 import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, type DesignAsset } from "@/lib/designer-queries";
 import { detectMentionedLogos, type DetectedLogo } from "@/components/designer/linkedin/detectLogos";
