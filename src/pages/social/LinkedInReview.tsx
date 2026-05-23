@@ -371,12 +371,12 @@ export default function LinkedInReview() {
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+        <div className="relative w-full sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
           <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input value={filter.search} onChange={(e) => setFilter({ ...filter, search: e.target.value })} placeholder="Search topic, body, date" className="pl-8 h-9" />
         </div>
         <Select value={filter.status} onValueChange={(v) => setFilter({ ...filter, status: v as any })}>
-          <SelectTrigger className="w-[130px] h-9"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[48%] sm:w-[130px] h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
@@ -385,7 +385,7 @@ export default function LinkedInReview() {
           </SelectContent>
         </Select>
         <Select value={filter.pillar} onValueChange={(v) => setFilter({ ...filter, pillar: v })}>
-          <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[48%] sm:w-[180px] h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All pillars</SelectItem>
             {pillars.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
@@ -395,8 +395,8 @@ export default function LinkedInReview() {
           {filter.hideRejected ? <Eye className="w-3.5 h-3.5 mr-1" /> : <EyeOff className="w-3.5 h-3.5 mr-1" />}
           {filter.hideRejected ? "Show rejected" : "Hide rejected"}
         </Button>
-        <div className="flex-1" />
-        <span className="text-xs text-muted-foreground">{filtered.length} post{filtered.length === 1 ? "" : "s"}</span>
+        <div className="hidden sm:block flex-1" />
+        <span className="text-xs text-muted-foreground w-full sm:w-auto text-right">{filtered.length} post{filtered.length === 1 ? "" : "s"}</span>
       </div>
 
       {/* Cards */}
