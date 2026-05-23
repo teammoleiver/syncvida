@@ -21,6 +21,15 @@ async function renderNodeAsDataUrl(node: HTMLElement): Promise<string> {
     pixelRatio: 2,
     cacheBust: true,
     fetchRequestInit: { mode: "cors", cache: "no-cache" },
+    // Editor-only chrome (the "CAROUSEL" / "Cheat Sheet" type pill, selection
+    // outlines, resize handles) must not appear in the exported PNG/PDF.
+    filter: (n: HTMLElement) => {
+      if (!(n as any).classList) return true;
+      const cl = (n as any).classList as DOMTokenList;
+      if (cl.contains("cnv-type-pill")) return false;
+      if (cl.contains("export-hide")) return false;
+      return true;
+    },
   });
 }
 
@@ -170,6 +179,13 @@ export async function renderNodeToDataUrl(nodeId: string): Promise<string> {
     pixelRatio: 2,
     cacheBust: true,
     fetchRequestInit: { mode: "cors", cache: "no-cache" },
+    filter: (n: HTMLElement) => {
+      if (!(n as any).classList) return true;
+      const cl = (n as any).classList as DOMTokenList;
+      if (cl.contains("cnv-type-pill")) return false;
+      if (cl.contains("export-hide")) return false;
+      return true;
+    },
   });
 }
 
@@ -335,6 +351,18 @@ export function buildCarouselFromPost(
   const cleanHook = (hook || "").trim();
   const cleanBody = (body || "").trim();
 
+  // The cover hook must be a SHORT scroll-stopper — not the full post body.
+  // Take the first sentence and clamp to ~110 chars / 14 words max.
+  const shortHook = (() => {
+    const src = cleanHook || cleanBody;
+    if (!src) return "Untitled post";
+    const firstSentence = (src.split(/(?<=[.!?])\s+/)[0] || src).trim();
+    const words = firstSentence.split(/\s+/);
+    let s = words.slice(0, 14).join(" ");
+    if (s.length > 110) s = s.slice(0, 107).replace(/[\s,;:.\-—]+$/, "") + "…";
+    return s.replace(/[.!?]+$/, "");
+  })();
+
   const paragraphs = cleanBody
     .split(/\n\s*\n+/)
     .map((p) => p.trim())
@@ -364,7 +392,7 @@ export function buildCarouselFromPost(
   slides.push({
     layout: "cover",
     eyebrow: "Read this",
-    title: cleanHook || "Untitled post",
+    title: shortHook,
     body: coverSub,
     closer: "Swipe →",
     accent: ACCENTS[0],
@@ -374,7 +402,11 @@ export function buildCarouselFromPost(
   let pickedQuote = false;
   chunks.forEach((chunk, i) => {
     const accent = ACCENTS[(i + 1) % ACCENTS.length];
-    const eyebrow = `${String(i + 1).padStart(2, "0")} / ${String(chunks.length).padStart(2, "0")}`;
+    // Eyebrow is a short topical tag — never a page counter (the footer already
+    // shows `01 / 06`). Cycle through neutral section labels so each body slide
+    // gets context without competing with the footer pagination.
+    const TAGS = ["The shift", "What I tried", "What worked", "The system", "The receipt", "Takeaway"];
+    const eyebrow = TAGS[i % TAGS.length];
 
     // Bullets
     const lines = chunk.split(/\n+/).map((l) => l.trim()).filter(Boolean);
@@ -417,18 +449,20 @@ export function buildCarouselFromPost(
     // paragraph that repeats the same words in smaller font.
     const statMatch = chunk.match(/\$?\d+(?:[.,]\d+)?[%xKMB+]?/);
     if (statMatch && statMatch[0].length <= 8 && /[%xKMB$]|\d{2,}/.test(statMatch[0])) {
-      const sentenceWithStat = (chunk.split(/(?<=[.!?])\s+/).find((s) => s.includes(statMatch[0])) || chunk)
-        .replace(statMatch[0], "")
+      // Keep BOTH sides of the number so the label reads as a complete idea —
+      // not a truncated mid-sentence fragment like "we generated".
+      const fullSentence = (chunk.split(/(?<=[.!?])\s+/).find((s) => s.includes(statMatch[0])) || chunk)
+        .replace(statMatch[0], "___")
         .replace(/\s{2,}/g, " ")
-        .replace(/^[\s,;:.\-—]+|[\s,;:.\-—]+$/g, "")
         .trim();
-      const labelWords = sentenceWithStat.split(/\s+/).slice(0, 7).join(" ");
+      let label = fullSentence.replace("___", statMatch[0]).replace(/[.!?]+$/, "");
+      if (label.length > 80) label = label.slice(0, 77).replace(/[\s,;:.\-—]+$/, "") + "…";
       slides.push({
         layout: "stat",
         eyebrow,
         title: statMatch[0],
         statValue: statMatch[0],
-        statLabel: labelWords || "The number that matters.",
+        statLabel: label || "The number that matters.",
         body: "",
         closer: "Swipe →",
         accent,
