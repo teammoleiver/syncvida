@@ -419,9 +419,21 @@ export default function LinkedInTemplatesPage() {
   /** Apply a visual theme to all three preset data shapes. */
   function applyTheme(k: ThemeKey) {
     editCheatData((d) => ({ ...d, themeKey: k }));
-    editCarouselData((d) => ({ ...d, themeKey: k }));
+    editCarouselData((d) => {
+      // "Figma Template" isn't just a recolor — it's Saleh's full 8-slide
+      // template library (Cover · Big Number · Content · Numbered List ·
+      // Code · Quote · Comparison · CTA). Rebuild the deck so the user
+      // actually sees those distinctive middle slides, not just a re-skin.
+      if (k === "figma-template") return buildSalehFigmaCarousel({ ...d, themeKey: k });
+      return { ...d, themeKey: k };
+    });
     editSquareData((d) => ({ ...d, themeKey: k }));
-    toast.success("Style applied");
+    if (k === "figma-template" && active === "carousel") {
+      setSlideIdx(0);
+      toast.success("Saleh's 8-slide template loaded");
+    } else {
+      toast.success("Style applied");
+    }
   }
   const currentTheme: ThemeKey | undefined =
     active === "carousel" ? carouselData.themeKey
