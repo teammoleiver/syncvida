@@ -17,13 +17,14 @@ import {
   type Overlay,
 } from "@/components/designer/linkedin/LinkedInCanvas";
 import TemplateStylePicker from "@/components/designer/linkedin/TemplateStylePicker";
+import AssetPickerDialog from "@/components/designer/linkedin/AssetPickerDialog";
 import {
   SEED_CHEAT_SHEET, SEED_CAROUSEL, SEED_SQUARE, exportCanvasAsPng,
   saveCanvasAsAsset, linkAssetToPlan, getPlanEntry,
   saveCarouselAsPdf, linkPdfToPlan, renderNodeToDataUrl,
   buildCarouselFromPost, buildCheatSheetFromPost, buildSquareFromPost,
 } from "@/components/designer/linkedin/editorHelpers";
-import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, listAssets, uploadAsset, type DesignAsset } from "@/lib/designer-queries";
+import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, type DesignAsset } from "@/lib/designer-queries";
 import { detectMentionedLogos, type DetectedLogo } from "@/components/designer/linkedin/detectLogos";
 
 type TemplateKey = "cheatsheet" | "carousel" | "square";
@@ -522,17 +523,19 @@ export default function LinkedInTemplatesPage() {
         </div>
       )}
 
-      {/* Main grid: left preset sidebar | center preview | right form panel */}
-      <div className="flex-1 grid grid-cols-[80px_1fr_360px] min-h-0">
-        {/* Left: preset selector */}
-        <div className="border-r border-border p-2 flex flex-col gap-1 overflow-auto">
+      {/* Main grid: left preset sidebar | center preview | right form panel.
+          On <lg the right form panel stacks under the preview as a bottom
+          drawer so the editor doesn't collide with the side nav on mobile. */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[64px_1fr_360px] min-h-0">
+        {/* Left: preset selector — horizontal on mobile, vertical on lg */}
+        <div className="border-b lg:border-b-0 lg:border-r border-border p-2 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-y-auto">
           <PresetTile active={active === "cheatsheet"} onClick={() => editActive("cheatsheet")} icon={<LayoutGrid className="w-4 h-4" />} label="Sheet" />
           <PresetTile active={active === "carousel"} onClick={() => editActive("carousel")} icon={<Layers className="w-4 h-4" />} label="Slides" />
           <PresetTile active={active === "square"} onClick={() => editActive("square")} icon={<SquareIcon className="w-4 h-4" />} label="Square" />
         </div>
 
         {/* Center: live preview */}
-        <div className="overflow-auto bg-muted/30 flex items-start justify-center p-8">
+        <div className="overflow-auto bg-muted/30 flex items-start justify-center p-4 sm:p-6 lg:p-8 min-h-[40vh]">
           <div style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}>
             {active === "cheatsheet" && (
               <CheatSheetCanvas
@@ -569,7 +572,7 @@ export default function LinkedInTemplatesPage() {
         </div>
 
         {/* Right: form fields + elements layer for the active preset */}
-        <div className="border-l border-border overflow-auto p-3 space-y-3">
+        <div className="border-t lg:border-t-0 lg:border-l border-border overflow-auto p-3 sm:p-4 space-y-3 max-h-[60vh] lg:max-h-none">
           <ElementsPanel
             overlays={getOverlays()}
             selectedId={selectedOverlayId}
@@ -646,7 +649,12 @@ export default function LinkedInTemplatesPage() {
         </div>
       </div>
 
-      <AssetPickerDialog open={assetPickerOpen} onClose={() => setAssetPickerOpen(false)} onPick={addImageFromAsset} />
+      <AssetPickerDialog
+        open={assetPickerOpen}
+        onClose={() => setAssetPickerOpen(false)}
+        onPick={(a) => { addImageFromAsset(a); setAssetPickerOpen(false); }}
+        defaultAspect={active === "square" ? "1:1" : "4:5"}
+      />
       <TemplateStylePicker
         open={stylePickerOpen}
         current={currentTheme}
@@ -1158,65 +1166,4 @@ function NumField({ label, value, onChange }: { label: string; value: number; on
 }
 
 /* ---------- Asset picker dialog ---------- */
-
-function AssetPickerDialog({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (a: DesignAsset) => void }) {
-  const [assets, setAssets] = useState<DesignAsset[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-    listAssets().then((a) => setAssets(a)).finally(() => setLoading(false));
-  }, [open]);
-  async function onUpload(file: File) {
-    setUploading(true);
-    try {
-      const a = await uploadAsset(file);
-      setAssets((cur) => [a, ...cur]);
-      toast.success("Uploaded to asset library");
-      onPick(a);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Upload failed");
-    } finally { setUploading(false); }
-  }
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6" onClick={onClose}>
-      <div className="bg-background rounded-lg border border-border w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="font-semibold">Pick an asset</h3>
-          <div className="flex items-center gap-2">
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); e.currentTarget.value = ""; }}
-            />
-            <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading}>
-              {uploading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5 mr-1" />}
-              Upload photo
-            </Button>
-            <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
-          </div>
-        </div>
-        <div className="flex-1 overflow-auto p-4">
-          {loading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>
-          ) : assets.length === 0 ? (
-            <div className="text-sm text-muted-foreground italic">No assets yet — click <strong>Upload photo</strong> above to add one.</div>
-          ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-              {assets.map((a) => (
-                <button key={a.id} onClick={() => onPick(a)} className="aspect-square rounded-md border border-border overflow-hidden hover:border-primary transition">
-                  <img src={a.public_url} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+/* Implemented in components/designer/linkedin/AssetPickerDialog.tsx */
