@@ -420,10 +420,10 @@ export default function DesignEditor() {
         </div>
       </header>
 
-      {/* Main grid */}
-      <div className="flex-1 grid grid-cols-[60px_1fr_340px] min-h-0">
-        {/* Left toolbar */}
-        <div className="border-r border-border p-2 flex flex-col gap-1 overflow-auto">
+      {/* Main grid — stacks on mobile so the canvas isn't squeezed by side rails. */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[60px_1fr_340px] min-h-0">
+        {/* Left toolbar — horizontal strip on mobile, vertical rail on lg+ */}
+        <div className="border-b lg:border-b-0 lg:border-r border-border p-2 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-y-auto shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="aspect-square rounded-md hover:bg-muted flex flex-col items-center justify-center text-[10px] gap-1 text-muted-foreground hover:text-foreground">
@@ -451,7 +451,7 @@ export default function DesignEditor() {
         </div>
 
         {/* Stage */}
-        <div ref={stageRef} className="overflow-auto bg-muted/30 p-4 flex flex-col items-center gap-3 min-w-0 relative">
+        <div ref={stageRef} className="overflow-auto bg-muted/30 p-2 sm:p-4 flex flex-col items-center gap-3 min-w-0 min-h-[45vh] lg:min-h-0 relative">
           <AlignToolbar slide={slide} selectedIds={[...selectedIds]}
             onApply={(s) => patchSlide(() => s)} />
           <div className="flex-1 flex items-center justify-center min-h-0">
@@ -490,8 +490,8 @@ export default function DesignEditor() {
           )}
         </div>
 
-        {/* Right tabs */}
-        <div className="border-l border-border flex flex-col min-h-0">
+        {/* Right tabs — bottom drawer on mobile, side panel on lg+ */}
+        <div className="border-t lg:border-t-0 lg:border-l border-border flex flex-col min-h-0 max-h-[55vh] lg:max-h-none">
           <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as any)} className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid grid-cols-3 m-2">
               <TabsTrigger value="inspect"><Wand2 className="w-3.5 h-3.5 mr-1" />Inspect</TabsTrigger>

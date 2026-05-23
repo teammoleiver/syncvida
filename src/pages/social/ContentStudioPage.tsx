@@ -253,26 +253,26 @@ export default function ContentStudioPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[220px]">
+        <div className="relative w-full sm:flex-1 sm:min-w-[220px]">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search title, topics, course…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
         </div>
         <Select value={levelFilter || "all"} onValueChange={(v) => setLevelFilter(v === "all" ? "" : v)}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Level" /></SelectTrigger>
+          <SelectTrigger className="w-[48%] sm:w-[160px]"><SelectValue placeholder="Level" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All levels</SelectItem>
             {LEVELS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={platformFilter || "all"} onValueChange={(v) => setPlatformFilter(v === "all" ? "" : v)}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Platform" /></SelectTrigger>
+          <SelectTrigger className="w-[48%] sm:w-[160px]"><SelectValue placeholder="Platform" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All platforms</SelectItem>
             {PLATFORMS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={originFilter || "all"} onValueChange={(v) => setOriginFilter(v === "all" ? "" : v)}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Source" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Source" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All sources</SelectItem>
             <SelectItem value="brainstorm">🧠 Brainstorm (AI)</SelectItem>
@@ -280,11 +280,11 @@ export default function ContentStudioPage() {
             <SelectItem value="manual">✍️ Manual / seed</SelectItem>
           </SelectContent>
         </Select>
-        <span className="text-xs text-muted-foreground">{filtered.length} shown · {selected.size} selected</span>
+        <span className="text-xs text-muted-foreground w-full sm:w-auto">{filtered.length} shown · {selected.size} selected</span>
         {selected.size > 0 && (
-          <div className="flex gap-2 ml-auto">
-            <Button size="sm" variant="outline" onClick={() => setBulkEditing(true)}><Pencil className="w-4 h-4" /> Bulk edit ({selected.size})</Button>
-            <Button size="sm" variant="outline" onClick={handleBulkDelete}><Trash2 className="w-4 h-4" /> Delete ({selected.size})</Button>
+          <div className="flex gap-2 w-full sm:w-auto sm:ml-auto flex-wrap">
+            <Button size="sm" variant="outline" onClick={() => setBulkEditing(true)}><Pencil className="w-4 h-4" /> <span className="hidden sm:inline">Bulk edit</span> ({selected.size})</Button>
+            <Button size="sm" variant="outline" onClick={handleBulkDelete}><Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">Delete</span> ({selected.size})</Button>
             <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
           </div>
         )}
