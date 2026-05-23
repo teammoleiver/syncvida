@@ -1243,3 +1243,21 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+/* Figma Template forces the single mint accent across every slide regardless
+   of the per-slide data-accent value — keeps Saleh's personal-brand identity
+   consistent and prevents amber/coral leaking through. */
+.canvas[data-theme="figma-template"][data-format="carousel"],
+.canvas[data-theme="figma-template"][data-format="carousel"][data-accent] {
+  --accent: #00E18A;
+  --accent-fg: #04201D;
+}
+
+/* Cover hook must never overflow the slide. Cap to a sane size and let
+   long titles shrink rather than push the sub-line off-canvas. */
+.canvas[data-theme="figma-template"] .carousel-cover-title {
+  font-size: clamp(56px, 8vw, 96px);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  font-weight: 800;
+}
