@@ -451,7 +451,7 @@ export default function DesignEditor() {
         </div>
 
         {/* Stage */}
-        <div ref={stageRef} className="overflow-auto bg-muted/30 p-4 flex flex-col items-center gap-3 min-w-0 relative">
+        <div ref={stageRef} className="overflow-auto bg-muted/30 p-2 sm:p-4 flex flex-col items-center gap-3 min-w-0 min-h-[45vh] lg:min-h-0 relative">
           <AlignToolbar slide={slide} selectedIds={[...selectedIds]}
             onApply={(s) => patchSlide(() => s)} />
           <div className="flex-1 flex items-center justify-center min-h-0">
