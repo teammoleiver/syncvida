@@ -682,7 +682,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] overflow-hidden p-0 flex flex-col">
-        <DialogHeader className="px-6 pt-5 pb-3 border-b border-border shrink-0">
+        <DialogHeader className="px-4 sm:px-6 pt-5 pb-3 border-b border-border shrink-0">
           <DialogTitle>{isNew ? "New post" : "Edit post"}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] gap-0 flex-1 overflow-hidden">
@@ -855,7 +855,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
           />
         </aside>
         </div>
-        <DialogFooter className="flex-wrap gap-2 px-6 py-3 border-t border-border bg-background shrink-0">
+        <DialogFooter className="flex-wrap gap-2 px-4 sm:px-6 py-3 border-t border-border bg-background shrink-0">
           {!isNew && <Button variant="ghost" onClick={remove} className="text-destructive"><Trash2 className="w-4 h-4 mr-1" /> Delete</Button>}
           <div className="flex-1" />
           <Button variant="outline" onClick={onClose}>Cancel</Button>
