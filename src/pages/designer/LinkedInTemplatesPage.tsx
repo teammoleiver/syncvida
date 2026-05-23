@@ -17,13 +17,14 @@ import {
   type Overlay,
 } from "@/components/designer/linkedin/LinkedInCanvas";
 import TemplateStylePicker from "@/components/designer/linkedin/TemplateStylePicker";
+import AssetPickerDialog from "@/components/designer/linkedin/AssetPickerDialog";
 import {
   SEED_CHEAT_SHEET, SEED_CAROUSEL, SEED_SQUARE, exportCanvasAsPng,
   saveCanvasAsAsset, linkAssetToPlan, getPlanEntry,
   saveCarouselAsPdf, linkPdfToPlan, renderNodeToDataUrl,
   buildCarouselFromPost, buildCheatSheetFromPost, buildSquareFromPost,
 } from "@/components/designer/linkedin/editorHelpers";
-import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, listAssets, uploadAsset, type DesignAsset } from "@/lib/designer-queries";
+import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, type DesignAsset } from "@/lib/designer-queries";
 import { detectMentionedLogos, type DetectedLogo } from "@/components/designer/linkedin/detectLogos";
 
 type TemplateKey = "cheatsheet" | "carousel" | "square";
