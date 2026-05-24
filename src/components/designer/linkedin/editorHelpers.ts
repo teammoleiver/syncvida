@@ -855,7 +855,7 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
     // 05 — Code / Workflow (rendered as text body styled mono)
     {
       layout: "text",
-      eyebrow: "THE n8n WORKFLOW",
+      eyebrow: "THE WORKFLOW",
       title: "The workflow behind the idea.",
       body: [
         `01 ${smartText(playbook[0], 48, "Define the outcome.")}`,
@@ -869,7 +869,7 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
     // 06 — Big Number (Part Two)
     {
       layout: "quote",
-      eyebrow: "MY THESIS, HACKBARNA 2026",
+      eyebrow: "THE THESIS",
       title: quote,
       quote,
       quoteAuthor: author,
@@ -891,7 +891,7 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
     // 08 — CTA
     {
       layout: "cta",
-      eyebrow: "FOLLOW FOR MORE GTM SYSTEMS",
+      eyebrow: "FOLLOW FOR MORE SYSTEMS",
       title: question,
       ctaPrompt: question,
       ctaAction: `Follow @${handle} for more practical systems`,
