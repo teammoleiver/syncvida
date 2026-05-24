@@ -188,7 +188,7 @@ export default function ContentPlannerPage() {
         view === "month" ? <MonthView cursor={cursor} grouped={grouped} onPick={(d) => setCreatingFor(d)} onOpen={(e) => setEditing(e)} />
         : view === "week" ? <WeekView cursor={cursor} grouped={grouped} onPick={(d) => setCreatingFor(d)} onOpen={(e) => setEditing(e)} />
         : view === "day" ? <DayView cursor={cursor} grouped={grouped} onPick={(d) => setCreatingFor(d)} onOpen={(e) => setEditing(e)} />
-        : <ListView entries={entries} onOpen={(e) => setEditing(e)} />}
+        : <ListView entries={entries} onOpen={(e) => setEditing(e)} onDeleted={load} />}
 
       {editing && <PostEditor entry={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
       {creatingFor && <PostEditor entry={{ scheduled_date: creatingFor, status: "planned", platforms: [] }} isNew onClose={() => setCreatingFor(null)} onSaved={() => { setCreatingFor(null); load(); }} />}
