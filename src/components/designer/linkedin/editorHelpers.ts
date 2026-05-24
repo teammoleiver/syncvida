@@ -537,6 +537,7 @@ export function buildCarouselFromPost(
     attribution: base.attribution ?? `${(base.author ?? SEED_CAROUSEL.author).toLowerCase()} // ${new Date().getFullYear()}`,
     slides: slides.slice(0, 8),
     overlays: {},
+    themeKey: base.themeKey,
   };
 }
 
@@ -635,6 +636,7 @@ export function buildCheatSheetFromPost(
     attribution: base.attribution ?? `${(base.author ?? SEED_CHEAT_SHEET.author).toLowerCase()} // ${new Date().getFullYear()}`,
     sections: sections.slice(0, 6),
     overlays: [],
+    themeKey: base.themeKey,
   };
 }
 
@@ -690,7 +692,68 @@ export function buildSquareFromPost(
     closer,
     attribution: base.attribution ?? `${(base.author ?? SEED_SQUARE.author).toLowerCase()} // ${new Date().getFullYear()}`,
     overlays: [],
+    themeKey: base.themeKey,
   };
+}
+
+function compactCopy(value: unknown): string {
+  return String(value ?? "")
+    .replace(/\r/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function sentenceParts(value: unknown): string[] {
+  return compactCopy(value)
+    .split(/\n+|(?<=[.!?])\s+/)
+    .map((s) => s.replace(/^([-•*]|\d+[.)])\s+/, "").trim())
+    .filter((s) => s.length > 0);
+}
+
+function smartText(value: unknown, max: number, fallback: string, punctuate = false): string {
+  const clean = compactCopy(value).replace(/\s*\n\s*/g, " ");
+  if (!clean) return fallback;
+  if (clean.length <= max) return clean;
+  const complete = sentenceParts(clean).find((s) => s.length >= 14 && s.length <= max);
+  if (complete) return complete;
+  const words = clean.split(/\s+/);
+  let out = "";
+  for (const word of words) {
+    const next = out ? `${out} ${word}` : word;
+    if (next.length > max) break;
+    out = next;
+  }
+  out = (out || clean.slice(0, max)).replace(/[\s,;:—-]+$/, "").trim();
+  if (punctuate && out && !/[.!?]$/.test(out)) out += ".";
+  return out || fallback;
+}
+
+function uniqueThoughts(items: string[]): string[] {
+  const seen = new Set<string>();
+  return items
+    .map((item) => compactCopy(item).replace(/\s*\n\s*/g, " "))
+    .filter((item) => item.length > 0)
+    .filter((item) => !/^swipe\s*→?$/i.test(item) && !/^follow/i.test(item))
+    .filter((item) => {
+      const key = item.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function thoughtsFromCarousel(current: CarouselData): string[] {
+  return uniqueThoughts((current.slides ?? []).flatMap((slide) => [
+    slide.title,
+    slide.body,
+    slide.statLabel,
+    slide.quote,
+    ...(slide.bullets ?? []),
+    ...(slide.leftItems ?? []),
+    ...(slide.rightItems ?? []),
+    slide.ctaPrompt,
+  ].filter(Boolean) as string[]));
 }
 
 /**
@@ -708,7 +771,46 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
   const author = current.author || "Saleh Seddik";
   const handle = current.handleShort || "Salehseddik";
   const coverSlide = current.slides?.find((s) => s.layout === "cover") || current.slides?.[0];
-  const hook = (coverSlide?.title || "Stop chasing tool certifications. Build discipline instead.").trim();
+  const seedDefault = /Stop CSV-exporting Clay\. Plug it into your LLM/i.test(coverSlide?.title ?? "");
+  const hook = smartText(
+    seedDefault ? "" : coverSlide?.title,
+    96,
+    "Untitled LinkedIn carousel",
+  );
+  const sourceThoughts = seedDefault ? [] : thoughtsFromCarousel(current).filter((t) => !/^(read this|hook)$/i.test(t));
+  const bodyThoughts = sourceThoughts.filter((t) => t.toLowerCase() !== hook.toLowerCase());
+  const firstInsight = smartText(bodyThoughts[0], 82, `Why ${hook} matters now.`, true);
+  const secondInsight = smartText(bodyThoughts[1], 170, "Turn the idea into a repeatable system, not a one-off post.", true);
+  const existingBullets = current.slides?.find((s) => s.layout === "bullets" && s.bullets?.length)?.bullets ?? [];
+  const playbook = uniqueThoughts(existingBullets.length ? existingBullets : bodyThoughts)
+    .filter((item) => item.toLowerCase() !== hook.toLowerCase())
+    .slice(0, 5)
+    .map((item, i) => smartText(item, 72, [`Clarify the outcome`, `Map the workflow`, `Build the asset`, `Review the result`, `Ship and learn`][i], true));
+  while (playbook.length < 5) playbook.push(["Clarify the outcome.", "Map the workflow.", "Build the asset.", "Review the result.", "Ship and learn."][playbook.length]);
+  const quote = smartText(
+    bodyThoughts.find((t) => t.length >= 24 && t.length <= 130) || hook,
+    130,
+    hook,
+    true,
+  );
+  const comparison = current.slides?.find((s) => s.layout === "comparison");
+  const leftItems = (comparison?.leftItems?.length ? comparison.leftItems : [
+    "Scattered manual research.",
+    "Generic copy for every lead.",
+    "Disconnected tools and notes.",
+    "No reusable workflow.",
+  ]).slice(0, 4).map((item) => smartText(item, 52, "Manual work.", true));
+  const rightItems = (comparison?.rightItems?.length ? comparison.rightItems : [
+    `${hook} becomes a system.`,
+    "Research turns into structured context.",
+    "Each step is reviewed before shipping.",
+    "The workflow improves every round.",
+  ]).slice(0, 4).map((item) => smartText(item, 52, "Repeatable system.", true));
+  const question = smartText(
+    bodyThoughts.find((t) => /\?$/.test(t)) || "What would you add?",
+    64,
+    "What would you add?",
+  );
 
   const slides: CarouselSlide[] = [
     // 01 — Cover · Hook
@@ -716,7 +818,7 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
       layout: "cover",
       eyebrow: "GTM ENGINEERING / TACTIC",
       title: hook,
-      body: "A field guide from the trenches.",
+      body: "A practical field guide from the post.",
       closer: "Swipe →",
       accent: "teal",
     },
@@ -726,7 +828,7 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
       eyebrow: "PART ONE",
       title: "01",
       statValue: "01",
-      statLabel: "Why most GTM playbooks quietly break at scale.",
+      statLabel: firstInsight,
       body: "",
       closer: "Swipe →",
       accent: "teal",
@@ -735,8 +837,8 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
     {
       layout: "text",
       eyebrow: "THE DIAGNOSIS",
-      title: "Most GTM AI is an LLM hallucinating signals.",
-      body: "Real systems are boring: clean data in, scored intent out, sequenced touches that respect deliverability. Tools don't fix that. Discipline does.",
+      title: smartText(bodyThoughts[1] || firstInsight, 78, "The real bottleneck is the system."),
+      body: secondInsight,
       closer: "Swipe →",
       accent: "teal",
     },
@@ -744,32 +846,31 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
     {
       layout: "bullets",
       eyebrow: "THE 5-STEP CHECKLIST",
-      title: "What I run before every campaign.",
-      bullets: [
-        "Warm 65 domains across 3 ESPs.",
-        "Enrich with Clay + waterfall providers.",
-        "Score intent in n8n, not in the inbox.",
-        "Personalize the first line, never the offer.",
-        "Log every reply back into HubSpot.",
-      ],
+      title: "Turn the post into an operating checklist.",
+      bullets: playbook,
       closer: "Swipe →",
       accent: "teal",
     },
     // 05 — Code / Workflow (rendered as text body styled mono)
     {
       layout: "text",
-      eyebrow: "THE n8n WORKFLOW",
-      title: "The webhook that replaces 4 SaaS subs.",
-      body: "trigger: clay.table.row_updated\n→ enrich: bettercontact + findymail\n→ score: claude(prompt=intent_v3)\n→ if score > 7 → smartlead.add_to_sequence\n→ log: hubspot.contact.upsert\nRuns on a $5/mo Hetzner box.",
+      eyebrow: "THE WORKFLOW",
+      title: "The workflow behind the idea.",
+      body: [
+        `01 ${smartText(playbook[0], 48, "Define the outcome.")}`,
+        `02 ${smartText(playbook[1], 48, "Collect the right context.")}`,
+        `03 ${smartText(playbook[2], 48, "Draft the asset.")}`,
+        `04 ${smartText(playbook[3], 48, "Review and publish.")}`,
+      ].join("\n"),
       closer: "Swipe →",
       accent: "teal",
     },
     // 06 — Big Number (Part Two)
     {
       layout: "quote",
-      eyebrow: "MY THESIS, HACKBARNA 2026",
-      title: "Your stack is not the moat. Your discipline is.",
-      quote: "Your stack is not the moat. Your discipline is.",
+      eyebrow: "THE THESIS",
+      title: quote,
+      quote,
       quoteAuthor: author,
       closer: "Swipe →",
       accent: "teal",
@@ -778,33 +879,21 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
     {
       layout: "comparison",
       eyebrow: "WHAT MOST TEAMS DO / WHAT WORKS",
-      title: "Two ways to run outbound in 2026.",
-      leftLabel: "Wrong",
-      leftItems: [
-        "Buy 5 new AI SDR tools.",
-        "Blast 50k contacts a week.",
-        "Personalize the offer.",
-        "Score replies in the inbox.",
-        "Hope the domain survives.",
-      ],
-      rightLabel: "Right",
-      rightItems: [
-        "Buy zero. Wire what you own.",
-        "Send 2k to validated intent.",
-        "Personalize the first line only.",
-        "Score intent before send.",
-        "Rotate 65 warmed domains.",
-      ],
+      title: "Two ways to handle this idea.",
+      leftLabel: comparison?.leftLabel || "Before",
+      leftItems,
+      rightLabel: comparison?.rightLabel || "After",
+      rightItems,
       closer: "Swipe →",
       accent: "teal",
     },
     // 08 — CTA
     {
       layout: "cta",
-      eyebrow: "FOLLOW FOR MORE GTM SYSTEMS",
-      title: "Agree or disagree?",
-      ctaPrompt: "Agree or disagree?",
-      ctaAction: `Follow @${handle} · built in public, shipped in prod`,
+      eyebrow: "FOLLOW FOR MORE SYSTEMS",
+      title: question,
+      ctaPrompt: question,
+      ctaAction: `Follow @${handle} for more practical systems`,
       quoteAuthor: author,
       closer: "DROP A COMMENT · FOLLOW + CONNECT",
       accent: "teal",

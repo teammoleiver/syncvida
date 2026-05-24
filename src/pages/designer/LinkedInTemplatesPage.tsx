@@ -443,7 +443,8 @@ export default function LinkedInTemplatesPage() {
       return { ...d, themeKey: k };
     });
     editSquareData((d) => ({ ...d, themeKey: k }));
-    if (k === "figma-template" && active === "carousel") {
+    if (k === "figma-template") {
+      setActive("carousel");
       setSlideIdx(0);
       toast.success("Saleh's 8-slide template loaded");
     } else {
@@ -640,9 +641,12 @@ export default function LinkedInTemplatesPage() {
                     onClick={() => {
                       const hook = planMeta?.hook ?? params.get("hook") ?? "";
                       const body = planMeta?.body ?? params.get("body") ?? "";
-                      editCarouselData((d) => buildCarouselFromPost(hook, body, {
-                        author: d.author, handleShort: d.handleShort, avatarUrl: d.avatarUrl,
-                      }));
+                      editCarouselData((d) => {
+                        const regenerated = buildCarouselFromPost(hook, body, {
+                          author: d.author, handleShort: d.handleShort, avatarUrl: d.avatarUrl, photoKey: d.photoKey, themeKey: d.themeKey,
+                        });
+                        return d.themeKey === "figma-template" ? buildSalehFigmaCarousel(regenerated) : regenerated;
+                      });
                       setSlideIdx(0);
                       toast.success("Slides regenerated from post");
                     }}
