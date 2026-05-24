@@ -781,7 +781,6 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
   const bodyThoughts = sourceThoughts.filter((t) => t.toLowerCase() !== hook.toLowerCase());
   const firstInsight = smartText(bodyThoughts[0], 82, `Why ${hook} matters now.`, true);
   const secondInsight = smartText(bodyThoughts[1], 170, "Turn the idea into a repeatable system, not a one-off post.", true);
-  const thirdInsight = smartText(bodyThoughts[2], 170, "Make every step clear enough to reuse, measure, and improve.", true);
   const existingBullets = current.slides?.find((s) => s.layout === "bullets" && s.bullets?.length)?.bullets ?? [];
   const playbook = uniqueThoughts(existingBullets.length ? existingBullets : bodyThoughts)
     .filter((item) => item.toLowerCase() !== hook.toLowerCase())
