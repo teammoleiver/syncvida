@@ -529,7 +529,18 @@ const COMP_ITEM_MAX = 50;
 
 function clip(s: string | undefined, n: number): string {
   if (!s) return "";
-  return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s;
+  const clean = String(s).replace(/[ \t]+/g, " ").trim();
+  if (clean.length <= n) return clean;
+  const completeSentence = clean.split(/(?<=[.!?])\s+/).find((part) => part.length >= 12 && part.length <= n);
+  if (completeSentence) return completeSentence;
+  const words = clean.split(/\s+/);
+  let out = "";
+  for (const word of words) {
+    const next = out ? `${out} ${word}` : word;
+    if (next.length > n - 1) break;
+    out = next;
+  }
+  return (out || clean.slice(0, n - 1)).replace(/[\s,;:—-]+$/, "").trimEnd() + "…";
 }
 
 /**
@@ -560,7 +571,7 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
     return (
       <div className="carousel-body carousel-cover">
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-        <h1 className="carousel-cover-title">{slide.title}</h1>
+        <h1 className="carousel-cover-title">{clip(slide.title, 110)}</h1>
         {slide.body && !isSameContent(slide.title, slide.body) && (
           <p className="carousel-cover-sub">{clip(slide.body, 120)}</p>
         )}
@@ -573,7 +584,7 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
       <div className="carousel-body carousel-stat">
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
         <div className="carousel-stat-value">{slide.statValue || "—"}</div>
-        {slide.statLabel && <div className="carousel-stat-label">{slide.statLabel}</div>}
+        {slide.statLabel && <div className="carousel-stat-label">{clip(slide.statLabel, 90)}</div>}
         {slide.body && !isSameContent(slide.statLabel, slide.body) && (
           <p className="carousel-stat-body">{clip(slide.body, STAT_BODY_MAX)}</p>
         )}
@@ -597,7 +608,7 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
     return (
       <div className="carousel-body carousel-bullets-layout">
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-        <h2 className="carousel-bullets-title">{slide.title}</h2>
+        <h2 className="carousel-bullets-title">{clip(slide.title, 92)}</h2>
         <ul className="carousel-bullets-list">
           {items.slice(0, 5).map((b, i) => (
             <li key={i}><span className="num">{String(i + 1).padStart(2, "0")}</span><span>{clip(b, BULLET_MAX)}</span></li>
@@ -613,7 +624,7 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
     return (
       <div className="carousel-body carousel-compare-layout">
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-        <h2 className="carousel-compare-title">{slide.title}</h2>
+        <h2 className="carousel-compare-title">{clip(slide.title, 76)}</h2>
         <div className="carousel-compare-grid">
           <div className="carousel-compare-col" data-side="left">
             <div className="lbl">{slide.leftLabel || "Before"}</div>
@@ -645,7 +656,7 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
         </div>
         <div className="carousel-cta-name">{ctx?.author || slide.quoteAuthor || ""}</div>
         {ctx?.handleShort && <div className="carousel-cta-handle">@{ctx.handleShort}</div>}
-        <h2 className="carousel-cta-prompt">{slide.ctaPrompt || slide.title || "What would you add?"}</h2>
+        <h2 className="carousel-cta-prompt">{clip(slide.ctaPrompt || slide.title || "What would you add?", 80)}</h2>
         {slide.ctaAction && <p className="carousel-cta-action">{slide.ctaAction}</p>}
       </div>
     );
@@ -655,7 +666,7 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
   return (
     <div className="carousel-body">
       {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-      <h1 className="carousel-title">{slide.title}</h1>
+      <h1 className="carousel-title">{clip(slide.title, 92)}</h1>
       {slide.body && !isSameContent(slide.title, slide.body) && (
         <p>{clip(slide.body, TEXT_BODY_MAX)}</p>
       )}
