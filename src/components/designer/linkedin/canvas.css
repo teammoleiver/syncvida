@@ -724,6 +724,8 @@
   flex-direction: column;
   justify-content: center;
   gap: 32px;
+  min-height: 0;
+  overflow: hidden;
 }
 .carousel-eyebrow {
   display: inline-flex;
@@ -1256,8 +1258,20 @@
 /* Cover hook must never overflow the slide. Cap to a sane size and let
    long titles shrink rather than push the sub-line off-canvas. */
 .canvas[data-theme="figma-template"] .carousel-cover-title {
-  font-size: 88px;
+  font-size: clamp(56px, 7.1cqw, 82px);
   line-height: 1.05;
   letter-spacing: -0.025em;
   font-weight: 800;
 }
+
+.canvas[data-theme="figma-template"] .carousel-title { font-size: clamp(48px, 5.7cqw, 66px); }
+.canvas[data-theme="figma-template"] .carousel-body p { font-size: 20px; max-width: 84%; white-space: pre-line; }
+.canvas[data-theme="figma-template"] .carousel-stat-value { font-size: clamp(160px, 22cqw, 260px); letter-spacing: -0.02em; }
+.canvas[data-theme="figma-template"] .carousel-stat-label { font-size: clamp(28px, 3.4cqw, 38px); max-width: 88%; }
+.canvas[data-theme="figma-template"] .carousel-bullets-title { font-size: clamp(38px, 4.7cqw, 54px); max-width: 92%; }
+.canvas[data-theme="figma-template"] .carousel-bullets-list { gap: 16px; max-width: 92%; }
+.canvas[data-theme="figma-template"] .carousel-bullets-list li { font-size: 24px; line-height: 1.32; }
+.canvas[data-theme="figma-template"] .carousel-quote-text { font-size: clamp(40px, 5.1cqw, 58px); max-width: 88%; }
+.canvas[data-theme="figma-template"] .carousel-compare-title { font-size: clamp(36px, 4.1cqw, 48px); max-width: 90%; }
+.canvas[data-theme="figma-template"] .carousel-compare-col { padding: 24px 22px; }
+.canvas[data-theme="figma-template"] .carousel-compare-col li { font-size: 18px; line-height: 1.35; }
