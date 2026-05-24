@@ -327,32 +327,67 @@ function DayView({ cursor, grouped, onPick, onOpen }: any) {
   );
 }
 
-function ListView({ entries, onOpen }: { entries: any[]; onOpen: (e: any) => void }) {
-  if (!entries.length) return <Card className="p-8 text-center text-muted-foreground">No posts yet.</Card>;
+function ListView({ entries, onOpen, onDeleted }: { entries: any[]; onOpen: (e: any) => void; onDeleted: () => void }) {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const sorted = useMemo(() => {
+    return [...entries].sort((a, b) => {
+      const ta = new Date(a.created_at ?? a.updated_at ?? 0).getTime();
+      const tb = new Date(b.created_at ?? b.updated_at ?? 0).getTime();
+      return tb - ta;
+    });
+  }, [entries]);
+  async function handleDelete(e: any, ev: React.MouseEvent) {
+    ev.stopPropagation();
+    ev.preventDefault();
+    if (!confirm("Delete this post? This cannot be undone.")) return;
+    setDeletingId(e.id);
+    try {
+      await deletePlanEntry(e.id);
+      toast.success("Post deleted");
+      onDeleted();
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to delete");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+  if (!sorted.length) return <Card className="p-8 text-center text-muted-foreground">No posts yet.</Card>;
   return (
     <div className="space-y-2">
-      {entries.map((e) => {
+      {sorted.map((e) => {
         const posted = e?.status === "posted";
         return (
-        <button key={e.id} onClick={() => onOpen(e)} className="w-full text-left">
-          <Card className={`p-4 hover:border-primary/40 transition-colors ${posted ? "opacity-60 bg-muted/20" : ""}`}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5 flex-wrap">
-                  <Badge variant="outline" className={`text-[10px] ${statusColor(e.status)}`}>{e.status}</Badge>
-                  {e.scheduled_date && <span>📅 {e.scheduled_date}{e.scheduled_time ? ` · ${e.scheduled_time.slice(0,5)}` : ""}</span>}
-                  {(e.platforms ?? []).map((p: string) => {
-                    const Ic = PLATFORM_ICONS[p];
-                    return Ic ? <Ic key={p} className="w-3 h-3" /> : null;
-                  })}
+        <div key={e.id} className="relative group">
+          <button onClick={() => onOpen(e)} className="w-full text-left">
+            <Card className={`p-4 pr-12 hover:border-primary/40 transition-colors ${posted ? "opacity-60 bg-muted/20" : ""}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5 flex-wrap">
+                    <Badge variant="outline" className={`text-[10px] ${statusColor(e.status)}`}>{e.status}</Badge>
+                    {e.scheduled_date && <span>📅 {e.scheduled_date}{e.scheduled_time ? ` · ${e.scheduled_time.slice(0,5)}` : ""}</span>}
+                    {(e.platforms ?? []).map((p: string) => {
+                      const Ic = PLATFORM_ICONS[p];
+                      return Ic ? <Ic key={p} className="w-3 h-3" /> : null;
+                    })}
+                  </div>
+                  <div className={`font-medium text-sm ${posted ? "line-through" : ""}`}>{e.hook}</div>
+                  {e.body && <p className={`text-xs text-muted-foreground mt-1 line-clamp-2 whitespace-pre-wrap ${posted ? "line-through" : ""}`}>{e.body}</p>}
                 </div>
-                <div className={`font-medium text-sm ${posted ? "line-through" : ""}`}>{e.hook}</div>
-                {e.body && <p className={`text-xs text-muted-foreground mt-1 line-clamp-2 whitespace-pre-wrap ${posted ? "line-through" : ""}`}>{e.body}</p>}
+                {e.image_url && <img src={e.image_url} alt="" className={`w-16 h-16 object-cover rounded-md ${posted ? "grayscale" : ""}`} />}
               </div>
-              {e.image_url && <img src={e.image_url} alt="" className={`w-16 h-16 object-cover rounded-md ${posted ? "grayscale" : ""}`} />}
-            </div>
-          </Card>
-        </button>
+            </Card>
+          </button>
+          <Button
+            size="icon"
+            variant="ghost"
+            disabled={deletingId === e.id}
+            onClick={(ev) => handleDelete(e, ev)}
+            className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            aria-label="Delete post"
+          >
+            {deletingId === e.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+          </Button>
+        </div>
       );
       })}
     </div>
