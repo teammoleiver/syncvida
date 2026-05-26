@@ -246,6 +246,46 @@ export async function createManualSocialPost(p: { profile_id?: string; author?: 
   return data;
 }
 
+// ── Engagement (commenting on influencer posts) ──
+export type EngagementRow = {
+  id: string;
+  post_id: string;
+  draft_text: string | null;
+  status: "draft" | "copied" | "posted" | "skipped";
+  liked: boolean;
+  posted_at: string | null;
+  updated_at: string;
+};
+
+export async function listEngagementComments(postIds?: string[]): Promise<Record<string, EngagementRow>> {
+  const u = await uid(); if (!u) return {};
+  let q = supabase.from("linkedin_engagement_comments" as any).select("id,post_id,draft_text,status,liked,posted_at,updated_at").eq("user_id", u);
+  if (postIds && postIds.length) q = q.in("post_id", postIds);
+  const { data, error } = await q;
+  if (error) throw error;
+  const map: Record<string, EngagementRow> = {};
+  (data ?? []).forEach((r: any) => { map[r.post_id] = r as EngagementRow; });
+  return map;
+}
+
+export async function upsertEngagementComment(post_id: string, patch: Partial<Pick<EngagementRow, "draft_text" | "status" | "liked" | "posted_at">>): Promise<EngagementRow> {
+  const u = await uid(); if (!u) throw new Error("Not signed in");
+  const row: any = { user_id: u, post_id, ...patch, updated_at: new Date().toISOString() };
+  const { data, error } = await supabase
+    .from("linkedin_engagement_comments" as any)
+    .upsert(row, { onConflict: "user_id,post_id" })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as unknown as EngagementRow;
+}
+
+export async function generateEngagementComment(payload: { post_text: string; author?: string; tone?: string; instruction?: string }): Promise<{ comment?: string; error?: string }> {
+  const { data, error } = await supabase.functions.invoke("generate-engagement-comment", { body: payload });
+  if (error) return { error: error.message };
+  return data as any;
+}
+
 // ── Hot topics ──
 export async function listHotTopics() {
   const u = await uid(); if (!u) return [];
