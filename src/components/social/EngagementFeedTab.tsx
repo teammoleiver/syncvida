@@ -1,0 +1,347 @@
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, MessageCircle, ThumbsUp, ExternalLink, Sparkles, Copy, Check, Send, Search, X, Heart } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import {
+  listSocialPosts, listSocialProfiles,
+  listEngagementComments, upsertEngagementComment, generateEngagementComment,
+  type EngagementRow,
+} from "@/lib/social-queries";
+
+function normalizeLinkedInUrl(raw?: string | null): string {
+  if (!raw) return "";
+  const url = String(raw).trim();
+  if (!url) return "";
+  const m = url.match(/(?:activity|share|ugcPost)[:%-](\d{15,})/i);
+  if (m) return `https://www.linkedin.com/feed/update/urn%3Ali%3Aactivity%3A${m[1]}/`;
+  return /^https?:\/\//i.test(url) ? url : `https://${url.replace(/^\/+/, "")}`;
+}
+
+const TONES = [
+  { id: "default", label: "Peer / sharp" },
+  { id: "supportive", label: "Supportive" },
+  { id: "contrarian", label: "Contrarian" },
+  { id: "curious", label: "Ask a question" },
+  { id: "tactical", label: "Tactical add-on" },
+];
+
+export default function EngagementFeedTab() {
+  const [posts, setPosts] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [profileFilter, setProfileFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "todo" | "draft" | "posted" | "liked">("all");
+  const [loading, setLoading] = useState(true);
+  const [openPost, setOpenPost] = useState<any | null>(null);
+  const [engagement, setEngagement] = useState<Record<string, EngagementRow>>({});
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [pp, pr] = await Promise.all([
+        listSocialPosts(profileFilter !== "all" ? { profile_id: profileFilter, limit: 500 } : { limit: 500 }),
+        listSocialProfiles(),
+      ]);
+      setPosts(pp); setProfiles(pr);
+      const eng = await listEngagementComments(pp.map((p: any) => p.id));
+      setEngagement(eng);
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [profileFilter]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return posts.filter((p) => {
+      if (q && !((p.post_text || "").toLowerCase().includes(q) || (p.author || "").toLowerCase().includes(q))) return false;
+      const e = engagement[p.id];
+      if (statusFilter === "todo" && (e?.draft_text || e?.liked || e?.status === "posted")) return false;
+      if (statusFilter === "draft" && e?.status !== "draft" && !e?.draft_text) return false;
+      if (statusFilter === "posted" && e?.status !== "posted") return false;
+      if (statusFilter === "liked" && !e?.liked) return false;
+      return true;
+    });
+  }, [posts, engagement, search, statusFilter]);
+
+  const stats = useMemo(() => {
+    let drafts = 0, posted = 0, liked = 0;
+    Object.values(engagement).forEach((e) => {
+      if (e.draft_text) drafts++;
+      if (e.status === "posted") posted++;
+      if (e.liked) liked++;
+    });
+    return { total: posts.length, drafts, posted, liked };
+  }, [engagement, posts]);
+
+  const updateLocal = (postId: string, row: EngagementRow) => {
+    setEngagement((s) => ({ ...s, [postId]: row }));
+  };
+
+  async function toggleLike(postId: string) {
+    const cur = engagement[postId];
+    const next = !(cur?.liked ?? false);
+    try {
+      const row = await upsertEngagementComment(postId, { liked: next });
+      updateLocal(postId, row);
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); }
+  }
+
+  return (
+    <section className="space-y-4">
+      {/* Policy notice */}
+      <Card className="p-3 bg-muted/40 border-dashed text-xs text-muted-foreground flex items-start gap-2">
+        <MessageCircle className="w-4 h-4 mt-0.5 shrink-0" />
+        <div>
+          <span className="font-medium text-foreground">LinkedIn-safe by design.</span> Comments and likes are drafted and tracked here, then opened on LinkedIn where you publish them manually. Nothing is auto-posted or auto-liked, so your account stays within LinkedIn's terms.
+        </div>
+      </Card>
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap gap-3 items-center justify-between">
+        <div className="flex gap-2 flex-wrap items-center">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-muted-foreground" />
+            <Input placeholder="Search posts or authors…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 w-full sm:w-72" />
+          </div>
+          <Select value={profileFilter} onValueChange={setProfileFilter}>
+            <SelectTrigger className="w-[200px]"><SelectValue placeholder="All profiles" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All profiles</SelectItem>
+              {profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.display_name || p.full_name || p.username}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All status</SelectItem>
+              <SelectItem value="todo">To engage</SelectItem>
+              <SelectItem value="draft">Has draft</SelectItem>
+              <SelectItem value="posted">Posted</SelectItem>
+              <SelectItem value="liked">Liked</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex gap-1.5 text-[11px]">
+          <Pill label="Posts" value={stats.total} />
+          <Pill label="Drafts" value={stats.drafts} tone="amber" />
+          <Pill label="Posted" value={stats.posted} tone="emerald" />
+          <Pill label="Liked" value={stats.liked} tone="rose" />
+        </div>
+      </div>
+
+      {loading ? <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div> :
+        filtered.length === 0 ? <Card className="p-8 text-center text-muted-foreground text-sm">No posts. Add profiles and scrape them in the Profiles tab.</Card> :
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {filtered.map((p) => {
+            const e = engagement[p.id];
+            return (
+              <Card key={p.id} className="p-3 hover:border-primary/40 cursor-pointer transition-colors flex flex-col gap-2" onClick={() => setOpenPost(p)}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm truncate">{p.author || "—"}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{p.company || "—"} · {p.posted_at ? new Date(p.posted_at).toLocaleDateString() : ""}</div>
+                  </div>
+                  <button
+                    onClick={(ev) => { ev.stopPropagation(); toggleLike(p.id); }}
+                    title={e?.liked ? "Marked as liked" : "Mark as liked"}
+                    className={`p-1.5 rounded-full transition-colors ${e?.liked ? "bg-rose-500/10 text-rose-500" : "text-muted-foreground hover:bg-muted"}`}
+                  >
+                    <Heart className={`w-4 h-4 ${e?.liked ? "fill-current" : ""}`} />
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground line-clamp-4 whitespace-pre-wrap">{p.post_text}</p>
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/60">
+                  <span className="flex gap-3">
+                    <span className="inline-flex items-center gap-1"><ThumbsUp className="w-3 h-3" />{p.likes ?? 0}</span>
+                    <span className="inline-flex items-center gap-1"><MessageCircle className="w-3 h-3" />{p.comments ?? 0}</span>
+                  </span>
+                  <span className="flex gap-1.5">
+                    {e?.status === "posted" && <Badge className="h-4 text-[10px] px-1.5 bg-emerald-500/15 text-emerald-500 border-emerald-500/30">Posted</Badge>}
+                    {e?.status !== "posted" && e?.draft_text && <Badge className="h-4 text-[10px] px-1.5 bg-amber-500/15 text-amber-600 border-amber-500/30">Draft</Badge>}
+                  </span>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      }
+
+      {openPost && (
+        <EngagementDialog
+          post={openPost}
+          row={engagement[openPost.id]}
+          onClose={() => setOpenPost(null)}
+          onUpdate={(row) => updateLocal(openPost.id, row)}
+        />
+      )}
+    </section>
+  );
+}
+
+function Pill({ label, value, tone = "zinc" }: { label: string; value: number; tone?: "zinc" | "amber" | "emerald" | "rose" }) {
+  const tones: Record<string, string> = {
+    zinc: "bg-muted text-foreground",
+    amber: "bg-amber-500/15 text-amber-600",
+    emerald: "bg-emerald-500/15 text-emerald-600",
+    rose: "bg-rose-500/15 text-rose-500",
+  };
+  return <span className={`px-2 py-1 rounded-md ${tones[tone]} inline-flex items-center gap-1`}><span>{value}</span><span className="opacity-70">{label}</span></span>;
+}
+
+function EngagementDialog({ post, row, onClose, onUpdate }: { post: any; row?: EngagementRow; onClose: () => void; onUpdate: (r: EngagementRow) => void }) {
+  const [draft, setDraft] = useState(row?.draft_text ?? "");
+  const [tone, setTone] = useState("default");
+  const [extra, setExtra] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const liked = row?.liked ?? false;
+  const status = row?.status ?? "draft";
+
+  const link = normalizeLinkedInUrl(post.post_url);
+
+  async function smartReply() {
+    setGenerating(true);
+    try {
+      const r = await generateEngagementComment({ post_text: post.post_text || "", author: post.author, tone, instruction: extra });
+      if (r.error) { toast.error(r.error); return; }
+      if (r.comment) setDraft(r.comment);
+    } finally { setGenerating(false); }
+  }
+
+  async function save(nextStatus?: EngagementRow["status"], extras?: Partial<EngagementRow>) {
+    setSaving(true);
+    try {
+      const updated = await upsertEngagementComment(post.id, {
+        draft_text: draft,
+        status: nextStatus ?? status,
+        ...extras,
+      });
+      onUpdate(updated);
+      if (nextStatus === "posted") toast.success("Marked as posted");
+      else toast.success("Saved");
+    } catch (e: any) { toast.error(e?.message ?? "Save failed"); } finally { setSaving(false); }
+  }
+
+  async function copyAndOpen() {
+    if (!draft.trim()) { toast.error("Write a comment first"); return; }
+    try {
+      await navigator.clipboard.writeText(draft);
+      setCopied(true); setTimeout(() => setCopied(false), 1500);
+      await save("copied");
+      if (link) window.open(link, "_blank", "noopener,noreferrer");
+      else toast.message("Comment copied. Open the post on LinkedIn to paste it.");
+    } catch { toast.error("Could not copy to clipboard"); }
+  }
+
+  async function toggleLike() {
+    try {
+      const r = await upsertEngagementComment(post.id, { liked: !liked });
+      onUpdate(r);
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <MessageCircle className="w-4 h-4" /> Engage with {post.author || "this post"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Post */}
+          <Card className="p-4 bg-muted/30">
+            <div className="text-xs text-muted-foreground mb-2 flex flex-wrap gap-2 items-center">
+              <span className="font-medium text-foreground">{post.author || "—"}</span>
+              {post.company && <span>· {post.company}</span>}
+              {post.posted_at && <span>· {new Date(post.posted_at).toLocaleDateString()}</span>}
+              {link && (
+                <a href={link} target="_blank" rel="noopener noreferrer" className="ml-auto text-primary inline-flex items-center gap-1 hover:underline">
+                  Open on LinkedIn <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+            <div className="whitespace-pre-wrap text-sm max-h-64 overflow-y-auto">{post.post_text}</div>
+            <div className="text-[11px] text-muted-foreground flex gap-4 mt-3 pt-2 border-t border-border/60">
+              <span className="inline-flex items-center gap-1"><ThumbsUp className="w-3 h-3" />{post.likes ?? 0}</span>
+              <span className="inline-flex items-center gap-1"><MessageCircle className="w-3 h-3" />{post.comments ?? 0}</span>
+            </div>
+          </Card>
+
+          {/* Like row */}
+          <div className="flex items-center justify-between gap-2 bg-background border border-border rounded-md p-2.5">
+            <div className="flex items-center gap-2 text-sm">
+              <Heart className={`w-4 h-4 ${liked ? "text-rose-500 fill-current" : "text-muted-foreground"}`} />
+              <span className="text-muted-foreground">{liked ? "You marked this as liked." : "Like this post manually on LinkedIn?"}</span>
+            </div>
+            <Button size="sm" variant={liked ? "secondary" : "outline"} onClick={toggleLike}>
+              {liked ? "Unmark like" : "Mark as liked"}
+            </Button>
+          </div>
+
+          {/* AI controls */}
+          <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr_auto] gap-2">
+            <Select value={tone} onValueChange={setTone}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{TONES.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}</SelectContent>
+            </Select>
+            <Input placeholder="Optional: extra instruction (e.g. mention Clay, ask about ICP)" value={extra} onChange={(e) => setExtra(e.target.value)} />
+            <Button onClick={smartReply} disabled={generating} className="gap-1.5">
+              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Smart Reply
+            </Button>
+          </div>
+
+          {/* Comment composer */}
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground flex items-center justify-between">
+              <span>Your comment</span>
+              <span>{draft.length} chars</span>
+            </label>
+            <Textarea
+              rows={5}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Write your comment, or click Smart Reply to generate one. Keep it short, specific and human."
+              className="resize-y"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => save()} disabled={saving || !draft.trim()}>
+                {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null} Save draft
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => save("skipped")} disabled={saving}>
+                <X className="w-4 h-4 mr-1" /> Skip
+              </Button>
+              {status === "posted" && (
+                <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">Posted</Badge>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={copyAndOpen} disabled={!draft.trim()}>
+                {copied ? <Check className="w-4 h-4 mr-1 text-emerald-500" /> : <Copy className="w-4 h-4 mr-1" />}
+                Copy & open LinkedIn
+              </Button>
+              <Button size="sm" onClick={() => save("posted", { posted_at: new Date().toISOString() })} disabled={saving || !draft.trim()}>
+                <Send className="w-4 h-4 mr-1" /> Mark as posted
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-muted-foreground">
+            Tip: LinkedIn forbids auto-commenting and auto-liking. This tool keeps your engagement manual — it drafts and tracks, you publish.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
