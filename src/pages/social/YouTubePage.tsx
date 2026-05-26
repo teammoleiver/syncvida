@@ -99,9 +99,14 @@ export default function YouTubePage() {
       // this catches everything new since last refresh while keeping the Apify
       // bill predictable.
       const r = await refreshYouTubeChannel(id, 15);
-      toast.success(r.new_videos > 0
-        ? `${r.new_videos} new video${r.new_videos === 1 ? "" : "s"}`
-        : "Up to date — no new videos");
+      const errs = (r.perChannel ?? []).filter((p: any) => p.error);
+      if (errs.length) {
+        toast.error(`Refresh error: ${errs[0].error}`);
+      } else {
+        toast.success(r.new_videos > 0
+          ? `${r.new_videos} new video${r.new_videos === 1 ? "" : "s"}`
+          : "Up to date — no new videos");
+      }
       await loadAll();
     } catch (e: any) { toast.error(e?.message ?? "Refresh failed"); }
     finally { setRefreshingId(null); }
@@ -111,9 +116,14 @@ export default function YouTubePage() {
     setRefreshingAll(true);
     try {
       const r = await refreshYouTubeChannel(undefined, 15);
-      toast.success(r.new_videos > 0
-        ? `${r.new_videos} new video${r.new_videos === 1 ? "" : "s"} across ${r.channels} channels`
-        : `Up to date across ${r.channels} channel${r.channels === 1 ? "" : "s"}`);
+      const errs = (r.perChannel ?? []).filter((p: any) => p.error);
+      if (errs.length && r.new_videos === 0) {
+        toast.error(`Refresh error: ${errs[0].error}`);
+      } else {
+        toast.success(r.new_videos > 0
+          ? `${r.new_videos} new video${r.new_videos === 1 ? "" : "s"} across ${r.channels} channels`
+          : `Up to date across ${r.channels} channel${r.channels === 1 ? "" : "s"}`);
+      }
       await loadAll();
     } catch (e: any) { toast.error(e?.message ?? "Refresh failed"); }
     finally { setRefreshingAll(false); }
