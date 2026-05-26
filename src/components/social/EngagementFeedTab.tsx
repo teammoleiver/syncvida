@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, MessageCircle, ThumbsUp, ExternalLink, Sparkles, Copy, Check, Send, Search, X, Heart } from "lucide-react";
+import { Loader2, MessageCircle, ThumbsUp, ExternalLink, Sparkles, Copy, Check, Send, Search, X, Heart, Link2, ShieldCheck, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import {
   listEngagementComments, upsertEngagementComment, generateEngagementComment,
   type EngagementRow,
 } from "@/lib/social-queries";
+import { getMyLinkedInConnection, startLinkedInAuth, type SocialConnectionMeta } from "@/lib/social-connections";
 
 function normalizeLinkedInUrl(raw?: string | null): string {
   if (!raw) return "";
@@ -40,6 +41,8 @@ export default function EngagementFeedTab() {
   const [loading, setLoading] = useState(true);
   const [openPost, setOpenPost] = useState<any | null>(null);
   const [engagement, setEngagement] = useState<Record<string, EngagementRow>>({});
+  const [linkedin, setLinkedin] = useState<SocialConnectionMeta | null>(null);
+  const [connecting, setConnecting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -54,6 +57,18 @@ export default function EngagementFeedTab() {
     } finally { setLoading(false); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [profileFilter]);
+
+  useEffect(() => {
+    getMyLinkedInConnection().then(setLinkedin).catch(() => setLinkedin(null));
+  }, []);
+
+  async function connectLinkedIn() {
+    setConnecting(true);
+    try {
+      const r = await startLinkedInAuth(window.location.href);
+      window.location.href = r.authorize_url;
+    } catch (e: any) { toast.error(e?.message ?? "Could not start LinkedIn auth"); setConnecting(false); }
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -94,10 +109,23 @@ export default function EngagementFeedTab() {
   return (
     <section className="space-y-4">
       {/* Policy notice */}
-      <Card className="p-3 bg-muted/40 border-dashed text-xs text-muted-foreground flex items-start gap-2">
-        <MessageCircle className="w-4 h-4 mt-0.5 shrink-0" />
-        <div>
-          <span className="font-medium text-foreground">LinkedIn-safe by design.</span> Comments and likes are drafted and tracked here, then opened on LinkedIn where you publish them manually. Nothing is auto-posted or auto-liked, so your account stays within LinkedIn's terms.
+      <Card className="p-3 bg-muted/40 border-dashed text-xs text-muted-foreground flex flex-wrap items-start gap-3 justify-between">
+        <div className="flex items-start gap-2 min-w-0">
+          <MessageCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div>
+            <span className="font-medium text-foreground">LinkedIn-safe by design.</span> Comments and likes are drafted here, then opened on LinkedIn where you publish them manually in one click. LinkedIn's API does not allow third-party apps to post comments or likes on other users' posts — doing so would risk your account.
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {linkedin ? (
+            <Badge variant="outline" className="gap-1 border-emerald-500/40 text-emerald-600 bg-emerald-500/10">
+              <ShieldCheck className="w-3 h-3" /> LinkedIn connected{linkedin.display_name ? ` · ${linkedin.display_name}` : ""}
+            </Badge>
+          ) : (
+            <Button size="sm" variant="outline" onClick={connectLinkedIn} disabled={connecting} className="gap-1">
+              <ShieldAlert className="w-3.5 h-3.5" /> {connecting ? "Connecting…" : "Connect LinkedIn"}
+            </Button>
+          )}
         </div>
       </Card>
 
@@ -139,30 +167,66 @@ export default function EngagementFeedTab() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {filtered.map((p) => {
             const e = engagement[p.id];
+            const done = e?.status === "posted" || e?.status === "copied";
+            const link = normalizeLinkedInUrl(p.post_url);
             return (
-              <Card key={p.id} className="p-3 hover:border-primary/40 cursor-pointer transition-colors flex flex-col gap-2" onClick={() => setOpenPost(p)}>
+              <Card
+                key={p.id}
+                className={`p-3 cursor-pointer transition-colors flex flex-col gap-2 ${
+                  done
+                    ? "bg-emerald-500/10 border-emerald-500/40 hover:border-emerald-500/60"
+                    : "hover:border-primary/40"
+                }`}
+                onClick={() => setOpenPost(p)}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="font-medium text-sm truncate">{p.author || "—"}</div>
                     <div className="text-[11px] text-muted-foreground truncate">{p.company || "—"} · {p.posted_at ? new Date(p.posted_at).toLocaleDateString() : ""}</div>
                   </div>
-                  <button
-                    onClick={(ev) => { ev.stopPropagation(); toggleLike(p.id); }}
-                    title={e?.liked ? "Marked as liked" : "Mark as liked"}
-                    className={`p-1.5 rounded-full transition-colors ${e?.liked ? "bg-rose-500/10 text-rose-500" : "text-muted-foreground hover:bg-muted"}`}
-                  >
-                    <Heart className={`w-4 h-4 ${e?.liked ? "fill-current" : ""}`} />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {link && (
+                      <a
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(ev) => ev.stopPropagation()}
+                        title="Open original post on LinkedIn"
+                        className="p-1.5 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      >
+                        <Link2 className="w-4 h-4" />
+                      </a>
+                    )}
+                    <button
+                      onClick={(ev) => { ev.stopPropagation(); toggleLike(p.id); }}
+                      title={e?.liked ? "Marked as liked" : "Mark as liked"}
+                      className={`p-1.5 rounded-full transition-colors ${e?.liked ? "bg-rose-500/10 text-rose-500" : "text-muted-foreground hover:bg-muted"}`}
+                    >
+                      <Heart className={`w-4 h-4 ${e?.liked ? "fill-current" : ""}`} />
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-4 whitespace-pre-wrap">{p.post_text}</p>
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/60">
+                <div className={`flex items-center justify-between text-[11px] pt-1 border-t ${done ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400" : "border-border/60 text-muted-foreground"}`}>
                   <span className="flex gap-3">
                     <span className="inline-flex items-center gap-1"><ThumbsUp className="w-3 h-3" />{p.likes ?? 0}</span>
                     <span className="inline-flex items-center gap-1"><MessageCircle className="w-3 h-3" />{p.comments ?? 0}</span>
+                    {link && (
+                      <a
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(ev) => ev.stopPropagation()}
+                        className="inline-flex items-center gap-1 hover:underline"
+                      >
+                        <ExternalLink className="w-3 h-3" /> View
+                      </a>
+                    )}
                   </span>
                   <span className="flex gap-1.5">
-                    {e?.status === "posted" && <Badge className="h-4 text-[10px] px-1.5 bg-emerald-500/15 text-emerald-500 border-emerald-500/30">Posted</Badge>}
-                    {e?.status !== "posted" && e?.draft_text && <Badge className="h-4 text-[10px] px-1.5 bg-amber-500/15 text-amber-600 border-amber-500/30">Draft</Badge>}
+                    {e?.status === "posted" && <Badge className="h-4 text-[10px] px-1.5 bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40">✓ Posted</Badge>}
+                    {e?.status === "copied" && <Badge className="h-4 text-[10px] px-1.5 bg-emerald-500/15 text-emerald-600 border-emerald-500/30">Copied</Badge>}
+                    {e?.status !== "posted" && e?.status !== "copied" && e?.draft_text && <Badge className="h-4 text-[10px] px-1.5 bg-amber-500/15 text-amber-600 border-amber-500/30">Draft</Badge>}
                   </span>
                 </div>
               </Card>
