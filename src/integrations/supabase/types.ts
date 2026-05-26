@@ -1047,6 +1047,50 @@ export type Database = {
         }
         Relationships: []
       }
+      linkedin_engagement_comments: {
+        Row: {
+          created_at: string
+          draft_text: string | null
+          id: string
+          liked: boolean
+          post_id: string
+          posted_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          draft_text?: string | null
+          id?: string
+          liked?: boolean
+          post_id: string
+          posted_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          draft_text?: string | null
+          id?: string
+          liked?: boolean
+          post_id?: string
+          posted_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linkedin_engagement_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "social_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       linkedin_post_states: {
         Row: {
           created_at: string
