@@ -534,6 +534,11 @@ export default function YouTubePage() {
                             <FileText className="w-2.5 h-2.5" /> Transcript
                           </Badge>
                         )}
+                        {v.fetched_at && (Date.now() - new Date(v.fetched_at).getTime()) < 48 * 3600 * 1000 && (
+                          <Badge className="absolute top-1.5 left-1.5 bg-primary text-primary-foreground border-0 gap-1 text-[10px] py-0.5 px-1.5 animate-pulse">
+                            ✨ NEW
+                          </Badge>
+                        )}
                         {v.is_liked && (
                           <div className="absolute bottom-1.5 left-1.5 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md">
                             <Heart className="w-3.5 h-3.5 fill-current" />
