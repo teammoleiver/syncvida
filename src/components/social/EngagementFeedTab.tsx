@@ -241,6 +241,13 @@ export default function EngagementFeedTab() {
                     >
                       <Heart className={`w-4 h-4 ${e?.liked ? "fill-current" : ""}`} />
                     </button>
+                    <button
+                      onClick={(ev) => { ev.stopPropagation(); removePost(p.id); }}
+                      title="Delete this post"
+                      className="p-1.5 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-4 whitespace-pre-wrap">{p.post_text}</p>
@@ -300,6 +307,7 @@ export default function EngagementFeedTab() {
         <EngagementDialog
           post={openPost}
           row={engagement[openPost.id]}
+          tones={tones}
           onClose={() => setOpenPost(null)}
           onUpdate={(row) => updateLocal(openPost.id, row)}
         />
@@ -318,9 +326,11 @@ function Pill({ label, value, tone = "zinc" }: { label: string; value: number; t
   return <span className={`px-2 py-1 rounded-md ${tones[tone]} inline-flex items-center gap-1`}><span>{value}</span><span className="opacity-70">{label}</span></span>;
 }
 
-function EngagementDialog({ post, row, onClose, onUpdate }: { post: any; row?: EngagementRow; onClose: () => void; onUpdate: (r: EngagementRow) => void }) {
+function EngagementDialog({ post, row, tones, onClose, onUpdate }: { post: any; row?: EngagementRow; tones: CommentTone[]; onClose: () => void; onUpdate: (r: EngagementRow) => void }) {
   const [draft, setDraft] = useState(row?.draft_text ?? "");
-  const [tone, setTone] = useState("default");
+  const [toneId, setToneId] = useState<string>(tones[0]?.id ?? "peer-sharp");
+  const [suggestingTone, setSuggestingTone] = useState(false);
+  const [suggestReason, setSuggestReason] = useState<string>("");
   const [extra, setExtra] = useState("");
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -330,13 +340,31 @@ function EngagementDialog({ post, row, onClose, onUpdate }: { post: any; row?: E
 
   const link = buildLinkedInPostUrl(post);
 
+  useEffect(() => {
+    if (tones.length && !tones.find((t) => t.id === toneId)) setToneId(tones[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tones]);
+
   async function smartReply() {
     setGenerating(true);
     try {
-      const r = await generateEngagementComment({ post_text: post.post_text || "", author: post.author, tone, instruction: extra });
+      const r = await generateEngagementComment({ post_text: post.post_text || "", author: post.author, tone_id: toneId, instruction: extra });
       if (r.error) { toast.error(r.error); return; }
       if (r.comment) setDraft(r.comment);
     } finally { setGenerating(false); }
+  }
+
+  async function autoSuggestTone() {
+    setSuggestingTone(true); setSuggestReason("");
+    try {
+      const r = await suggestCommentTone({ post_text: post.post_text || "" });
+      if (r.error) { toast.error(r.error); return; }
+      if (r.tone_id && tones.find((t) => t.id === r.tone_id)) {
+        setToneId(r.tone_id);
+        setSuggestReason(r.reason || "");
+        toast.success(`Tone set to "${tones.find((t) => t.id === r.tone_id)?.label}"`);
+      }
+    } finally { setSuggestingTone(false); }
   }
 
   async function save(nextStatus?: EngagementRow["status"], extras?: Partial<EngagementRow>) {
@@ -419,15 +447,32 @@ function EngagementDialog({ post, row, onClose, onUpdate }: { post: any; row?: E
           </div>
 
           {/* AI controls */}
-          <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr_auto] gap-2">
-            <Select value={tone} onValueChange={setTone}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{TONES.map((t) => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}</SelectContent>
-            </Select>
-            <Input placeholder="Optional: extra instruction (e.g. mention Clay, ask about ICP)" value={extra} onChange={(e) => setExtra(e.target.value)} />
-            <Button onClick={smartReply} disabled={generating} className="gap-1.5">
-              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Smart Reply
-            </Button>
+          <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-[200px_auto_1fr_auto] gap-2">
+              <Select value={toneId} onValueChange={setToneId}>
+                <SelectTrigger><SelectValue placeholder="Pick a tone" /></SelectTrigger>
+                <SelectContent>
+                  {tones.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <div className="flex flex-col">
+                        <span className="text-sm">{t.label}</span>
+                        {t.description && <span className="text-[10px] text-muted-foreground">{t.description}</span>}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" onClick={autoSuggestTone} disabled={suggestingTone} className="gap-1.5" title="Pick the best tone based on this post">
+                {suggestingTone ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} Suggest tone
+              </Button>
+              <Input placeholder="Optional: extra instruction (e.g. mention Clay, ask about ICP)" value={extra} onChange={(e) => setExtra(e.target.value)} />
+              <Button onClick={smartReply} disabled={generating} className="gap-1.5">
+                {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Smart Reply
+              </Button>
+            </div>
+            {suggestReason && (
+              <p className="text-[11px] text-muted-foreground italic">Why this tone: {suggestReason}</p>
+            )}
           </div>
 
           {/* Comment composer */}
