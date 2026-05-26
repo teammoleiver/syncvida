@@ -28,11 +28,16 @@ function buildLinkedInPostUrl(post: any): string {
     if (!raw) continue;
     const url = String(raw).trim();
     if (!url) continue;
-    // Build feed URL from any activity/share/ugcPost URN we can find
+    // Build feed URL from any activity/share/ugcPost URN we can find.
+    // LinkedIn requires the URN colons to be URL-encoded (%3A) or the page 404s.
     const m = url.match(/(?:activity|share|ugcPost)[:%-](\d{15,})/i);
-    if (m) return `https://www.linkedin.com/feed/update/urn:li:activity:${m[1]}/`;
+    if (m) return `https://www.linkedin.com/feed/update/urn%3Ali%3Aactivity%3A${m[1]}/`;
     // Only accept actual post URLs (skip profile URLs like /in/username)
-    if (/^https?:\/\/.*linkedin\.com\/(feed|posts|pulse)/i.test(url)) return url;
+    if (/^https?:\/\/.*linkedin\.com\/(feed|posts|pulse)/i.test(url)) {
+      // If colons inside the URN portion are unencoded, encode them
+      return url.replace(/urn:li:(activity|share|ugcPost):(\d+)/i,
+        (_m, k, id) => `urn%3Ali%3A${k}%3A${id}`);
+    }
     if (/^https?:\/\//i.test(url) && /linkedin\.com/i.test(url) && !/\/in\//i.test(url)) return url;
   }
   return "";
