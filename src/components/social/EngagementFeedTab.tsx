@@ -281,7 +281,7 @@ function EngagementDialog({ post, row, onClose, onUpdate }: { post: any; row?: E
   const liked = row?.liked ?? false;
   const status = row?.status ?? "draft";
 
-  const link = normalizeLinkedInUrl(post.post_url);
+  const link = buildLinkedInPostUrl(post);
 
   async function smartReply() {
     setGenerating(true);
