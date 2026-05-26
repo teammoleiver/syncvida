@@ -28,11 +28,16 @@ function buildLinkedInPostUrl(post: any): string {
     if (!raw) continue;
     const url = String(raw).trim();
     if (!url) continue;
-    // Build feed URL from any activity/share/ugcPost URN we can find
+    // Build feed URL from any activity/share/ugcPost URN we can find.
+    // LinkedIn requires the URN colons to be URL-encoded (%3A) or the page 404s.
     const m = url.match(/(?:activity|share|ugcPost)[:%-](\d{15,})/i);
-    if (m) return `https://www.linkedin.com/feed/update/urn:li:activity:${m[1]}/`;
+    if (m) return `https://www.linkedin.com/feed/update/urn%3Ali%3Aactivity%3A${m[1]}/`;
     // Only accept actual post URLs (skip profile URLs like /in/username)
-    if (/^https?:\/\/.*linkedin\.com\/(feed|posts|pulse)/i.test(url)) return url;
+    if (/^https?:\/\/.*linkedin\.com\/(feed|posts|pulse)/i.test(url)) {
+      // If colons inside the URN portion are unencoded, encode them
+      return url.replace(/urn:li:(activity|share|ugcPost):(\d+)/i,
+        (_m, k, id) => `urn%3Ali%3A${k}%3A${id}`);
+    }
     if (/^https?:\/\//i.test(url) && /linkedin\.com/i.test(url) && !/\/in\//i.test(url)) return url;
   }
   return "";
@@ -221,7 +226,7 @@ export default function EngagementFeedTab() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-4 whitespace-pre-wrap">{p.post_text}</p>
-                {link && (
+                {link ? (
                   <a
                     href={link}
                     target="_blank"
@@ -231,6 +236,13 @@ export default function EngagementFeedTab() {
                   >
                     <ExternalLink className="w-3 h-3" /> Open original post on LinkedIn
                   </a>
+                ) : (
+                  <span
+                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/70 italic w-fit"
+                    title="This post was scraped without a usable LinkedIn URL. Re-scrape the profile to capture the link."
+                  >
+                    <Link2 className="w-3 h-3" /> No public link — re-scrape to fetch
+                  </span>
                 )}
                 <div className={`flex items-center justify-between text-[11px] pt-1 border-t ${done ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400" : "border-border/60 text-muted-foreground"}`}>
                   <span className="flex gap-3">
