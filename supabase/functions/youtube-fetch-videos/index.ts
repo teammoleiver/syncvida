@@ -45,38 +45,22 @@ Deno.serve(async (req) => {
       try {
         let videos: any[] = [];
         let usedSource = "rss";
-        // Always pull the public RSS feed first — it's free, fast and reliably
-        // returns the latest ~15 videos sorted newest-first. This guarantees
-        // the most recently published video is always captured even when the
-        // Apify actor returns stale/sorted-by-popularity results.
-        try {
-          const rssVideos = await fetchVideosRss(ch.channel_id);
-          if (rssVideos.length) {
-            videos = rssVideos;
-            usedSource = "rss";
-          }
-        } catch (e) {
-          console.warn("RSS failed for", ch.channel_id, String((e as Error).message ?? e));
-        }
-        // If caller wants more than RSS returns (backfill) AND Apify is configured,
-        // fetch from Apify and merge — keeps the newest from RSS while topping up
-        // with older ones from Apify.
-        if (apifyToken && apifyMax > videos.length) {
+        let apifyError: string | null = null;
+        if (apifyToken) {
           try {
             const sourceUrl = ch.source_url || (ch.handle ? `https://www.youtube.com/@${ch.handle}` : `https://www.youtube.com/channel/${ch.channel_id}`);
             const r = await fetchChannelApify(apifyToken, apifyActor, sourceUrl, apifyMax);
-            if (r.videos.length) {
-              const seen = new Set(videos.map((v) => v.video_id));
-              for (const v of r.videos) if (!seen.has(v.video_id)) { videos.push(v); seen.add(v.video_id); }
-              usedSource = videos.length === r.videos.length ? "apify" : "rss+apify";
-            }
+            videos = r.videos;
+            usedSource = "apify";
           } catch (e) {
-            console.warn("Apify failed for", ch.channel_id, String((e as Error).message ?? e));
+            apifyError = String((e as Error).message ?? e);
+            console.warn("Apify failed for", ch.channel_id, apifyError);
           }
         }
-        if (videos.length === 0 && apiKey) {
-          videos = await fetchVideosDataApi(apiKey, ch.channel_id, ch.uploads_playlist_id);
-          usedSource = "data_api";
+        if (videos.length === 0 && apifyError) {
+          // Surface the Apify error to the client instead of silently returning 0.
+          perChannel.push({ channel_id: ch.channel_id, fetched: 0, new: 0, source: "apify", error: apifyError });
+          continue;
         }
         if (videos.length === 0) {
           perChannel.push({ channel_id: ch.channel_id, fetched: 0, new: 0, source: usedSource });
