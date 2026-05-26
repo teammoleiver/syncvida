@@ -1,0 +1,1 @@
+ALTER TABLE public.social_writer_settings ADD COLUMN IF NOT EXISTS comment_tones JSONB;

@@ -2397,6 +2397,7 @@ export type Database = {
           anthropic_model: string | null
           banned_words: string[] | null
           career_summary: string | null
+          comment_tones: Json | null
           created_at: string
           custom_system_prompt: string | null
           default_word_limit: number | null
@@ -2426,6 +2427,7 @@ export type Database = {
           anthropic_model?: string | null
           banned_words?: string[] | null
           career_summary?: string | null
+          comment_tones?: Json | null
           created_at?: string
           custom_system_prompt?: string | null
           default_word_limit?: number | null
@@ -2455,6 +2457,7 @@ export type Database = {
           anthropic_model?: string | null
           banned_words?: string[] | null
           career_summary?: string | null
+          comment_tones?: Json | null
           created_at?: string
           custom_system_prompt?: string | null
           default_word_limit?: number | null
