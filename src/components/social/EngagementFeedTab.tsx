@@ -354,9 +354,16 @@ function EngagementDialog({ post, row, onClose, onUpdate }: { post: any; row?: E
     try {
       await navigator.clipboard.writeText(draft);
       setCopied(true); setTimeout(() => setCopied(false), 1500);
-      await save("copied");
-      if (link) window.open(link, "_blank", "noopener,noreferrer");
-      else toast.message("Comment copied. Open the post on LinkedIn to paste it.");
+      if (link) {
+        window.open(link, "_blank", "noopener,noreferrer");
+        toast.success("Comment copied — paste it on LinkedIn (Ctrl/Cmd+V).");
+      } else {
+        toast.message("Comment copied. Open the post on LinkedIn to paste it.");
+      }
+      // Auto-mark as commented after a short delay so the user sees the status update
+      setTimeout(() => {
+        save("posted", { posted_at: new Date().toISOString() }).catch(() => {});
+      }, 2500);
     } catch { toast.error("Could not copy to clipboard"); }
   }
 
