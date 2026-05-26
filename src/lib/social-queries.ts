@@ -280,10 +280,29 @@ export async function upsertEngagementComment(post_id: string, patch: Partial<Pi
   return data as unknown as EngagementRow;
 }
 
-export async function generateEngagementComment(payload: { post_text: string; author?: string; tone?: string; instruction?: string }): Promise<{ comment?: string; error?: string }> {
-  const { data, error } = await supabase.functions.invoke("generate-engagement-comment", { body: payload });
+export type CommentTone = { id: string; label: string; description?: string; prompt: string };
+
+export async function generateEngagementComment(payload: { post_text: string; author?: string; tone_id?: string; instruction?: string }): Promise<{ comment?: string; error?: string; tone_id?: string }> {
+  const { data, error } = await supabase.functions.invoke("generate-engagement-comment", { body: { action: "generate", ...payload } });
   if (error) return { error: error.message };
   return data as any;
+}
+
+export async function suggestCommentTone(payload: { post_text: string }): Promise<{ tone_id?: string; reason?: string; error?: string }> {
+  const { data, error } = await supabase.functions.invoke("generate-engagement-comment", { body: { action: "suggest_tone", ...payload } });
+  if (error) return { error: error.message };
+  return data as any;
+}
+
+export async function listCommentTones(): Promise<{ tones: CommentTone[]; defaults: CommentTone[]; is_custom: boolean }> {
+  const { data, error } = await supabase.functions.invoke("generate-engagement-comment", { body: { action: "list_tones" } });
+  if (error) throw error;
+  return data as any;
+}
+
+export async function saveCommentTones(tones: CommentTone[] | null): Promise<void> {
+  const { error } = await supabase.functions.invoke("generate-engagement-comment", { body: { action: "save_tones", tones } });
+  if (error) throw error;
 }
 
 // ── Hot topics ──

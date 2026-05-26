@@ -25,6 +25,7 @@ import {
   listPostsForProfile,
   listFrameworkPrompts, saveFrameworkPrompt, suggestFrameworkPromptImprovement,
   analyzeSelfProfile, scrapeMyLastPosts, enrichVoiceFromPosts, enrichFromWebsites, listWebsiteEnrichments,
+  listCommentTones, saveCommentTones, type CommentTone,
 } from "@/lib/social-queries";
 import ApifyActorsPanel from "@/components/social/ApifyActorsPanel";
 import EngagementFeedTab from "@/components/social/EngagementFeedTab";
@@ -1542,6 +1543,8 @@ function SettingsTab() {
 
       <FrameworkPromptsEditor />
 
+      <CommentTonesEditor />
+
       <ScrapeHistoryPanel />
 
       <Button onClick={save} disabled={busy} className="w-full md:w-auto">{busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Save settings</Button>
@@ -2144,6 +2147,118 @@ function FrameworkPromptsEditor() {
               </Card>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+// ───────── Editable comment tones (used in Engagement Feed Smart Reply) ─────────
+function CommentTonesEditor() {
+  const [tones, setTones] = useState<CommentTone[]>([]);
+  const [defaults, setDefaults] = useState<CommentTone[]>([]);
+  const [isCustom, setIsCustom] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const r = await listCommentTones();
+      setTones(r.tones || []); setDefaults(r.defaults || []); setIsCustom(!!r.is_custom);
+    } catch (e: any) { toast.error(e?.message ?? "Failed to load tones"); } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const persist = async (next: CommentTone[] | null) => {
+    setSaving(true);
+    try {
+      await saveCommentTones(next);
+      toast.success(next ? "Tones saved" : "Reverted to default tones");
+      await load();
+    } catch (e: any) { toast.error(e?.message ?? "Save failed"); } finally { setSaving(false); }
+  };
+
+  const updateTone = (id: string, patch: Partial<CommentTone>) => {
+    setTones((prev) => prev.map((t) => t.id === id ? { ...t, ...patch } : t));
+  };
+  const addTone = () => {
+    const id = `tone-${Date.now()}`;
+    setTones((prev) => [...prev, { id, label: "New tone", description: "", prompt: "Tone: describe how the comment should feel..." }]);
+    setOpenId(id);
+  };
+  const removeTone = (id: string) => {
+    if (!confirm("Remove this tone?")) return;
+    setTones((prev) => prev.filter((t) => t.id !== id));
+  };
+  const editing = tones.find((t) => t.id === openId);
+
+  return (
+    <Card className="p-5 space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2"><MessageCircle className="w-5 h-5 text-primary" /><h2 className="font-medium">Comment tones (Engagement Feed)</h2></div>
+        <div className="flex items-center gap-2">
+          {isCustom ? <Badge>Custom</Badge> : <Badge variant="secondary">Defaults</Badge>}
+          <Button size="sm" variant="outline" onClick={addTone}><Plus className="w-3.5 h-3.5 mr-1" /> Add tone</Button>
+          <Button size="sm" onClick={() => persist(tones)} disabled={saving}>
+            {saving ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Check className="w-3.5 h-3.5 mr-1" />} Save tones
+          </Button>
+          {isCustom && (
+            <Button size="sm" variant="ghost" onClick={() => { if (confirm("Revert to the default tones? Your custom tones will be lost.")) persist(null); }} disabled={saving}>
+              Reset to defaults
+            </Button>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        These tones power <em>Smart Reply</em> in the Engagement Feed. Each one is combined with your <strong>About Me &amp; Voice</strong> so the generated comment still sounds like you. Click any tone to edit its label, description, or prompt instructions.
+      </p>
+
+      {loading ? <div className="py-6 text-center"><Loader2 className="w-5 h-5 mx-auto animate-spin" /></div> :
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {tones.map((t) => (
+            <div key={t.id} className="border border-border rounded p-3 flex items-start justify-between gap-2 hover:bg-muted/30 transition-colors">
+              <button onClick={() => setOpenId(t.id)} className="text-left flex-1 min-w-0">
+                <div className="font-medium text-sm truncate">{t.label}</div>
+                {t.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{t.description}</p>}
+              </button>
+              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => removeTone(t.id)} title="Remove tone">
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          ))}
+          {tones.length === 0 && <p className="text-xs text-muted-foreground col-span-2">No tones. Add one or reset to defaults.</p>}
+        </div>
+      }
+
+      <Dialog open={!!openId} onOpenChange={(v) => !v && setOpenId(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit tone</DialogTitle>
+          </DialogHeader>
+          {editing && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Label</label>
+                  <Input value={editing.label} onChange={(e) => updateTone(editing.id, { label: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Short description</label>
+                  <Input value={editing.description ?? ""} onChange={(e) => updateTone(editing.id, { description: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Prompt instructions (sent to the AI on top of your About Me &amp; Voice)</label>
+                <Textarea rows={10} value={editing.prompt} onChange={(e) => updateTone(editing.id, { prompt: e.target.value })} className="font-mono text-xs" />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setOpenId(null)}>Close</Button>
+                <Button onClick={() => { setOpenId(null); toast.message("Click Save tones to persist your changes."); }}>Done</Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </Card>
