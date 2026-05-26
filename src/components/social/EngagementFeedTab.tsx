@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, MessageCircle, ThumbsUp, ExternalLink, Sparkles, Copy, Check, Send, Search, X, Heart, Link2, ShieldCheck, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, MessageCircle, ThumbsUp, ExternalLink, Sparkles, Copy, Check, Send, Search, X, Heart, Link2, ShieldCheck, ShieldAlert, ChevronLeft, ChevronRight, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -9,9 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  listSocialPosts, listSocialProfiles,
-  listEngagementComments, upsertEngagementComment, generateEngagementComment,
-  type EngagementRow,
+  listSocialPosts, listSocialProfiles, deleteSocialPost,
+  listEngagementComments, upsertEngagementComment, generateEngagementComment, suggestCommentTone, listCommentTones,
+  type EngagementRow, type CommentTone,
 } from "@/lib/social-queries";
 import { getMyLinkedInConnection, startLinkedInAuth, type SocialConnectionMeta } from "@/lib/social-connections";
 
@@ -43,14 +43,6 @@ function buildLinkedInPostUrl(post: any): string {
   return "";
 }
 
-const TONES = [
-  { id: "default", label: "Peer / sharp" },
-  { id: "supportive", label: "Supportive" },
-  { id: "contrarian", label: "Contrarian" },
-  { id: "curious", label: "Ask a question" },
-  { id: "tactical", label: "Tactical add-on" },
-];
-
 export default function EngagementFeedTab() {
   const [posts, setPosts] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -64,6 +56,7 @@ export default function EngagementFeedTab() {
   const [engagement, setEngagement] = useState<Record<string, EngagementRow>>({});
   const [linkedin, setLinkedin] = useState<SocialConnectionMeta | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [tones, setTones] = useState<CommentTone[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -81,6 +74,7 @@ export default function EngagementFeedTab() {
 
   useEffect(() => {
     getMyLinkedInConnection().then(setLinkedin).catch(() => setLinkedin(null));
+    listCommentTones().then((r) => setTones(r.tones || [])).catch(() => {});
   }, []);
 
   async function connectLinkedIn() {
@@ -136,6 +130,16 @@ export default function EngagementFeedTab() {
       const row = await upsertEngagementComment(postId, { liked: next });
       updateLocal(postId, row);
     } catch (e: any) { toast.error(e?.message ?? "Failed"); }
+  }
+
+  async function removePost(postId: string) {
+    if (!confirm("Delete this post from your engagement feed? This removes it from your tracked posts.")) return;
+    try {
+      await deleteSocialPost(postId);
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      setEngagement((prev) => { const n = { ...prev }; delete n[postId]; return n; });
+      toast.success("Post deleted");
+    } catch (e: any) { toast.error(e?.message ?? "Delete failed"); }
   }
 
   return (
