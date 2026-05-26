@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, MessageCircle, ThumbsUp, ExternalLink, Sparkles, Copy, Check, Send, Search, X, Heart, Link2, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Loader2, MessageCircle, ThumbsUp, ExternalLink, Sparkles, Copy, Check, Send, Search, X, Heart, Link2, ShieldCheck, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -58,6 +58,8 @@ export default function EngagementFeedTab() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "todo" | "draft" | "posted" | "liked">("all");
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
   const [openPost, setOpenPost] = useState<any | null>(null);
   const [engagement, setEngagement] = useState<Record<string, EngagementRow>>({});
   const [linkedin, setLinkedin] = useState<SocialConnectionMeta | null>(null);
@@ -101,6 +103,17 @@ export default function EngagementFeedTab() {
       return true;
     });
   }, [posts, engagement, search, statusFilter]);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => { setPage(1); }, [search, statusFilter, profileFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const paginated = useMemo(
+    () => filtered.slice(pageStart, pageStart + PAGE_SIZE),
+    [filtered, pageStart]
+  );
 
   const stats = useMemo(() => {
     let drafts = 0, posted = 0, liked = 0;
@@ -183,8 +196,9 @@ export default function EngagementFeedTab() {
 
       {loading ? <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div> :
         filtered.length === 0 ? <Card className="p-8 text-center text-muted-foreground text-sm">No posts. Add profiles and scrape them in the Profiles tab.</Card> :
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {filtered.map((p) => {
+          {paginated.map((p) => {
             const e = engagement[p.id];
             const done = e?.status === "posted" || e?.status === "copied";
             const link = buildLinkedInPostUrl(p);
@@ -259,6 +273,23 @@ export default function EngagementFeedTab() {
             );
           })}
         </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between gap-2 pt-2">
+            <div className="text-xs text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)}</span> of <span className="font-medium text-foreground">{filtered.length}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" onClick={() => { setPage(currentPage - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={currentPage <= 1} className="h-8 px-2">
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-xs px-2 tabular-nums">Page {currentPage} / {totalPages}</span>
+              <Button variant="outline" size="sm" onClick={() => { setPage(currentPage + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={currentPage >= totalPages} className="h-8 px-2">
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+        </>
       }
 
       {openPost && (
