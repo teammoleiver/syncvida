@@ -98,7 +98,7 @@ export default function EngagementFeedTab() {
       const e = engagement[p.id];
       if (statusFilter === "todo" && (e?.draft_text || e?.liked || e?.status === "posted")) return false;
       if (statusFilter === "draft" && e?.status !== "draft" && !e?.draft_text) return false;
-      if (statusFilter === "posted" && e?.status !== "posted") return false;
+      if (statusFilter === "posted" && e?.status !== "posted" && e?.status !== "copied") return false;
       if (statusFilter === "liked" && !e?.liked) return false;
       return true;
     });
@@ -119,7 +119,7 @@ export default function EngagementFeedTab() {
     let drafts = 0, posted = 0, liked = 0;
     Object.values(engagement).forEach((e) => {
       if (e.draft_text) drafts++;
-      if (e.status === "posted") posted++;
+      if (e.status === "posted" || e.status === "copied") posted++;
       if (e.liked) liked++;
     });
     return { total: posts.length, drafts, posted, liked };
