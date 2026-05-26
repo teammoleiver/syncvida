@@ -98,7 +98,7 @@ export default function EngagementFeedTab() {
       const e = engagement[p.id];
       if (statusFilter === "todo" && (e?.draft_text || e?.liked || e?.status === "posted")) return false;
       if (statusFilter === "draft" && e?.status !== "draft" && !e?.draft_text) return false;
-      if (statusFilter === "posted" && e?.status !== "posted") return false;
+      if (statusFilter === "posted" && e?.status !== "posted" && e?.status !== "copied") return false;
       if (statusFilter === "liked" && !e?.liked) return false;
       return true;
     });
@@ -119,7 +119,7 @@ export default function EngagementFeedTab() {
     let drafts = 0, posted = 0, liked = 0;
     Object.values(engagement).forEach((e) => {
       if (e.draft_text) drafts++;
-      if (e.status === "posted") posted++;
+      if (e.status === "posted" || e.status === "copied") posted++;
       if (e.liked) liked++;
     });
     return { total: posts.length, drafts, posted, liked };
@@ -181,7 +181,7 @@ export default function EngagementFeedTab() {
               <SelectItem value="all">All status</SelectItem>
               <SelectItem value="todo">To engage</SelectItem>
               <SelectItem value="draft">Has draft</SelectItem>
-              <SelectItem value="posted">Posted</SelectItem>
+              <SelectItem value="posted">Commented</SelectItem>
               <SelectItem value="liked">Liked</SelectItem>
             </SelectContent>
           </Select>
@@ -189,7 +189,7 @@ export default function EngagementFeedTab() {
         <div className="flex gap-1.5 text-[11px]">
           <Pill label="Posts" value={stats.total} />
           <Pill label="Drafts" value={stats.drafts} tone="amber" />
-          <Pill label="Posted" value={stats.posted} tone="emerald" />
+          <Pill label="Commented" value={stats.posted} tone="emerald" />
           <Pill label="Liked" value={stats.liked} tone="rose" />
         </div>
       </div>
@@ -264,7 +264,7 @@ export default function EngagementFeedTab() {
                     <span className="inline-flex items-center gap-1"><MessageCircle className="w-3 h-3" />{p.comments ?? 0}</span>
                   </span>
                   <span className="flex gap-1.5">
-                    {e?.status === "posted" && <Badge className="h-4 text-[10px] px-1.5 bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40">✓ Posted</Badge>}
+                    {e?.status === "posted" && <Badge className="h-4 text-[10px] px-1.5 bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40">✓ Commented</Badge>}
                     {e?.status === "copied" && <Badge className="h-4 text-[10px] px-1.5 bg-emerald-500/15 text-emerald-600 border-emerald-500/30">Copied</Badge>}
                     {e?.status !== "posted" && e?.status !== "copied" && e?.draft_text && <Badge className="h-4 text-[10px] px-1.5 bg-amber-500/15 text-amber-600 border-amber-500/30">Draft</Badge>}
                   </span>
@@ -354,9 +354,16 @@ function EngagementDialog({ post, row, onClose, onUpdate }: { post: any; row?: E
     try {
       await navigator.clipboard.writeText(draft);
       setCopied(true); setTimeout(() => setCopied(false), 1500);
-      await save("copied");
-      if (link) window.open(link, "_blank", "noopener,noreferrer");
-      else toast.message("Comment copied. Open the post on LinkedIn to paste it.");
+      if (link) {
+        window.open(link, "_blank", "noopener,noreferrer");
+        toast.success("Comment copied — paste it on LinkedIn (Ctrl/Cmd+V).");
+      } else {
+        toast.message("Comment copied. Open the post on LinkedIn to paste it.");
+      }
+      // Auto-mark as commented after a short delay so the user sees the status update
+      setTimeout(() => {
+        save("posted", { posted_at: new Date().toISOString() }).catch(() => {});
+      }, 2500);
     } catch { toast.error("Could not copy to clipboard"); }
   }
 
@@ -444,7 +451,7 @@ function EngagementDialog({ post, row, onClose, onUpdate }: { post: any; row?: E
                 <X className="w-4 h-4 mr-1" /> Skip
               </Button>
               {status === "posted" && (
-                <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">Posted</Badge>
+                <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">Commented</Badge>
               )}
             </div>
             <div className="flex flex-wrap gap-2">
@@ -453,13 +460,13 @@ function EngagementDialog({ post, row, onClose, onUpdate }: { post: any; row?: E
                 Copy & open LinkedIn
               </Button>
               <Button size="sm" onClick={() => save("posted", { posted_at: new Date().toISOString() })} disabled={saving || !draft.trim()}>
-                <Send className="w-4 h-4 mr-1" /> Mark as posted
+                <Send className="w-4 h-4 mr-1" /> Mark as commented
               </Button>
             </div>
           </div>
 
           <p className="text-[11px] text-muted-foreground">
-            Tip: LinkedIn forbids auto-commenting and auto-liking. This tool keeps your engagement manual — it drafts and tracks, you publish.
+            Tip: Clicking <strong>Copy &amp; open LinkedIn</strong> copies your comment to the clipboard and opens the post in a new tab — just paste (Ctrl/Cmd+V) and hit comment. The post will auto-mark as <strong>Commented</strong> after a few seconds.
           </p>
         </div>
       </DialogContent>
