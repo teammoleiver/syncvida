@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
+import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,8 +27,9 @@ import {
   analyzeSelfProfile, scrapeMyLastPosts, enrichVoiceFromPosts, enrichFromWebsites, listWebsiteEnrichments,
 } from "@/lib/social-queries";
 import ApifyActorsPanel from "@/components/social/ApifyActorsPanel";
+import EngagementFeedTab from "@/components/social/EngagementFeedTab";
 
-type Tab = "profiles" | "posts" | "topics" | "planner" | "settings";
+type Tab = "profiles" | "posts" | "engagement" | "topics" | "planner" | "settings";
 
 // Build a clean LinkedIn post URL. Stored URLs sometimes contain raw `urn:li:activity:...`
 // which Chrome can mangle (the colons are reserved). Rebuild from the activity id and
@@ -45,6 +46,7 @@ function normalizeLinkedInUrl(raw?: string | null): string {
 const TABS: { id: Tab; label: string; icon: React.ComponentType<any> }[] = [
   { id: "profiles", label: "Profiles to Track", icon: Users },
   { id: "posts", label: "Scraped Posts", icon: FileText },
+  { id: "engagement", label: "Engagement Feed", icon: MessageCircle },
   { id: "topics", label: "Hot Topics & Rewrites", icon: TrendingUp },
   { id: "planner", label: "Content Planner", icon: CalendarDays },
   { id: "settings", label: "Settings", icon: SettingsIcon },
@@ -80,6 +82,7 @@ export default function SocialMediaModule({ defaultTab, hideHeader }: { defaultT
 
       {tab === "profiles" && <ProfilesTab />}
       {tab === "posts" && <PostsTab />}
+      {tab === "engagement" && <EngagementFeedTab />}
       {tab === "topics" && <TopicsTab />}
       {tab === "planner" && <PlannerTab />}
       {tab === "settings" && <SettingsTab />}
