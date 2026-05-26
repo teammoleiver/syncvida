@@ -226,7 +226,7 @@ export default function EngagementFeedTab() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-4 whitespace-pre-wrap">{p.post_text}</p>
-                {link && (
+                {link ? (
                   <a
                     href={link}
                     target="_blank"
@@ -236,6 +236,13 @@ export default function EngagementFeedTab() {
                   >
                     <ExternalLink className="w-3 h-3" /> Open original post on LinkedIn
                   </a>
+                ) : (
+                  <span
+                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/70 italic w-fit"
+                    title="This post was scraped without a usable LinkedIn URL. Re-scrape the profile to capture the link."
+                  >
+                    <Link2 className="w-3 h-3" /> No public link — re-scrape to fetch
+                  </span>
                 )}
                 <div className={`flex items-center justify-between text-[11px] pt-1 border-t ${done ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400" : "border-border/60 text-muted-foreground"}`}>
                   <span className="flex gap-3">
