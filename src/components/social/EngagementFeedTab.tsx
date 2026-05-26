@@ -15,13 +15,27 @@ import {
 } from "@/lib/social-queries";
 import { getMyLinkedInConnection, startLinkedInAuth, type SocialConnectionMeta } from "@/lib/social-connections";
 
-function normalizeLinkedInUrl(raw?: string | null): string {
-  if (!raw) return "";
-  const url = String(raw).trim();
-  if (!url) return "";
-  const m = url.match(/(?:activity|share|ugcPost)[:%-](\d{15,})/i);
-  if (m) return `https://www.linkedin.com/feed/update/urn%3Ali%3Aactivity%3A${m[1]}/`;
-  return /^https?:\/\//i.test(url) ? url : `https://${url.replace(/^\/+/, "")}`;
+function buildLinkedInPostUrl(post: any): string {
+  // Try post_url first, then external_id, then raw_payload.url
+  const candidates: (string | undefined | null)[] = [
+    post?.post_url,
+    post?.external_id,
+    post?.raw_payload?.url,
+    post?.raw_payload?.postUrl,
+    post?.raw_payload?.shareUrl,
+  ];
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const url = String(raw).trim();
+    if (!url) continue;
+    // Build feed URL from any activity/share/ugcPost URN we can find
+    const m = url.match(/(?:activity|share|ugcPost)[:%-](\d{15,})/i);
+    if (m) return `https://www.linkedin.com/feed/update/urn:li:activity:${m[1]}/`;
+    // Only accept actual post URLs (skip profile URLs like /in/username)
+    if (/^https?:\/\/.*linkedin\.com\/(feed|posts|pulse)/i.test(url)) return url;
+    if (/^https?:\/\//i.test(url) && /linkedin\.com/i.test(url) && !/\/in\//i.test(url)) return url;
+  }
+  return "";
 }
 
 const TONES = [
@@ -168,7 +182,7 @@ export default function EngagementFeedTab() {
           {filtered.map((p) => {
             const e = engagement[p.id];
             const done = e?.status === "posted" || e?.status === "copied";
-            const link = normalizeLinkedInUrl(p.post_url);
+            const link = buildLinkedInPostUrl(p);
             return (
               <Card
                 key={p.id}
@@ -207,21 +221,21 @@ export default function EngagementFeedTab() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-4 whitespace-pre-wrap">{p.post_text}</p>
+                {link && (
+                  <a
+                    href={link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(ev) => ev.stopPropagation()}
+                    className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline w-fit"
+                  >
+                    <ExternalLink className="w-3 h-3" /> Open original post on LinkedIn
+                  </a>
+                )}
                 <div className={`flex items-center justify-between text-[11px] pt-1 border-t ${done ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400" : "border-border/60 text-muted-foreground"}`}>
                   <span className="flex gap-3">
                     <span className="inline-flex items-center gap-1"><ThumbsUp className="w-3 h-3" />{p.likes ?? 0}</span>
                     <span className="inline-flex items-center gap-1"><MessageCircle className="w-3 h-3" />{p.comments ?? 0}</span>
-                    {link && (
-                      <a
-                        href={link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(ev) => ev.stopPropagation()}
-                        className="inline-flex items-center gap-1 hover:underline"
-                      >
-                        <ExternalLink className="w-3 h-3" /> View
-                      </a>
-                    )}
                   </span>
                   <span className="flex gap-1.5">
                     {e?.status === "posted" && <Badge className="h-4 text-[10px] px-1.5 bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/40">✓ Posted</Badge>}
@@ -267,7 +281,7 @@ function EngagementDialog({ post, row, onClose, onUpdate }: { post: any; row?: E
   const liked = row?.liked ?? false;
   const status = row?.status ?? "draft";
 
-  const link = normalizeLinkedInUrl(post.post_url);
+  const link = buildLinkedInPostUrl(post);
 
   async function smartReply() {
     setGenerating(true);
