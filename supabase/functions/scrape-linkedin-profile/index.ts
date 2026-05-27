@@ -104,6 +104,61 @@ function sumReactions(reactions: any): number {
   return reactions.reduce((sum, r) => sum + (Number(r?.count) || 0), 0);
 }
 
+function parseCount(value: any): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const match = text.match(/([\d,.]+)\s*([kKmMbB])?/);
+  if (!match) return null;
+  const base = Number(match[1].replace(/,/g, ""));
+  if (!Number.isFinite(base)) return null;
+  const suffix = (match[2] ?? "").toLowerCase();
+  const multiplier = suffix === "k" ? 1_000 : suffix === "m" ? 1_000_000 : suffix === "b" ? 1_000_000_000 : 1;
+  const parsed = Math.round(base * multiplier);
+  return parsed > 0 ? parsed : null;
+}
+
+function extractProfileMeta(items: any[], fallback: any) {
+  const meta: Record<string, any> = {};
+  const candidates: any[] = [];
+  for (const item of items) candidates.push(item, item?.profile, item?.user, item?.author, item?.actor, item?.data);
+  for (const c of candidates.filter(Boolean)) {
+    meta.avatar_url ||= firstString(
+      c.avatar_url, c.avatarUrl, c.profilePicture, c.profilePictureUrl, c.profile_picture_url,
+      c.profileImage, c.profileImageUrl, c.image_url, c.imageUrl, c.picture, c.photo,
+    );
+    const followers = parseCount(
+      c.followerCount ?? c.followersCount ?? c.followers_count ?? c.numFollowers ?? c.num_followers ?? c.followers,
+    );
+    if (meta.num_followers == null && followers != null) meta.num_followers = followers;
+    meta.display_name ||= firstString(c.fullName, c.full_name, c.name, [c.firstName, c.lastName].filter(Boolean).join(" "));
+    meta.title ||= firstString(c.headline, c.occupation, c.bio, c.subtitle);
+    meta.location ||= firstString(c.location, c.locationName, c.geoLocationName, c.country);
+    meta.info_summary ||= firstString(c.summary, c.about, c.description, c.bio);
+  }
+  if (!meta.display_name) meta.display_name = fallback.display_name;
+  return meta;
+}
+
+async function scrapeProfileMeta(token: string, actorIdRaw: string, profile: any) {
+  const actorId = normalizeActorId(actorIdRaw);
+  const input = {
+    profileUrls: [profile.profile_url],
+    extractFullName: true,
+    extractBio: true,
+    extractFollowers: true,
+    extractFollowing: true,
+    extractPosts: true,
+    maxConcurrency: 1,
+    timeout: 90,
+  };
+  const apiUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${token}`;
+  const res = await fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  if (!res.ok) throw new Error(`Profile actor ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const raw = await res.json();
+  return extractProfileMeta(flattenItems(Array.isArray(raw) ? raw : [raw]), profile);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
