@@ -62,6 +62,8 @@ Deno.serve(async (req) => {
     if (e instanceof ApifyActorError) {
       return json({ ok: false, message: e.userMessage, error_type: e.type, action_url: e.actionUrl, fallback: true }, 200);
     }
+    const fallback = apifyFallbackFromUnknownError(e);
+    if (fallback) return json(fallback, 200);
     return json({ error: String((e as Error).message ?? e) }, 500);
   }
 });
