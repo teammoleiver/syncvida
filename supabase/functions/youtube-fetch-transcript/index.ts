@@ -38,7 +38,10 @@ Deno.serve(async (req) => {
 
     const freeResult = await fetchYouTubeTimedTextTranscript(videoId);
     const freeTranscript = freeResult.text;
-    const allowApifyFallback = body?.allow_apify === true;
+    // Default to allowing Apify fallback: YouTube actively bot-blocks Supabase
+    // Edge, so without Apify most videos cannot be transcribed. Caller can
+    // explicitly opt out with allow_apify: false.
+    const allowApifyFallback = body?.allow_apify !== false;
     if (!freeTranscript && !allowApifyFallback) {
       console.log(`youtube-fetch-transcript: no public captions; apify skipped video_id=${videoId} trace=${JSON.stringify(freeResult.trace).slice(0, 1600)}`);
       return json({
