@@ -119,10 +119,68 @@ async function runTranscriptActor(token: string, actorId: string, videoUrl: stri
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Apify ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw ApifyActorError.fromResponse(res.status, await res.text());
   const items = await res.json();
   if (!Array.isArray(items) || items.length === 0) return null;
   return extractTranscriptFromItems(items);
+}
+
+async function fetchYouTubeTimedTextTranscript(videoId: string): Promise<string | null> {
+  const watch = await fetch(`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`, {
+    headers: { "Accept-Language": "en-US,en;q=0.9" },
+  }).then((r) => r.ok ? r.text() : "").catch(() => "");
+  const captionTracks = watch.match(/"captionTracks":(\[.*?\])/)?.[1];
+  if (!captionTracks) return null;
+
+  const tracks = JSON.parse(captionTracks.replace(/\\u0026/g, "&"));
+  const track = tracks.find((t: any) => String(t.languageCode).startsWith("en")) ?? tracks[0];
+  const baseUrl = track?.baseUrl;
+  if (!baseUrl) return null;
+
+  const xml = await fetch(`${baseUrl}&fmt=srv3`).then((r) => r.ok ? r.text() : "").catch(() => "");
+  const text = Array.from(xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g))
+    .map((m) => decodeHtml(m[1].replace(/<[^>]+>/g, " ")))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > 50 ? text : null;
+}
+
+function decodeHtml(input: string): string {
+  return input
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+}
+
+class ApifyActorError extends Error {
+  type: string;
+  userMessage: string;
+  actionUrl?: string;
+
+  constructor(type: string, userMessage: string, actionUrl?: string) {
+    super(userMessage);
+    this.type = type;
+    this.userMessage = userMessage;
+    this.actionUrl = actionUrl;
+  }
+
+  static fromResponse(status: number, text: string): ApifyActorError {
+    let parsed: any = null;
+    try { parsed = JSON.parse(text); } catch { /* keep null */ }
+    const type = parsed?.error?.type ?? `apify-${status}`;
+    const message = parsed?.error?.message ?? text;
+    if (status === 402 || type === "not-enough-usage-to-run-paid-actor") {
+      return new ApifyActorError(type, "Apify does not have enough usage credit to run this paid transcript actor. Add credits or upgrade the Apify account, then try again.", "https://console.apify.com/billing/subscription");
+    }
+    if (type === "max-items-must-be-greater-than-zero") {
+      return new ApifyActorError(type, "Apify rejected the actor run limit. The app now sends positive maxItems and maxTotalChargeUsd values; if this keeps happening, switch this channel to another YouTube transcript actor in Social Hub settings.");
+    }
+    return new ApifyActorError(type, `Apify ${status}: ${message}`);
+  }
 }
 
 function extractTranscriptFromItems(items: any[]): string | null {
