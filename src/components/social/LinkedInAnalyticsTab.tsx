@@ -2,13 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Loader2, RefreshCw, ExternalLink, MapPin, Building2, Users, TrendingUp, Heart, MessageCircle, Share2, Eye, Sparkles, Camera } from "lucide-react";
 import { toast } from "sonner";
 import {
   getSelfProfile, getSelfPostsAnalytics, listSelfSnapshots, recordSelfSnapshot,
-  analyzeSelfProfile, scrapeMyLastPosts,
+  analyzeSelfProfile, scrapeMyLastPosts, getWriterSettings, upsertWriterSettings,
   type SelfProfile, type SelfPostsAnalytics, type SelfSnapshot,
 } from "@/lib/social-queries";
+import { getMyLinkedInConnection, type SocialConnectionMeta } from "@/lib/social-connections";
 import EngagementAnalytics from "./EngagementAnalytics";
 
 function num(n?: number | null) {
@@ -70,12 +72,20 @@ export default function LinkedInAnalyticsTab() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [scraping, setScraping] = useState(false);
+  const [linkedinConn, setLinkedinConn] = useState<SocialConnectionMeta | null>(null);
+  const [profileUrl, setProfileUrl] = useState("");
 
   async function load() {
     setLoading(true);
     try {
-      const [p, a, s] = await Promise.all([getSelfProfile(), getSelfPostsAnalytics(), listSelfSnapshots()]);
+      const [p, a, s, conn, ws] = await Promise.all([
+        getSelfProfile(), getSelfPostsAnalytics(), listSelfSnapshots(),
+        getMyLinkedInConnection().catch(() => null),
+        getWriterSettings().catch(() => null),
+      ]);
       setProfile(p); setPosts(a); setSnaps(s);
+      setLinkedinConn(conn);
+      setProfileUrl((p?.profile_url || (ws as any)?.linkedin_url || "").toString());
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to load analytics");
     } finally { setLoading(false); }
@@ -83,10 +93,20 @@ export default function LinkedInAnalyticsTab() {
   useEffect(() => { load(); }, []);
 
   async function refreshProfile() {
+    const url = profileUrl.trim();
+    if (!url && !profile?.profile_url) {
+      toast.error("Add your LinkedIn profile URL first");
+      return;
+    }
     setRefreshing(true);
     try {
-      const { error } = await analyzeSelfProfile();
+      if (url) {
+        try { await upsertWriterSettings({ linkedin_url: url }); } catch { /* non-fatal */ }
+      }
+      const { error } = await analyzeSelfProfile(url || undefined);
       if (error) throw error;
+      // Pull followers + post metrics via Apify right after.
+      try { await scrapeMyLastPosts(50); } catch (e: any) { console.warn("scrape after analyze failed", e?.message); }
       await recordSelfSnapshot();
       toast.success("Profile refreshed and snapshot saved");
       await load();
