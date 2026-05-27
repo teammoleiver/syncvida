@@ -20,7 +20,6 @@ import {
   type EngagementRow, type CommentTone,
 } from "@/lib/social-queries";
 import { getMyLinkedInConnection, startLinkedInAuth, type SocialConnectionMeta } from "@/lib/social-connections";
-import EngagementAnalytics from "./EngagementAnalytics";
 
 function buildLinkedInPostUrl(post: any): string {
   // Try post_url first, then external_id, then raw_payload.url
@@ -243,9 +242,6 @@ export default function EngagementFeedTab() {
           )}
         </div>
       </Card>
-
-      {/* Analytics */}
-      <EngagementAnalytics key={Object.values(engagement).filter((e: any) => e?.status === "posted" || e?.status === "copied").length} />
 
       {/* Toolbar */}
       <div className="flex flex-wrap gap-3 items-center justify-between">
