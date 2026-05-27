@@ -39,9 +39,10 @@ Deno.serve(async (req) => {
     const freeResult = await fetchYouTubeTimedTextTranscript(videoId);
     const freeTranscript = freeResult.text;
     // Default to allowing Apify fallback: YouTube actively bot-blocks Supabase
-    // Edge, so without Apify most videos cannot be transcribed. Caller can
-    // explicitly opt out with allow_apify: false.
-    const allowApifyFallback = body?.allow_apify !== false;
+    // Edge, so without Apify most videos cannot be transcribed. Older frontend
+    // bundles sent allow_apify:false by default, so only skip on an explicit
+    // skip_apify flag.
+    const allowApifyFallback = body?.skip_apify !== true;
     if (!freeTranscript && !allowApifyFallback) {
       console.log(`youtube-fetch-transcript: no public captions; apify skipped video_id=${videoId} trace=${JSON.stringify(freeResult.trace).slice(0, 1600)}`);
       return json({
@@ -57,9 +58,9 @@ Deno.serve(async (req) => {
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const actorId = freeTranscript ? null : await pickTranscriptActor(admin, user.id);
     if (!freeTranscript && !actorId) return json({ ok: false, message: "No youtube_video_transcript actor configured. Add one in Social Hub → Settings → Apify actors.", fallback: true }, 200);
-    const token = freeTranscript ? "" : await pickApifyToken(admin, user.id);
-    if (!freeTranscript && !token) return json({ ok: false, message: "No Apify token available. Add one in Social Hub → Settings → Apify account pool.", fallback: true }, 200);
-    const transcript = freeTranscript ?? await runTranscriptActor(token, actorId!, videoUrl);
+    const tokenCandidates = freeTranscript ? [] : await pickApifyTokens(admin, user.id);
+    if (!freeTranscript && tokenCandidates.length === 0) return json({ ok: false, message: "No Apify token available. Add one in Social Hub → Settings → Apify account pool.", fallback: true }, 200);
+    const transcript = freeTranscript ?? await runTranscriptActorWithFallback(tokenCandidates, actorId!, videoUrl);
     if (!transcript) {
       return json({
         ok: false,
@@ -96,7 +97,7 @@ async function pickTranscriptActor(admin: any, userId: string): Promise<string |
   return Deno.env.get("APIFY_YT_TRANSCRIPT_ACTOR") ?? null;
 }
 
-async function pickApifyToken(admin: any, userId: string): Promise<string> {
+async function pickApifyTokens(admin: any, userId: string): Promise<string[]> {
   const { data } = await admin.from("social_apify_accounts")
     .select("api_token, monthly_budget_usd, posts_used_this_period, cost_per_10_posts_usd, active")
     .eq("user_id", userId).eq("active", true);
@@ -108,9 +109,29 @@ async function pickApifyToken(admin: any, userId: string): Promise<string> {
       })
       .filter((x) => x.token && x.remaining > 0)
       .sort((a, b) => b.remaining - a.remaining);
-    if (ranked[0]?.token) return ranked[0].token;
+    if (ranked.length > 0) return ranked.map((x) => x.token);
   }
-  return Deno.env.get("APIFY_API_TOKEN") ?? "";
+  const envToken = Deno.env.get("APIFY_API_TOKEN") ?? "";
+  return envToken ? [envToken] : [];
+}
+
+async function runTranscriptActorWithFallback(tokens: string[], actorId: string, videoUrl: string): Promise<string | null> {
+  let lastCreditError: ApifyActorError | null = null;
+  for (let i = 0; i < tokens.length; i += 1) {
+    try {
+      const transcript = await runTranscriptActor(tokens[i], actorId, videoUrl);
+      if (transcript) return transcript;
+    } catch (e) {
+      if (e instanceof ApifyActorError && e.isCreditError) {
+        lastCreditError = e;
+        console.log(`youtube-fetch-transcript: Apify token ${i + 1}/${tokens.length} lacks credits; trying next token`);
+        continue;
+      }
+      throw e;
+    }
+  }
+  if (lastCreditError) throw lastCreditError;
+  return null;
 }
 
 async function runTranscriptActor(token: string, actorId: string, videoUrl: string): Promise<string | null> {
@@ -307,12 +328,14 @@ class ApifyActorError extends Error {
   type: string;
   userMessage: string;
   actionUrl?: string;
+  isCreditError: boolean;
 
-  constructor(type: string, userMessage: string, actionUrl?: string) {
+  constructor(type: string, userMessage: string, actionUrl?: string, isCreditError = false) {
     super(userMessage);
     this.type = type;
     this.userMessage = userMessage;
     this.actionUrl = actionUrl;
+    this.isCreditError = isCreditError;
   }
 
   static fromResponse(status: number, text: string): ApifyActorError {
@@ -321,7 +344,7 @@ class ApifyActorError extends Error {
     const type = parsed?.error?.type ?? `apify-${status}`;
     const message = parsed?.error?.message ?? text;
     if (status === 402 || type === "not-enough-usage-to-run-paid-actor") {
-      return new ApifyActorError(type, "Apify does not have enough usage credit to run this paid transcript actor. Add credits or upgrade the Apify account, then try again.", "https://console.apify.com/billing/subscription");
+      return new ApifyActorError(type, "All configured Apify accounts were tried, but none had enough usage credit to run this paid transcript actor. Add credits or upgrade an Apify account, then try again.", "https://console.apify.com/billing/subscription", true);
     }
     if (type === "max-items-must-be-greater-than-zero") {
       return new ApifyActorError(type, "Apify rejected the actor run limit. The app now sends positive maxItems and maxTotalChargeUsd values; if this keeps happening, switch this channel to another YouTube transcript actor in Social Hub settings.");
