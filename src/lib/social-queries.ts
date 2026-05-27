@@ -297,6 +297,12 @@ export async function suggestCommentTone(payload: { post_text: string }): Promis
   return data as any;
 }
 
+export async function previewAllTones(payload: { post_text: string; author?: string }): Promise<{ previews?: { tone_id: string; label: string; comment: string; error?: string }[]; error?: string }> {
+  const { data, error } = await supabase.functions.invoke("generate-engagement-comment", { body: { action: "preview_all", ...payload } });
+  if (error) return { error: error.message };
+  return data as any;
+}
+
 export async function listCommentTones(): Promise<{ tones: CommentTone[]; defaults: CommentTone[]; is_custom: boolean }> {
   const { data, error } = await supabase.functions.invoke("generate-engagement-comment", { body: { action: "list_tones" } });
   if (error) throw error;
