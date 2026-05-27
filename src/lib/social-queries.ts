@@ -813,6 +813,7 @@ export type SelfProfile = {
   info_summary: string | null;
   num_followers: number | null;
   followers: number | null;
+  avatar_url: string | null;
   profile_url: string | null;
   username: string | null;
   last_scraped_at: string | null;
@@ -821,7 +822,7 @@ export type SelfProfile = {
 export async function getSelfProfile(): Promise<SelfProfile | null> {
   const u = await uid(); if (!u) return null;
   const { data } = await supabase.from("social_profiles" as any)
-    .select("id,display_name,full_name,title,company,location,country,info_summary,num_followers,followers,profile_url,username,last_scraped_at")
+    .select("id,display_name,full_name,title,company,location,country,info_summary,num_followers,followers,avatar_url,profile_url,username,last_scraped_at")
     .eq("user_id", u).eq("is_self", true).maybeSingle();
   return (data as any) ?? null;
 }
