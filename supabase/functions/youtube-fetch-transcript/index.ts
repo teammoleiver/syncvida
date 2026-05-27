@@ -36,15 +36,17 @@ Deno.serve(async (req) => {
       return json({ ok: true, transcript: vid.transcript, cached: true });
     }
 
-    const freeTranscript = await fetchYouTubeTimedTextTranscript(videoId);
+    const freeResult = await fetchYouTubeTimedTextTranscript(videoId);
+    const freeTranscript = freeResult.text;
     const allowApifyFallback = body?.allow_apify === true;
     if (!freeTranscript && !allowApifyFallback) {
-      console.log(`youtube-fetch-transcript: no public captions; apify skipped video_id=${videoId}`);
+      console.log(`youtube-fetch-transcript: no public captions; apify skipped video_id=${videoId} trace=${JSON.stringify(freeResult.trace).slice(0, 1600)}`);
       return json({
         ok: false,
         message: "No public YouTube captions were found for this video. The app did not run Apify, so no Apify credits were used.",
         error_type: "youtube-captions-unavailable",
         fallback: true,
+        debug: freeResult.trace,
       }, 200);
     }
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -138,9 +140,12 @@ async function runTranscriptActor(token: string, actorId: string, videoUrl: stri
   return extractTranscriptFromItems(items);
 }
 
-async function fetchYouTubeTimedTextTranscript(videoId: string): Promise<string | null> {
-  const innerTubeTranscript = await fetchYouTubeInnerTubeTranscript(videoId);
-  if (innerTubeTranscript) return innerTubeTranscript;
+type TranscriptFetchResult = { text: string | null; trace: Record<string, unknown>[] };
+
+async function fetchYouTubeTimedTextTranscript(videoId: string): Promise<TranscriptFetchResult> {
+  const trace: Record<string, unknown>[] = [];
+  const innerTubeTranscript = await fetchYouTubeInnerTubeTranscript(videoId, trace);
+  if (innerTubeTranscript) return { text: innerTubeTranscript, trace };
 
   const watch = await fetch(`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`, {
     headers: {
@@ -149,57 +154,96 @@ async function fetchYouTubeTimedTextTranscript(videoId: string): Promise<string 
     },
   }).then((r) => r.ok ? r.text() : "").catch(() => "");
   const captionTracks = watch.match(/"captionTracks":(\[.*?\])/)?.[1];
-  if (!captionTracks) return null;
+  if (!captionTracks) return { text: null, trace };
 
   let tracks: any[] = [];
-  try { tracks = JSON.parse(captionTracks.replace(/\\u0026/g, "&")); } catch { return null; }
+  try { tracks = JSON.parse(captionTracks.replace(/\\u0026/g, "&")); } catch { return { text: null, trace }; }
   const track = tracks.find((t: any) => String(t.languageCode).startsWith("en")) ?? tracks[0];
   const baseUrl = track?.baseUrl;
-  if (!baseUrl) return null;
+  if (!baseUrl) return { text: null, trace };
 
-  const xml = await fetch(`${baseUrl}&fmt=srv3`).then((r) => r.ok ? r.text() : "").catch(() => "");
-  const text = Array.from(xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g))
-    .map((m) => decodeHtml(m[1].replace(/<[^>]+>/g, " ")))
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return text.length > 50 ? text : null;
+  const transcriptRes = await fetch(`${baseUrl}&fmt=srv3`, { headers: { "User-Agent": WEB_USER_AGENT, "Accept-Language": "en-US,en;q=0.9" } });
+  const xml = await transcriptRes.text();
+  const text = parseTimedTextXml(xml);
+  trace.push({ stage: "watch_html", tracks: tracks.length, transcriptStatus: transcriptRes.status, chars: text.length });
+  return { text: text.length > 50 ? text : null, trace };
 }
 
 const WEB_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36";
 const ANDROID_YOUTUBE_VERSION = "20.10.38";
 const ANDROID_USER_AGENT = `com.google.android.youtube/${ANDROID_YOUTUBE_VERSION} (Linux; U; Android 14)`;
+const IOS_YOUTUBE_VERSION = "20.10.4";
+const IOS_USER_AGENT = `com.google.ios.youtube/${IOS_YOUTUBE_VERSION} (iPhone16,2; U; CPU iOS 17_5 like Mac OS X;)`;
 
-async function fetchYouTubeInnerTubeTranscript(videoId: string): Promise<string | null> {
+const INNERTUBE_CLIENTS = [
+  { name: "ANDROID", version: ANDROID_YOUTUBE_VERSION, userAgent: ANDROID_USER_AGENT },
+  { name: "IOS", version: IOS_YOUTUBE_VERSION, userAgent: IOS_USER_AGENT },
+] as const;
+
+async function fetchYouTubeInnerTubeTranscript(videoId: string, trace: Record<string, unknown>[]): Promise<string | null> {
+  for (const client of INNERTUBE_CLIENTS) {
+    const text = await fetchYouTubeInnerTubeTranscriptForClient(videoId, client, trace);
+    if (text) return text;
+  }
+  return null;
+}
+
+async function fetchYouTubeInnerTubeTranscriptForClient(videoId: string, client: typeof INNERTUBE_CLIENTS[number], trace: Record<string, unknown>[]): Promise<string | null> {
   try {
     const res = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": ANDROID_USER_AGENT,
+        "User-Agent": client.userAgent,
+        "Accept-Language": "en-US,en;q=0.9",
       },
       body: JSON.stringify({
-        context: { client: { clientName: "ANDROID", clientVersion: ANDROID_YOUTUBE_VERSION, hl: "en", gl: "US" } },
+        context: { client: { clientName: client.name, clientVersion: client.version, hl: "en", gl: "US" } },
         videoId,
       }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      trace.push({ stage: "innertube", client: client.name, status: res.status, tracks: 0 });
+      return null;
+    }
     const data = await res.json().catch(() => null);
     const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    trace.push({ stage: "innertube", client: client.name, status: res.status, playability: data?.playabilityStatus?.status, reason: data?.playabilityStatus?.reason, tracks: Array.isArray(tracks) ? tracks.length : 0 });
     if (!Array.isArray(tracks) || tracks.length === 0) return null;
 
     const track = pickBestCaptionTrack(tracks);
     const baseUrl = String(track?.baseUrl ?? "");
     if (!isSafeYouTubeCaptionUrl(baseUrl)) return null;
 
-    const transcriptRes = await fetch(baseUrl, { headers: { "User-Agent": WEB_USER_AGENT, "Accept-Language": "en-US,en;q=0.9" } });
-    if (!transcriptRes.ok) return null;
-    const xml = await transcriptRes.text();
-    const text = parseTimedTextXml(xml);
+    const text = await fetchCaptionTrackText(baseUrl, client.userAgent, trace, { client: client.name, language: track?.languageCode, kind: track?.kind ?? "manual" });
     return text.length > 50 ? text : null;
-  } catch {
+  } catch (error) {
+    trace.push({ stage: "innertube", client: client.name, error: String((error as Error)?.message ?? error) });
     return null;
   }
+}
+
+async function fetchCaptionTrackText(baseUrl: string, userAgent: string, trace: Record<string, unknown>[], meta: Record<string, unknown>): Promise<string> {
+  const urls = [baseUrl, appendCaptionParam(baseUrl, "fmt", "json3"), appendCaptionParam(baseUrl, "fmt", "srv3")];
+  for (const url of urls) {
+    const format = new URL(url).searchParams.get("fmt") ?? "xml";
+    const transcriptRes = await fetch(url, { headers: { "User-Agent": userAgent, "Accept-Language": "en-US,en;q=0.9" } });
+    if (!transcriptRes.ok) {
+      trace.push({ stage: "timedtext", ...meta, format, status: transcriptRes.status, chars: 0 });
+      continue;
+    }
+    const raw = await transcriptRes.text();
+    const text = raw.trim().startsWith("{") ? parseTimedTextJson3(raw) : parseTimedTextXml(raw);
+    trace.push({ stage: "timedtext", ...meta, format, status: transcriptRes.status, contentType: transcriptRes.headers.get("content-type"), rawChars: raw.length, chars: text.length });
+    if (text.length > 50) return text;
+  }
+  return "";
+}
+
+function appendCaptionParam(input: string, key: string, value: string): string {
+  const url = new URL(input);
+  url.searchParams.set(key, value);
+  return url.toString();
 }
 
 function pickBestCaptionTrack(tracks: any[]): any {
@@ -225,6 +269,20 @@ function parseTimedTextXml(xml: string): string {
     .map((m) => decodeHtml(m[1].replace(/<[^>]+>/g, " ")))
     .join(" ");
   return `${srv3} ${classic}`.replace(/\s+/g, " ").trim();
+}
+
+function parseTimedTextJson3(raw: string): string {
+  try {
+    const data = JSON.parse(raw);
+    return (Array.isArray(data?.events) ? data.events : [])
+      .flatMap((event: any) => Array.isArray(event?.segs) ? event.segs : [])
+      .map((seg: any) => typeof seg?.utf8 === "string" ? seg.utf8 : "")
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+  } catch {
+    return "";
+  }
 }
 
 function decodeHtml(input: string): string {
@@ -340,3 +398,4 @@ function extractTranscriptFromItems(items: any[]): string | null {
 function json(o: any, s = 200) {
   return new Response(JSON.stringify(o), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
+

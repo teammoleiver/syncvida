@@ -165,12 +165,12 @@ export default function VideoDetailDialog({
     });
   }
 
-  async function getTranscript(refresh = false) {
+  async function getTranscript(refresh = false, allowApify = false) {
     if (!video) return;
     setLoadingTranscript(true);
     setTranscriptDebug(null);
     try {
-      const r = await fetchVideoTranscript(video.video_id, refresh);
+      const r = await fetchVideoTranscript(video.video_id, refresh, allowApify);
       if (!r.transcript) {
         toast.error(r.message ?? "Transcript is not available for this video", {
           action: r.action_url ? { label: "Open Apify billing", onClick: () => window.open(r.action_url, "_blank", "noopener,noreferrer") } : undefined,
@@ -449,11 +449,35 @@ export default function VideoDetailDialog({
 
           {/* Transcript debug */}
           {transcriptDebug && (
-            <Card className="p-3 border-destructive/40 bg-destructive/5">
-              <div className="text-xs font-medium text-destructive mb-1">Transcript is unavailable</div>
-              <p className="text-[11px] text-muted-foreground mb-2">
-                No Apify actor was run unless explicitly enabled, so this did not use Apify credits.
+            <Card className="p-3 border-destructive/40 bg-destructive/5 space-y-2">
+              <div className="text-xs font-medium text-destructive">Transcript is unavailable</div>
+              <p className="text-[11px] text-muted-foreground">
+                {transcriptDebug.error_type === "youtube-captions-unavailable" 
+                  ? "No public YouTube captions were found. You can try fetching via Apify, which uses actor credits."
+                  : transcriptDebug.message || "An error occurred while fetching the transcript."}
               </p>
+              {transcriptDebug.error_type === "youtube-captions-unavailable" && (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="w-fit h-7 text-[11px] border-destructive/20 hover:bg-destructive/10"
+                  onClick={() => getTranscript(true, true)}
+                  disabled={loadingTranscript}
+                >
+                  {loadingTranscript ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                  Retry with Apify
+                </Button>
+              )}
+              {transcriptDebug.action_url && (
+                <Button
+                  size="sm"
+                  variant="link"
+                  className="h-auto p-0 text-[11px] text-destructive underline justify-start"
+                  onClick={() => window.open(transcriptDebug.action_url, "_blank", "noopener,noreferrer")}
+                >
+                  Resolve via Apify Dashboard
+                </Button>
+              )}
               <pre className="text-[10px] bg-background/50 p-2 rounded border border-border overflow-x-auto whitespace-pre-wrap">
                 {JSON.stringify(transcriptDebug, null, 2)}
               </pre>
@@ -759,3 +783,4 @@ async function copyToClipboard(text: string) {
     toast.success("Transcript copied");
   } catch { /* no-op */ }
 }
+
