@@ -199,9 +199,19 @@ export default function LinkedInAnalyticsTab() {
           </div>
         ) : (
           <div className="flex flex-col md:flex-row md:items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-display font-bold text-xl shrink-0">
-              {initials(profile.display_name || profile.full_name)}
-            </div>
+            {profile.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={profile.display_name || profile.full_name || "Profile"}
+                referrerPolicy="no-referrer"
+                className="w-16 h-16 rounded-full object-cover shrink-0 border border-border"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-display font-bold text-xl shrink-0">
+                {initials(profile.display_name || profile.full_name)}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-lg font-semibold truncate">{profile.display_name || profile.full_name || profile.username}</h3>
