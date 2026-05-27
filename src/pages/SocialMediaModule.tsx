@@ -452,11 +452,37 @@ function ProfilesTab() {
                   </td>
                   <td className="px-2 py-2 font-medium truncate">
                     <div className="flex items-center gap-1 min-w-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = !p.is_favorite;
+                          // optimistic
+                          setProfiles((arr) => arr.map((x) => x.id === p.id ? { ...x, is_favorite: next } : x));
+                          setProfileFavorite(p.id, next).catch((err) => {
+                            setProfiles((arr) => arr.map((x) => x.id === p.id ? { ...x, is_favorite: !next } : x));
+                            toast.error(err?.message ?? "Failed to update favorite");
+                          });
+                        }}
+                        title={p.is_favorite ? "Remove from favorites" : "Add to favorites"}
+                        className={`shrink-0 ${p.is_favorite ? "text-amber-500" : "text-muted-foreground/40 hover:text-amber-500"}`}
+                      >
+                        <Star className={`w-3.5 h-3.5 ${p.is_favorite ? "fill-current" : ""}`} />
+                      </button>
                       <span className="truncate">{p.full_name || p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "—"}</span>
                       <a href={p.profile_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-muted-foreground hover:text-primary shrink-0" title={p.profile_url}>
                         <ArrowUpRight className="w-3 h-3" />
                       </a>
                     </div>
+                    {Array.isArray(p.lists) && p.lists.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {p.lists.map((n: string) => (
+                          <span key={n} className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                            <Tag className="w-2.5 h-2.5" /> {n}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td className="px-2 py-2 truncate" title={p.job_title || p.title || ""}>{p.job_title || p.title || "—"}</td>
                   <td className="px-2 py-2 truncate" title={p.company || ""}>{p.company || "—"}{p.company_domain && <span className="block text-[10px] text-muted-foreground truncate">{p.company_domain}</span>}</td>
