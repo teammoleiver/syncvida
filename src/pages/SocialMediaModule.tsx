@@ -159,7 +159,7 @@ function ProfilesTab() {
   const safePage = Math.min(page, totalPages);
   const paged = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  useEffect(() => { setPage(1); }, [search, sortKey, sortDir]);
+  useEffect(() => { setPage(1); }, [search, sortKey, sortDir, favOnly, listFilter]);
   useEffect(() => { setSelectedIds(new Set()); }, [search]);
 
   const toggleSort = (key: string) => {
