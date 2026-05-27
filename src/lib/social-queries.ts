@@ -843,7 +843,7 @@ export async function getSelfPostsAnalytics(): Promise<SelfPostsAnalytics> {
   };
   const id = await getSelfProfileId();
   if (!id) return empty;
-  const { data, error } = await supabase.from("linkedin_posts" as any)
+  const { data, error } = await supabase.from("social_posts" as any)
     .select("id,post_url,post_text,posted_at,likes,comments,shares,views")
     .eq("profile_id", id)
     .order("posted_at", { ascending: false })
