@@ -104,6 +104,61 @@ function sumReactions(reactions: any): number {
   return reactions.reduce((sum, r) => sum + (Number(r?.count) || 0), 0);
 }
 
+function parseCount(value: any): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const match = text.match(/([\d,.]+)\s*([kKmMbB])?/);
+  if (!match) return null;
+  const base = Number(match[1].replace(/,/g, ""));
+  if (!Number.isFinite(base)) return null;
+  const suffix = (match[2] ?? "").toLowerCase();
+  const multiplier = suffix === "k" ? 1_000 : suffix === "m" ? 1_000_000 : suffix === "b" ? 1_000_000_000 : 1;
+  const parsed = Math.round(base * multiplier);
+  return parsed > 0 ? parsed : null;
+}
+
+function extractProfileMeta(items: any[], fallback: any) {
+  const meta: Record<string, any> = {};
+  const candidates: any[] = [];
+  for (const item of items) candidates.push(item, item?.profile, item?.user, item?.author, item?.actor, item?.data);
+  for (const c of candidates.filter(Boolean)) {
+    meta.avatar_url ||= firstString(
+      c.avatar_url, c.avatarUrl, c.profilePicture, c.profilePictureUrl, c.profile_picture_url,
+      c.profileImage, c.profileImageUrl, c.image_url, c.imageUrl, c.picture, c.photo,
+    );
+    const followers = parseCount(
+      c.followerCount ?? c.followersCount ?? c.followers_count ?? c.numFollowers ?? c.num_followers ?? c.followers,
+    );
+    if (meta.num_followers == null && followers != null) meta.num_followers = followers;
+    meta.display_name ||= firstString(c.fullName, c.full_name, c.name, [c.firstName, c.lastName].filter(Boolean).join(" "));
+    meta.title ||= firstString(c.headline, c.occupation, c.bio, c.subtitle);
+    meta.location ||= firstString(c.location, c.locationName, c.geoLocationName, c.country);
+    meta.info_summary ||= firstString(c.summary, c.about, c.description, c.bio);
+  }
+  if (!meta.display_name) meta.display_name = fallback.display_name;
+  return meta;
+}
+
+async function scrapeProfileMeta(token: string, actorIdRaw: string, profile: any) {
+  const actorId = normalizeActorId(actorIdRaw);
+  const input = {
+    profileUrls: [profile.profile_url],
+    extractFullName: true,
+    extractBio: true,
+    extractFollowers: true,
+    extractFollowing: true,
+    extractPosts: true,
+    maxConcurrency: 1,
+    timeout: 90,
+  };
+  const apiUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${token}`;
+  const res = await fetch(apiUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  if (!res.ok) throw new Error(`Profile actor ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const raw = await res.json();
+  return extractProfileMeta(flattenItems(Array.isArray(raw) ? raw : [raw]), profile);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -112,6 +167,7 @@ Deno.serve(async (req: Request) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const fallbackToken = Deno.env.get("APIFY_API_TOKEN");
     const defaultActor = Deno.env.get("APIFY_LINKEDIN_ACTOR_ID") ?? "94SdiE9JwTx0RNyfS";
+    const defaultProfileActor = Deno.env.get("APIFY_LINKEDIN_PROFILE_ACTOR_ID") ?? "apivault_labs/linkedin-profile-scraper";
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
@@ -191,6 +247,28 @@ Deno.serve(async (req: Request) => {
       let winningAccount: any = null;
       let lastError = "No results";
       const attempts = candidates.length > 0 ? candidates : [{ id: null, label: "env", api_token: fallbackToken, actor_id: profile.apify_actor_id || defaultActor, actor_input_defaults: {} }];
+
+      if (profile.is_self) {
+        try {
+          const { data: oauthConn } = await admin.from("social_oauth_connections")
+            .select("avatar_url, display_name")
+            .eq("user_id", user.id)
+            .eq("provider", "linkedin")
+            .maybeSingle();
+          const tokenForMeta = attempts.find((a: any) => a?.api_token)?.api_token ?? fallbackToken;
+          const profileMeta = tokenForMeta ? await scrapeProfileMeta(tokenForMeta, defaultProfileActor, profile).catch((e) => ({ _error: String(e?.message ?? e) })) : {};
+          const metaPatch: Record<string, any> = {};
+          if (oauthConn?.avatar_url || profileMeta.avatar_url) metaPatch.avatar_url = oauthConn?.avatar_url ?? profileMeta.avatar_url;
+          if (profileMeta.num_followers != null) { metaPatch.num_followers = profileMeta.num_followers; metaPatch.followers = profileMeta.num_followers; }
+          if (profileMeta.display_name && !profile.display_name) metaPatch.display_name = profileMeta.display_name;
+          if (profileMeta.title && !profile.title) metaPatch.title = profileMeta.title;
+          if (profileMeta.location && !profile.location) metaPatch.location = profileMeta.location;
+          if (profileMeta.info_summary && !profile.info_summary) metaPatch.info_summary = profileMeta.info_summary;
+          if (Object.keys(metaPatch).length) await admin.from("social_profiles").update(metaPatch).eq("id", profile.id);
+        } catch (e) {
+          console.warn("self profile metadata scrape failed", e);
+        }
+      }
 
       for (const account of attempts) {
         const token = account.api_token;
