@@ -96,12 +96,14 @@ Deno.serve(async (req: Request) => {
     const handle = (() => { try { return new URL(url).pathname.split("/").filter(Boolean).pop() ?? ""; } catch { return ""; } })();
 
     // ── Linkup search 1: profile-focused (name, headline, about, current role) ──
-    const profileQuery = `LinkedIn profile ${url} — full name, current job title and company, headline, about/bio, location, country, years of experience, expertise areas, skills, target audience. Use the public LinkedIn page and any other public web sources (company site, press, conference bios, podcasts).`;
-    const profileSearch = await linkupSearch(linkupKey, profileQuery, "deep");
+    const profileQuery = `LinkedIn profile ${url} — full name, current job title and company, headline, about/bio, location, country, number of followers, number of connections, years of experience, expertise areas, skills, target audience. Use the public LinkedIn page and any other public web sources (company site, press, conference bios, podcasts).`;
+    const profileSearch = await linkupSearch(linkupKey, profileQuery, "deep", true);
 
     // ── Linkup search 2: posts & writing style ──
     const postsQuery = `Recent public LinkedIn posts and articles authored by the person at ${url} (handle: ${handle}). Return the actual post text excerpts when available, the topics they post about, post format (short hooks, long-form, listicles), tone and writing style.`;
     const postsSearch = await linkupSearch(linkupKey, postsQuery, "deep").catch((e) => ({ answer: `(posts search failed: ${e.message})`, sources: [] as any[] }));
+    const followerCount = extractFollowerCount(profileSearch.answer, ...profileSearch.sources.map((s) => `${s.name}\n${s.snippet}`));
+    const avatarUrl = firstString(...profileSearch.sources.map((s) => s.image));
 
     if (!profileSearch.answer && !postsSearch.answer) {
       return jr({ error: "Linkup returned no usable data for this LinkedIn URL." }, 422);
@@ -189,6 +191,8 @@ ${postsSearch.answer.slice(0, 6000)}`;
     if (location) profilePatch.location = location;
     if (headline) profilePatch.title = headline;
     if (about_me) profilePatch.info_summary = about_me;
+    if (followerCount != null) { profilePatch.num_followers = followerCount; profilePatch.followers = followerCount; }
+    if (avatarUrl) profilePatch.avatar_url = avatarUrl;
 
     if (selfProfileId) {
       await admin.from("social_profiles").update(profilePatch).eq("id", selfProfileId);
@@ -203,7 +207,7 @@ ${postsSearch.answer.slice(0, 6000)}`;
       ok: true,
       self_profile_id: selfProfileId,
       source: "linkup",
-      scraped: { fullName, headline, company, location },
+      scraped: { fullName, headline, company, location, followers: followerCount, avatarUrl },
       summary: { about_me, career_summary, expertise, target_audience, writing_samples },
       web_context: {
         profile: { answer: profileSearch.answer, sources: profileSearch.sources },
