@@ -1904,6 +1904,7 @@ export type Database = {
           gtm_relevance: string | null
           id: string
           info_summary: string | null
+          is_favorite: boolean
           is_self: boolean
           job_category: string | null
           job_title: string | null
@@ -1912,6 +1913,7 @@ export type Database = {
           last_scrape_status: string | null
           last_scraped_at: string | null
           linkedin_activity_level: string | null
+          lists: string[]
           location: string | null
           notes: string | null
           num_followers: number | null
@@ -1947,6 +1949,7 @@ export type Database = {
           gtm_relevance?: string | null
           id?: string
           info_summary?: string | null
+          is_favorite?: boolean
           is_self?: boolean
           job_category?: string | null
           job_title?: string | null
@@ -1955,6 +1958,7 @@ export type Database = {
           last_scrape_status?: string | null
           last_scraped_at?: string | null
           linkedin_activity_level?: string | null
+          lists?: string[]
           location?: string | null
           notes?: string | null
           num_followers?: number | null
@@ -1990,6 +1994,7 @@ export type Database = {
           gtm_relevance?: string | null
           id?: string
           info_summary?: string | null
+          is_favorite?: boolean
           is_self?: boolean
           job_category?: string | null
           job_title?: string | null
@@ -1998,6 +2003,7 @@ export type Database = {
           last_scrape_status?: string | null
           last_scraped_at?: string | null
           linkedin_activity_level?: string | null
+          lists?: string[]
           location?: string | null
           notes?: string | null
           num_followers?: number | null
