@@ -62,6 +62,8 @@ Deno.serve(async (req) => {
     if (e instanceof ApifyActorError) {
       return json({ ok: false, message: e.userMessage, error_type: e.type, action_url: e.actionUrl, fallback: true }, 200);
     }
+    const fallback = apifyFallbackFromUnknownError(e);
+    if (fallback) return json(fallback, 200);
     return json({ error: String((e as Error).message ?? e) }, 500);
   }
 });
@@ -181,6 +183,29 @@ class ApifyActorError extends Error {
     }
     return new ApifyActorError(type, `Apify ${status}: ${message}`);
   }
+}
+
+function apifyFallbackFromUnknownError(e: unknown) {
+  const raw = String((e as Error)?.message ?? e ?? "");
+  if (!raw.includes("Apify")) return null;
+  if (raw.includes("max-items-must-be-greater-than-zero") || raw.includes("Maximum charged results must be greater than zero")) {
+    return {
+      ok: false,
+      message: "Apify rejected this transcript actor's charged-results limit even though the app sends positive limits. Try a different YouTube transcript actor in Social Hub settings, or use a video with public YouTube captions.",
+      error_type: "max-items-must-be-greater-than-zero",
+      fallback: true,
+    };
+  }
+  if (raw.includes("not-enough-usage-to-run-paid-actor") || raw.includes("exceed your remaining usage")) {
+    return {
+      ok: false,
+      message: "Apify does not have enough usage credit to run this paid transcript actor. Add credits or upgrade the Apify account, then try again.",
+      error_type: "not-enough-usage-to-run-paid-actor",
+      action_url: "https://console.apify.com/billing/subscription",
+      fallback: true,
+    };
+  }
+  return { ok: false, message: raw, error_type: "apify-error", fallback: true };
 }
 
 function extractTranscriptFromItems(items: any[]): string | null {
