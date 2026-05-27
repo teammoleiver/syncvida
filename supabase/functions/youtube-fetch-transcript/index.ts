@@ -37,6 +37,15 @@ Deno.serve(async (req) => {
     }
 
     const freeTranscript = await fetchYouTubeTimedTextTranscript(videoId);
+    const allowApifyFallback = body?.allow_apify === true;
+    if (!freeTranscript && !allowApifyFallback) {
+      return json({
+        ok: false,
+        message: "No public YouTube captions were found for this video. The app did not run Apify, so no Apify credits were used.",
+        error_type: "youtube-captions-unavailable",
+        fallback: true,
+      }, 200);
+    }
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const actorId = freeTranscript ? null : await pickTranscriptActor(admin, user.id);
     if (!freeTranscript && !actorId) return json({ ok: false, message: "No youtube_video_transcript actor configured. Add one in Social Hub → Settings → Apify actors.", fallback: true }, 200);
