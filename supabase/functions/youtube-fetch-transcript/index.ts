@@ -328,12 +328,14 @@ class ApifyActorError extends Error {
   type: string;
   userMessage: string;
   actionUrl?: string;
+  isCreditError: boolean;
 
-  constructor(type: string, userMessage: string, actionUrl?: string) {
+  constructor(type: string, userMessage: string, actionUrl?: string, isCreditError = false) {
     super(userMessage);
     this.type = type;
     this.userMessage = userMessage;
     this.actionUrl = actionUrl;
+    this.isCreditError = isCreditError;
   }
 
   static fromResponse(status: number, text: string): ApifyActorError {
@@ -342,7 +344,7 @@ class ApifyActorError extends Error {
     const type = parsed?.error?.type ?? `apify-${status}`;
     const message = parsed?.error?.message ?? text;
     if (status === 402 || type === "not-enough-usage-to-run-paid-actor") {
-      return new ApifyActorError(type, "Apify does not have enough usage credit to run this paid transcript actor. Add credits or upgrade the Apify account, then try again.", "https://console.apify.com/billing/subscription");
+      return new ApifyActorError(type, "All configured Apify accounts were tried, but none had enough usage credit to run this paid transcript actor. Add credits or upgrade an Apify account, then try again.", "https://console.apify.com/billing/subscription", true);
     }
     if (type === "max-items-must-be-greater-than-zero") {
       return new ApifyActorError(type, "Apify rejected the actor run limit. The app now sends positive maxItems and maxTotalChargeUsd values; if this keeps happening, switch this channel to another YouTube transcript actor in Social Hub settings.");
