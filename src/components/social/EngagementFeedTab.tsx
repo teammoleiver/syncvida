@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, useDeferredValue } from "react";
-import { Loader2, MessageCircle, ThumbsUp, ExternalLink, Sparkles, Copy, Check, Send, Search, X, Heart, Link2, ShieldCheck, ShieldAlert, ChevronLeft, ChevronRight, Trash2, Wand2 } from "lucide-react";
+import { Loader2, MessageCircle, ThumbsUp, ExternalLink, Sparkles, Copy, Check, Send, Search, X, Heart, Link2, ShieldCheck, ShieldAlert, ChevronLeft, ChevronRight, Trash2, Wand2, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -13,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  listSocialPosts, listSocialProfiles, deleteSocialPost,
+  listSocialPosts, listSocialProfiles, deleteSocialPost, deleteSocialPosts,
   listEngagementComments, upsertEngagementComment, generateEngagementComment, suggestCommentTone, listCommentTones, previewAllTones,
   type EngagementRow, type CommentTone,
 } from "@/lib/social-queries";
@@ -63,6 +65,10 @@ export default function EngagementFeedTab() {
   const [tones, setTones] = useState<CommentTone[]>([]);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; author: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [hideNoLink, setHideNoLink] = useState(true);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState<null | { ids: string[]; reason: string }>(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   // Defer search input so typing stays smooth even on 1000+ posts
   const deferredSearch = useDeferredValue(search);
 
@@ -93,9 +99,19 @@ export default function EngagementFeedTab() {
     } catch (e: any) { toast.error(e?.message ?? "Could not start LinkedIn auth"); setConnecting(false); }
   }
 
+  // Pre-compute the link for every post once (used by filter + render)
+  const linkByPost = useMemo(() => {
+    const m = new Map<string, string>();
+    posts.forEach((p) => m.set(p.id, buildLinkedInPostUrl(p)));
+    return m;
+  }, [posts]);
+
+  const noLinkCount = useMemo(() => posts.filter((p) => !linkByPost.get(p.id)).length, [posts, linkByPost]);
+
   const filtered = useMemo(() => {
     const q = deferredSearch.trim().toLowerCase();
     return posts.filter((p) => {
+      if (hideNoLink && !linkByPost.get(p.id)) return false;
       if (q && !((p.post_text || "").toLowerCase().includes(q) || (p.author || "").toLowerCase().includes(q))) return false;
       const e = engagement[p.id];
       if (statusFilter === "todo" && (e?.draft_text || e?.liked || e?.status === "posted")) return false;
@@ -104,10 +120,10 @@ export default function EngagementFeedTab() {
       if (statusFilter === "liked" && !e?.liked) return false;
       return true;
     });
-  }, [posts, engagement, deferredSearch, statusFilter]);
+  }, [posts, engagement, deferredSearch, statusFilter, hideNoLink, linkByPost]);
 
   // Reset to page 1 whenever filters change
-  useEffect(() => { setPage(1); }, [search, statusFilter, profileFilter]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, profileFilter, hideNoLink]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -126,6 +142,48 @@ export default function EngagementFeedTab() {
     });
     return { total: posts.length, drafts, posted, liked };
   }, [engagement, posts]);
+
+  // ── Selection helpers ──
+  const pageIds = useMemo(() => paginated.map((p: any) => p.id), [paginated]);
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+  const someOnPageSelected = pageIds.some((id) => selected.has(id)) && !allOnPageSelected;
+  function toggleOne(id: string) {
+    setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+  function toggleAllOnPage() {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (allOnPageSelected) pageIds.forEach((id) => n.delete(id));
+      else pageIds.forEach((id) => n.add(id));
+      return n;
+    });
+  }
+  function selectAllFiltered() {
+    setSelected(new Set(filtered.map((p: any) => p.id)));
+  }
+  function clearSelection() { setSelected(new Set()); }
+
+  async function runBulkDelete(ids: string[]) {
+    if (!ids.length) return;
+    setBulkDeleting(true);
+    const idSet = new Set(ids);
+    const prevPosts = posts;
+    const prevEng = engagement;
+    setPosts((p) => p.filter((x) => !idSet.has(x.id)));
+    setEngagement((s) => { const n = { ...s }; ids.forEach((i) => delete n[i]); return n; });
+    setSelected((s) => { const n = new Set(s); ids.forEach((i) => n.delete(i)); return n; });
+    setBulkConfirm(null);
+    try {
+      const count = await deleteSocialPosts(ids);
+      toast.success(`Deleted ${count} post${count === 1 ? "" : "s"}`);
+    } catch (e: any) {
+      setPosts(prevPosts);
+      setEngagement(prevEng);
+      toast.error(e?.message ?? "Bulk delete failed");
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
 
   const updateLocal = (postId: string, row: EngagementRow) => {
     setEngagement((s) => ({ ...s, [postId]: row }));
@@ -209,6 +267,10 @@ export default function EngagementFeedTab() {
               <SelectItem value="liked">Liked</SelectItem>
             </SelectContent>
           </Select>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground border border-border rounded-md px-2.5 h-9" title="Hide posts that don't have a public LinkedIn URL — you can't open them to paste a comment anyway.">
+            <Switch checked={hideNoLink} onCheckedChange={setHideNoLink} />
+            <span>Only with link {noLinkCount > 0 && <span className="opacity-60">({noLinkCount} hidden)</span>}</span>
+          </label>
         </div>
         <div className="flex gap-1.5 text-[11px]">
           <Pill label="Posts" value={stats.total} />
@@ -218,6 +280,60 @@ export default function EngagementFeedTab() {
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      {!loading && filtered.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <Checkbox
+                checked={allOnPageSelected ? true : (someOnPageSelected ? "indeterminate" : false)}
+                onCheckedChange={toggleAllOnPage}
+                aria-label="Select all on this page"
+              />
+              <span className="text-muted-foreground">
+                {selected.size > 0
+                  ? <><span className="text-foreground font-medium">{selected.size}</span> selected</>
+                  : "Select all on page"}
+              </span>
+            </label>
+            {selected.size > 0 && selected.size < filtered.length && (
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={selectAllFiltered}>
+                Select all {filtered.length} in view
+              </Button>
+            )}
+            {selected.size > 0 && (
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearSelection}>
+                Clear
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {noLinkCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs gap-1.5"
+                onClick={() => {
+                  const ids = posts.filter((p) => !linkByPost.get(p.id)).map((p) => p.id);
+                  setBulkConfirm({ ids, reason: `${ids.length} post${ids.length === 1 ? "" : "s"} without a public LinkedIn link` });
+                }}
+              >
+                <Link2 className="w-3.5 h-3.5" /> Delete {noLinkCount} without link
+              </Button>
+            )}
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-7 px-2 text-xs gap-1.5"
+              disabled={selected.size === 0}
+              onClick={() => setBulkConfirm({ ids: Array.from(selected), reason: `${selected.size} selected post${selected.size === 1 ? "" : "s"}` })}
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Delete selected
+            </Button>
+          </div>
+        </div>
+      )}
+
       {loading ? <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div> :
         filtered.length === 0 ? <Card className="p-8 text-center text-muted-foreground text-sm">No posts. Add profiles and scrape them in the Profiles tab.</Card> :
         <>
@@ -225,11 +341,14 @@ export default function EngagementFeedTab() {
           {paginated.map((p) => {
             const e = engagement[p.id];
             const done = e?.status === "posted" || e?.status === "copied";
-            const link = buildLinkedInPostUrl(p);
+            const link = linkByPost.get(p.id) || "";
+            const isSel = selected.has(p.id);
             return (
               <Card
                 key={p.id}
                 className={`p-3 cursor-pointer transition-colors flex flex-col gap-2 ${
+                  isSel ? "ring-2 ring-primary border-primary/60 " : ""
+                }${
                   done
                     ? "bg-emerald-500/10 border-emerald-500/40 hover:border-emerald-500/60"
                     : "hover:border-primary/40"
@@ -237,9 +356,18 @@ export default function EngagementFeedTab() {
                 onClick={() => setOpenPost(p)}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm truncate">{p.author || "—"}</div>
-                    <div className="text-[11px] text-muted-foreground truncate">{p.company || "—"} · {p.posted_at ? new Date(p.posted_at).toLocaleDateString() : ""}</div>
+                  <div className="flex items-start gap-2 min-w-0">
+                    <Checkbox
+                      checked={isSel}
+                      onCheckedChange={() => toggleOne(p.id)}
+                      onClick={(ev) => ev.stopPropagation()}
+                      aria-label="Select post"
+                      className="mt-0.5"
+                    />
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm truncate">{p.author || "—"}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">{p.company || "—"} · {p.posted_at ? new Date(p.posted_at).toLocaleDateString() : ""}</div>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {link && (
@@ -349,6 +477,27 @@ export default function EngagementFeedTab() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!bulkConfirm} onOpenChange={(o) => { if (!o) setBulkConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {bulkConfirm?.ids.length} posts?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Permanently removes <span className="font-medium text-foreground">{bulkConfirm?.reason}</span> and any draft comments attached to them — from this feed and from the database. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bulkConfirm && runBulkDelete(bulkConfirm.ids)}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete permanently"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
