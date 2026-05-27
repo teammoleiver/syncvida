@@ -930,6 +930,65 @@ export async function recordSelfSnapshot(): Promise<SelfSnapshot | null> {
   return data as any;
 }
 
+// ── Combined posting analytics (scraped LinkedIn + Content Planner) ──
+export type PostingAnalytics = {
+  byMonth: { month: string; scraped: number; planner: number; total: number }[];
+  totals: { scraped: number; planner: number };
+};
+
+export async function getPostingAnalytics12mo(): Promise<PostingAnalytics> {
+  const u = await uid();
+  const now = new Date(); now.setDate(1); now.setHours(0,0,0,0);
+  const months: string[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now); d.setMonth(d.getMonth() - i);
+    months.push(d.toISOString().slice(0, 7));
+  }
+  const since = new Date(now); since.setMonth(since.getMonth() - 11);
+  const empty: PostingAnalytics = {
+    byMonth: months.map((m) => ({ month: m, scraped: 0, planner: 0, total: 0 })),
+    totals: { scraped: 0, planner: 0 },
+  };
+  if (!u) return empty;
+
+  const selfId = await getSelfProfileId();
+  const [scrapedRes, plannerRes] = await Promise.all([
+    selfId
+      ? supabase.from("social_posts" as any).select("posted_at")
+          .eq("profile_id", selfId).gte("posted_at", since.toISOString()).limit(2000)
+      : Promise.resolve({ data: [] as any[] }),
+    supabase.from("social_content_plan" as any).select("posted_at,scheduled_date,status")
+      .eq("user_id", u).gte("posted_at", since.toISOString()).limit(2000),
+  ]);
+
+  const map = new Map<string, { scraped: number; planner: number }>();
+  months.forEach((m) => map.set(m, { scraped: 0, planner: 0 }));
+
+  for (const r of (scrapedRes as any).data ?? []) {
+    if (!r.posted_at) continue;
+    const m = String(r.posted_at).slice(0, 7);
+    const cur = map.get(m); if (cur) cur.scraped++;
+  }
+  for (const r of (plannerRes as any).data ?? []) {
+    const t = r.posted_at || r.scheduled_date;
+    if (!t) continue;
+    const m = String(t).slice(0, 7);
+    const cur = map.get(m); if (cur) cur.planner++;
+  }
+
+  const byMonth = months.map((m) => {
+    const v = map.get(m)!;
+    return { month: m, scraped: v.scraped, planner: v.planner, total: v.scraped + v.planner };
+  });
+  return {
+    byMonth,
+    totals: {
+      scraped: byMonth.reduce((a, b) => a + b.scraped, 0),
+      planner: byMonth.reduce((a, b) => a + b.planner, 0),
+    },
+  };
+}
+
 // ── Reference websites enrichment (Linkup deep-search of competitor/topic sites) ──
 export async function enrichFromWebsites(websites?: string[]) {
   return supabase.functions.invoke("enrich-from-websites", { body: websites ? { websites } : {} });
