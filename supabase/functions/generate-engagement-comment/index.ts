@@ -90,6 +90,22 @@ function enforceWordLimit(text: string, maxWords: number): string {
   return trimmed + (cleaned.includes("?") && !cleaned.includes(".") ? "?" : ".");
 }
 
+// Strip AI-tell punctuation the model may still slip in (em/en dash, ellipses, smart quotes, hyphen-as-pause).
+function scrubAiTells(text: string): string {
+  let t = text;
+  // em/en dash with optional surrounding spaces -> ", "
+  t = t.replace(/\s*[—–]\s*/g, ", ");
+  // " - " used as a pause -> ", "
+  t = t.replace(/\s+-\s+/g, ", ");
+  // ellipses
+  t = t.replace(/\s*(?:…|\.{3,})\s*/g, ". ");
+  // smart quotes -> straight
+  t = t.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+  // collapse double punctuation/spaces
+  t = t.replace(/,\s*,/g, ",").replace(/\s{2,}/g, " ").replace(/\s+([.,!?])/g, "$1").trim();
+  return t;
+}
+
 async function callAI(systemPrompt: string, userPrompt: string) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -181,6 +197,7 @@ serve(async (req) => {
           const usr = `Write a LinkedIn comment for this post${author ? ` by ${author}` : ""}.\n\n--- POST ---\n${post_text}`;
           let c = await callAI(sys, usr);
           c = c.replace(/^["“]|["”]$/g, "").trim();
+          c = scrubAiTells(c);
           c = enforceWordLimit(c, t.max_words);
           return { tone_id: t.id, label: t.label, comment: c };
         } catch (err: any) {
@@ -202,6 +219,7 @@ serve(async (req) => {
     const usr = `Write a LinkedIn comment for this post${author ? ` by ${author}` : ""}.${instruction ? `\nExtra instruction: ${instruction}.` : ""}\n\n--- POST ---\n${post_text.slice(0, 4000)}`;
     let comment = await callAI(sys, usr);
     comment = comment.replace(/^["“]|["”]$/g, "").trim();
+    comment = scrubAiTells(comment);
     comment = enforceWordLimit(comment, tone.max_words);
     return new Response(JSON.stringify({ comment, tone_id: tone.id }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
