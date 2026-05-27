@@ -138,7 +138,8 @@ export default function LinkedInAnalyticsTab() {
     }
   }
 
-  const followers = profile?.num_followers ?? profile?.followers ?? null;
+  const followers = profile?.num_followers ?? (profile?.followers && profile.followers > 0 ? profile.followers : null);
+  const profileAvatar = profile?.avatar_url || linkedinConn?.avatar_url || null;
   const followerSeries = useMemo(() => snaps.map((s) => s.followers ?? 0), [snaps]);
   const followerGrowth = useMemo(() => {
     if (snaps.length < 2 || followers == null) return null;
@@ -199,9 +200,9 @@ export default function LinkedInAnalyticsTab() {
           </div>
         ) : (
           <div className="flex flex-col md:flex-row md:items-center gap-4">
-            {profile.avatar_url ? (
+            {profileAvatar ? (
               <img
-                src={profile.avatar_url}
+                src={profileAvatar}
                 alt={profile.display_name || profile.full_name || "Profile"}
                 referrerPolicy="no-referrer"
                 className="w-16 h-16 rounded-full object-cover shrink-0 border border-border"
