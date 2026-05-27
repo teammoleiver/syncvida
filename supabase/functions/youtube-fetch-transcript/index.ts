@@ -41,11 +41,13 @@ Deno.serve(async (req) => {
     const token = await pickApifyToken(admin, user.id);
     if (!token) return json({ error: "No Apify token available. Add one in Social Hub → Settings → Apify account pool." }, 400);
 
+    const freeTranscript = await fetchYouTubeTimedTextTranscript(videoId);
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    const transcript = await runTranscriptActor(token, actorId, videoUrl);
+    const transcript = freeTranscript ?? await runTranscriptActor(token, actorId, videoUrl);
     if (!transcript) {
       return json({
-        error: "No transcript available for this video (captions may be disabled, or the actor returned an unexpected shape).",
+        ok: false,
+        message: "No transcript available for this video. Captions may be disabled, and the transcript actor did not return readable text.",
         fallback: true,
       }, 200);
     }
@@ -53,11 +55,14 @@ Deno.serve(async (req) => {
     await admin.from("youtube_videos").update({
       transcript,
       transcript_fetched_at: new Date().toISOString(),
-      transcript_source: "apify",
+      transcript_source: freeTranscript ? "youtube_timedtext" : "apify",
     }).eq("id", vid.id);
 
     return json({ ok: true, transcript, cached: false });
   } catch (e) {
+    if (e instanceof ApifyActorError) {
+      return json({ ok: false, message: e.userMessage, error_type: e.type, action_url: e.actionUrl, fallback: true }, 200);
+    }
     return json({ error: String((e as Error).message ?? e) }, 500);
   }
 });
