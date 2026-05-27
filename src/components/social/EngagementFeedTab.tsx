@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   listSocialPosts, listSocialProfiles, deleteSocialPost,
-  listEngagementComments, upsertEngagementComment, generateEngagementComment, suggestCommentTone, listCommentTones,
+  listEngagementComments, upsertEngagementComment, generateEngagementComment, suggestCommentTone, listCommentTones, previewAllTones,
   type EngagementRow, type CommentTone,
 } from "@/lib/social-queries";
 import { getMyLinkedInConnection, startLinkedInAuth, type SocialConnectionMeta } from "@/lib/social-connections";
@@ -408,6 +408,18 @@ function EngagementDialog({ post, row, tones, onClose, onUpdate }: { post: any; 
     } finally { setSuggestingTone(false); }
   }
 
+  // ── Live preview: one example per tone for this exact post ──
+  const [previews, setPreviews] = useState<{ tone_id: string; label: string; comment: string; error?: string }[] | null>(null);
+  const [loadingPreviews, setLoadingPreviews] = useState(false);
+  async function loadPreviews() {
+    setLoadingPreviews(true); setPreviews(null);
+    try {
+      const r = await previewAllTones({ post_text: post.post_text || "", author: post.author });
+      if (r.error) { toast.error(r.error); return; }
+      setPreviews(r.previews || []);
+    } finally { setLoadingPreviews(false); }
+  }
+
   async function save(nextStatus?: EngagementRow["status"], extras?: Partial<EngagementRow>) {
     setSaving(true);
     try {
@@ -513,6 +525,56 @@ function EngagementDialog({ post, row, tones, onClose, onUpdate }: { post: any; 
             </div>
             {suggestReason && (
               <p className="text-[11px] text-muted-foreground italic">Why this tone: {suggestReason}</p>
+            )}
+          </div>
+
+          {/* Live preview — one example per tone for THIS post */}
+          <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-medium flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-primary" /> Tone preview
+                <span className="text-muted-foreground font-normal">— see how each tone would reply to this post</span>
+              </div>
+              <Button size="sm" variant="outline" onClick={loadPreviews} disabled={loadingPreviews} className="h-7 gap-1.5 text-xs">
+                {loadingPreviews ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                {previews ? "Regenerate" : "Preview all tones"}
+              </Button>
+            </div>
+            {loadingPreviews && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-16 rounded-md bg-muted/40 animate-pulse" />
+                ))}
+              </div>
+            )}
+            {!loadingPreviews && previews && previews.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+                {previews.map((p) => {
+                  const active = toneId === p.tone_id;
+                  return (
+                    <button
+                      key={p.tone_id}
+                      type="button"
+                      onClick={() => { setToneId(p.tone_id); if (p.comment) setDraft(p.comment); }}
+                      className={`text-left rounded-md border p-2.5 transition-colors ${active ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 bg-background"}`}
+                      title="Click to use this as your draft"
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-[11px] font-medium">{p.label}</span>
+                        <span className="text-[10px] text-muted-foreground">{p.comment ? `${p.comment.split(/\s+/).filter(Boolean).length}w` : ""}</span>
+                      </div>
+                      {p.error ? (
+                        <p className="text-[11px] text-destructive">Couldn't generate</p>
+                      ) : (
+                        <p className="text-xs leading-snug whitespace-pre-wrap line-clamp-3">{p.comment || "—"}</p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {!loadingPreviews && !previews && (
+              <p className="text-[11px] text-muted-foreground">Generates one short example per tone tailored to this post. Click any example to drop it into your draft.</p>
             )}
           </div>
 
