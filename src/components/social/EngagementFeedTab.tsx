@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useDeferredValue } from "react";
 import { Loader2, MessageCircle, ThumbsUp, ExternalLink, Sparkles, Copy, Check, Send, Search, X, Heart, Link2, ShieldCheck, ShieldAlert, ChevronLeft, ChevronRight, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,10 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
@@ -57,6 +61,10 @@ export default function EngagementFeedTab() {
   const [linkedin, setLinkedin] = useState<SocialConnectionMeta | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [tones, setTones] = useState<CommentTone[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; author: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  // Defer search input so typing stays smooth even on 1000+ posts
+  const deferredSearch = useDeferredValue(search);
 
   const load = async () => {
     setLoading(true);
@@ -86,7 +94,7 @@ export default function EngagementFeedTab() {
   }
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
     return posts.filter((p) => {
       if (q && !((p.post_text || "").toLowerCase().includes(q) || (p.author || "").toLowerCase().includes(q))) return false;
       const e = engagement[p.id];
@@ -96,7 +104,7 @@ export default function EngagementFeedTab() {
       if (statusFilter === "liked" && !e?.liked) return false;
       return true;
     });
-  }, [posts, engagement, search, statusFilter]);
+  }, [posts, engagement, deferredSearch, statusFilter]);
 
   // Reset to page 1 whenever filters change
   useEffect(() => { setPage(1); }, [search, statusFilter, profileFilter]);
@@ -132,14 +140,26 @@ export default function EngagementFeedTab() {
     } catch (e: any) { toast.error(e?.message ?? "Failed"); }
   }
 
-  async function removePost(postId: string) {
-    if (!confirm("Delete this post from your engagement feed? This removes it from your tracked posts.")) return;
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const { id } = pendingDelete;
+    setDeleting(true);
+    // Optimistic UI — remove from view instantly, restore on failure
+    const prevPosts = posts;
+    const prevEng = engagement;
+    setPosts((p) => p.filter((x) => x.id !== id));
+    setEngagement((s) => { const n = { ...s }; delete n[id]; return n; });
+    setPendingDelete(null);
     try {
-      await deleteSocialPost(postId);
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
-      setEngagement((prev) => { const n = { ...prev }; delete n[postId]; return n; });
+      await deleteSocialPost(id);
       toast.success("Post deleted");
-    } catch (e: any) { toast.error(e?.message ?? "Delete failed"); }
+    } catch (e: any) {
+      setPosts(prevPosts);
+      setEngagement(prevEng);
+      toast.error(e?.message ?? "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -242,7 +262,7 @@ export default function EngagementFeedTab() {
                       <Heart className={`w-4 h-4 ${e?.liked ? "fill-current" : ""}`} />
                     </button>
                     <button
-                      onClick={(ev) => { ev.stopPropagation(); removePost(p.id); }}
+                      onClick={(ev) => { ev.stopPropagation(); setPendingDelete({ id: p.id, author: p.author || "this post" }); }}
                       title="Delete this post"
                       className="p-1.5 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                     >
@@ -312,6 +332,27 @@ export default function EngagementFeedTab() {
           onUpdate={(row) => updateLocal(openPost.id, row)}
         />
       )}
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => { if (!o) setPendingDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Permanently removes the post from <span className="font-medium text-foreground">{pendingDelete?.author}</span> and any draft comment you wrote — from this feed and from the database. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
