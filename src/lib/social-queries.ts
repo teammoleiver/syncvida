@@ -242,6 +242,21 @@ export async function deleteSocialPost(id: string) {
   const { error } = await supabase.from("social_posts" as any).delete().eq("id", id);
   if (error) throw error;
 }
+
+// Bulk delete posts (chunked to stay under PostgREST/IN() limits)
+export async function deleteSocialPosts(ids: string[]): Promise<number> {
+  if (!ids.length) return 0;
+  const CHUNK = 200;
+  let deleted = 0;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const part = ids.slice(i, i + CHUNK);
+    await supabase.from("linkedin_engagement_comments" as any).delete().in("post_id", part);
+    const { error } = await supabase.from("social_posts" as any).delete().in("id", part);
+    if (error) throw error;
+    deleted += part.length;
+  }
+  return deleted;
+}
 export async function createManualSocialPost(p: { profile_id?: string; author?: string; company?: string; post_text: string; post_url?: string; posted_at?: string; }) {
   const u = await uid(); if (!u) return null;
   const { data, error } = await supabase.from("social_posts" as any).insert({ ...p, user_id: u } as any).select().single();
