@@ -218,6 +218,94 @@ export async function bulkDeleteSocialProfiles(ids: string[]) {
   }
   return deleted;
 }
+
+// ── Favorites & Lists ─────────────────────────────────────────────────
+export async function setProfileFavorite(id: string, value: boolean) {
+  const { error } = await supabase.from("social_profiles" as any)
+    .update({ is_favorite: value }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function bulkSetProfileFavorite(ids: string[], value: boolean) {
+  if (!ids.length) return 0;
+  return bulkUpdateSocialProfiles(ids, { is_favorite: value });
+}
+
+export async function addProfilesToList(ids: string[], listName: string) {
+  const name = listName.trim();
+  if (!ids.length || !name) return 0;
+  // Fetch current lists for each so we can union
+  const { data, error } = await supabase.from("social_profiles" as any)
+    .select("id, lists").in("id", ids);
+  if (error) throw error;
+  let updated = 0;
+  for (const row of (data as any[]) || []) {
+    const cur: string[] = Array.isArray(row.lists) ? row.lists : [];
+    if (cur.includes(name)) continue;
+    const next = [...cur, name];
+    const { error: e2 } = await supabase.from("social_profiles" as any)
+      .update({ lists: next }).eq("id", row.id);
+    if (e2) throw e2;
+    updated++;
+  }
+  return updated;
+}
+
+export async function removeProfilesFromList(ids: string[], listName: string) {
+  const name = listName.trim();
+  if (!ids.length || !name) return 0;
+  const { data, error } = await supabase.from("social_profiles" as any)
+    .select("id, lists").in("id", ids);
+  if (error) throw error;
+  let updated = 0;
+  for (const row of (data as any[]) || []) {
+    const cur: string[] = Array.isArray(row.lists) ? row.lists : [];
+    if (!cur.includes(name)) continue;
+    const next = cur.filter((x) => x !== name);
+    const { error: e2 } = await supabase.from("social_profiles" as any)
+      .update({ lists: next }).eq("id", row.id);
+    if (e2) throw e2;
+    updated++;
+  }
+  return updated;
+}
+
+export async function renameProfileList(oldName: string, newName: string) {
+  const u = await uid(); if (!u) return 0;
+  const o = oldName.trim(), n = newName.trim();
+  if (!o || !n || o === n) return 0;
+  const { data, error } = await supabase.from("social_profiles" as any)
+    .select("id, lists").eq("user_id", u).contains("lists", [o]);
+  if (error) throw error;
+  let updated = 0;
+  for (const row of (data as any[]) || []) {
+    const cur: string[] = Array.isArray(row.lists) ? row.lists : [];
+    const next = Array.from(new Set(cur.map((x) => (x === o ? n : x))));
+    const { error: e2 } = await supabase.from("social_profiles" as any)
+      .update({ lists: next }).eq("id", row.id);
+    if (e2) throw e2;
+    updated++;
+  }
+  return updated;
+}
+
+export async function deleteProfileList(listName: string) {
+  const u = await uid(); if (!u) return 0;
+  const name = listName.trim(); if (!name) return 0;
+  const { data, error } = await supabase.from("social_profiles" as any)
+    .select("id, lists").eq("user_id", u).contains("lists", [name]);
+  if (error) throw error;
+  let updated = 0;
+  for (const row of (data as any[]) || []) {
+    const cur: string[] = Array.isArray(row.lists) ? row.lists : [];
+    const next = cur.filter((x) => x !== name);
+    const { error: e2 } = await supabase.from("social_profiles" as any)
+      .update({ lists: next }).eq("id", row.id);
+    if (e2) throw e2;
+    updated++;
+  }
+  return updated;
+}
 export async function updateSocialProfile(id: string, updates: Record<string, any>) {
   const { data, error } = await supabase.from("social_profiles" as any).update(updates).eq("id", id).select().single();
   if (error) throw error;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle } from "lucide-react";
+import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle, Star, ListPlus, Tag, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   listSocialProfiles, createSocialProfile, updateSocialProfile, deleteSocialProfile,
   bulkCreateSocialProfiles, listExistingProfileUrls, bulkUpdateSocialProfiles, bulkDeleteSocialProfiles, bulkMergeBlankSocialProfiles,
+  setProfileFavorite, bulkSetProfileFavorite, addProfilesToList, removeProfilesFromList, renameProfileList, deleteProfileList,
   listSocialPosts, createManualSocialPost, deleteSocialPost,
   listHotTopics, clusterHotTopics, deleteHotTopic,
   listContentPlan, createPlanEntry, updatePlanEntry, deletePlanEntry,
@@ -109,13 +110,29 @@ function ProfilesTab() {
   const PAGE_SIZE = 25;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [favOnly, setFavOnly] = useState(false);
+  const [listFilter, setListFilter] = useState<string>("all"); // "all" | listName
+  const [manageOpen, setManageOpen] = useState(false);
+  const [newListInput, setNewListInput] = useState("");
 
   const load = async () => { setLoading(true); setProfiles(await listSocialProfiles()); setLoading(false); };
   useEffect(() => { load(); }, []);
 
   const filtered = profiles.filter((p) =>
-    !search || [p.username, p.display_name, p.full_name, p.first_name, p.last_name, p.company, p.location, p.profile_url, p.title, p.job_title, p.email, p.company_domain].some((f) => (f ?? "").toString().toLowerCase().includes(search.toLowerCase()))
+    (!search || [p.username, p.display_name, p.full_name, p.first_name, p.last_name, p.company, p.location, p.profile_url, p.title, p.job_title, p.email, p.company_domain].some((f) => (f ?? "").toString().toLowerCase().includes(search.toLowerCase())))
+    && (!favOnly || p.is_favorite)
+    && (listFilter === "all" || (Array.isArray(p.lists) && p.lists.includes(listFilter)))
   );
+
+  // All list names that exist on any profile (sorted, deduped)
+  const allLists = (() => {
+    const s = new Set<string>();
+    for (const p of profiles) for (const n of (p.lists ?? [])) if (n) s.add(String(n));
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  })();
+  const favCount = profiles.filter((p) => p.is_favorite).length;
+  const listCounts = new Map<string, number>();
+  for (const p of profiles) for (const n of (p.lists ?? [])) listCounts.set(n, (listCounts.get(n) || 0) + 1);
 
   const nameOf = (p: any) => p.full_name || p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || "";
   const sorted = [...filtered].sort((a, b) => {
@@ -142,7 +159,7 @@ function ProfilesTab() {
   const safePage = Math.min(page, totalPages);
   const paged = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  useEffect(() => { setPage(1); }, [search, sortKey, sortDir]);
+  useEffect(() => { setPage(1); }, [search, sortKey, sortDir, favOnly, listFilter]);
   useEffect(() => { setSelectedIds(new Set()); }, [search]);
 
   const toggleSort = (key: string) => {
@@ -264,11 +281,84 @@ function ProfilesTab() {
         </div>
       </div>
 
+      {/* Favorites + Lists filter row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant={favOnly ? "default" : "outline"}
+          size="sm"
+          className="h-8 text-xs gap-1.5"
+          onClick={() => setFavOnly((v) => !v)}
+          title="Show only favorites"
+        >
+          <Star className={`w-3.5 h-3.5 ${favOnly ? "fill-current" : ""}`} />
+          Favorites {favCount > 0 && <span className="opacity-70">({favCount})</span>}
+        </Button>
+        <div className="h-6 w-px bg-border" />
+        <button
+          type="button"
+          onClick={() => setListFilter("all")}
+          className={`h-8 px-2.5 rounded-md border text-xs inline-flex items-center gap-1.5 transition-colors ${
+            listFilter === "all" ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Folder className="w-3.5 h-3.5" /> All lists
+        </button>
+        {allLists.map((name) => (
+          <button
+            key={name}
+            type="button"
+            onClick={() => setListFilter(name)}
+            className={`h-8 px-2.5 rounded-md border text-xs inline-flex items-center gap-1.5 transition-colors ${
+              listFilter === name ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Tag className="w-3 h-3" /> {name}
+            <span className="opacity-60">{listCounts.get(name) ?? 0}</span>
+          </button>
+        ))}
+        <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground" onClick={() => setManageOpen(true)}>
+          <ListPlus className="w-3.5 h-3.5" /> {allLists.length ? "Manage lists" : "Create list"}
+        </Button>
+      </div>
+
       {selectedIds.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
           <span className="font-medium">{selectedIds.size} selected</span>
           <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={selectAllFiltered}>Select all {sorted.length}</Button>
           <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={clearSelection}>Clear</Button>
+          <span className="mx-1 text-muted-foreground">·</span>
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" disabled={bulkBusy}
+            onClick={() => runBulk("Marked as favorite", () => bulkSetProfileFavorite(Array.from(selectedIds), true))}>
+            <Star className="w-3 h-3 fill-current" /> Favorite
+          </Button>
+          <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" disabled={bulkBusy}
+            onClick={() => runBulk("Removed from favorites", () => bulkSetProfileFavorite(Array.from(selectedIds), false))}>
+            <Star className="w-3 h-3" /> Unfavorite
+          </Button>
+          <span className="mx-1 text-muted-foreground">·</span>
+          <span className="text-muted-foreground">Add to list:</span>
+          <Select onValueChange={(v) => runBulk(`Added to "${v}"`, () => addProfilesToList(Array.from(selectedIds), v))}>
+            <SelectTrigger className="h-7 w-[140px] text-xs"><SelectValue placeholder="Choose…" /></SelectTrigger>
+            <SelectContent>
+              {allLists.length === 0 && <div className="px-2 py-1.5 text-xs text-muted-foreground">No lists yet</div>}
+              {allLists.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <form className="flex items-center gap-1" onSubmit={(e) => {
+            e.preventDefault();
+            const name = newListInput.trim(); if (!name) return;
+            runBulk(`Added to "${name}"`, () => addProfilesToList(Array.from(selectedIds), name));
+            setNewListInput("");
+          }}>
+            <Input value={newListInput} onChange={(e) => setNewListInput(e.target.value)} placeholder="New list…" className="h-7 w-[120px] text-xs" />
+            <Button type="submit" size="sm" variant="outline" className="h-7 text-xs px-2" disabled={bulkBusy || !newListInput.trim()}>+</Button>
+          </form>
+          {listFilter !== "all" && (
+            <Button size="sm" variant="ghost" className="h-7 text-xs" disabled={bulkBusy}
+              onClick={() => runBulk(`Removed from "${listFilter}"`, () => removeProfilesFromList(Array.from(selectedIds), listFilter))}>
+              Remove from "{listFilter}"
+            </Button>
+          )}
           <span className="mx-1 text-muted-foreground">·</span>
           <span className="text-muted-foreground">Cadence:</span>
           <Select onValueChange={(v) => runBulk(`Cadence set to ${v}`, () => bulkUpdateSocialProfiles(Array.from(selectedIds), { scrape_cadence: v }))}>
@@ -362,11 +452,37 @@ function ProfilesTab() {
                   </td>
                   <td className="px-2 py-2 font-medium truncate">
                     <div className="flex items-center gap-1 min-w-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = !p.is_favorite;
+                          // optimistic
+                          setProfiles((arr) => arr.map((x) => x.id === p.id ? { ...x, is_favorite: next } : x));
+                          setProfileFavorite(p.id, next).catch((err) => {
+                            setProfiles((arr) => arr.map((x) => x.id === p.id ? { ...x, is_favorite: !next } : x));
+                            toast.error(err?.message ?? "Failed to update favorite");
+                          });
+                        }}
+                        title={p.is_favorite ? "Remove from favorites" : "Add to favorites"}
+                        className={`shrink-0 ${p.is_favorite ? "text-amber-500" : "text-muted-foreground/40 hover:text-amber-500"}`}
+                      >
+                        <Star className={`w-3.5 h-3.5 ${p.is_favorite ? "fill-current" : ""}`} />
+                      </button>
                       <span className="truncate">{p.full_name || p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "—"}</span>
                       <a href={p.profile_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-muted-foreground hover:text-primary shrink-0" title={p.profile_url}>
                         <ArrowUpRight className="w-3 h-3" />
                       </a>
                     </div>
+                    {Array.isArray(p.lists) && p.lists.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {p.lists.map((n: string) => (
+                          <span key={n} className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                            <Tag className="w-2.5 h-2.5" /> {n}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td className="px-2 py-2 truncate" title={p.job_title || p.title || ""}>{p.job_title || p.title || "—"}</td>
                   <td className="px-2 py-2 truncate" title={p.company || ""}>{p.company || "—"}{p.company_domain && <span className="block text-[10px] text-muted-foreground truncate">{p.company_domain}</span>}</td>
@@ -422,6 +538,14 @@ function ProfilesTab() {
       )}
 
       <ProfileDetailDialog profile={detailProfile} onClose={() => setDetailProfile(null)} onSaved={() => { setDetailProfile(null); load(); }} />
+      <ManageListsDialog
+        open={manageOpen}
+        onClose={() => setManageOpen(false)}
+        lists={allLists}
+        counts={listCounts}
+        onChanged={load}
+        onPickList={(name) => { setListFilter(name); setManageOpen(false); }}
+      />
       <ImportPreviewDialog
         preview={importPreview}
         onClose={() => setImportPreview(null)}
@@ -1909,6 +2033,97 @@ function ScrapeHistoryPanel() {
         </DialogContent>
       </Dialog>
     </Card>
+  );
+}
+
+// ───────── Manage Lists Dialog ─────────
+function ManageListsDialog({
+  open, onClose, lists, counts, onChanged, onPickList,
+}: {
+  open: boolean;
+  onClose: () => void;
+  lists: string[];
+  counts: Map<string, number>;
+  onChanged: () => void;
+  onPickList: (name: string) => void;
+}) {
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function doRename(oldName: string) {
+    const next = renameValue.trim();
+    if (!next || next === oldName) { setRenaming(null); return; }
+    setBusy(true);
+    try {
+      await renameProfileList(oldName, next);
+      toast.success(`Renamed to "${next}"`);
+      setRenaming(null);
+      onChanged();
+    } catch (e: any) { toast.error(e?.message ?? "Rename failed"); }
+    finally { setBusy(false); }
+  }
+  async function doDelete(name: string) {
+    if (!confirm(`Delete list "${name}"? Profiles stay, but the list label will be removed from them.`)) return;
+    setBusy(true);
+    try {
+      const n = await deleteProfileList(name);
+      toast.success(`Removed "${name}" from ${n} profile${n === 1 ? "" : "s"}`);
+      onChanged();
+    } catch (e: any) { toast.error(e?.message ?? "Delete failed"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Manage lists</DialogTitle></DialogHeader>
+        <p className="text-xs text-muted-foreground">
+          Lists let you group tracked profiles (e.g. <em>Clay</em>, <em>Founders</em>, <em>GTM</em>). Add profiles to a list from the bulk action bar after selecting them.
+        </p>
+        <div className="space-y-1.5 max-h-[50vh] overflow-y-auto">
+          {lists.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-6">
+              No lists yet. Select some profiles in the table, then use the “New list…” field in the bulk action bar to create one.
+            </p>
+          )}
+          {lists.map((name) => (
+            <div key={name} className="flex items-center gap-2 border border-border rounded-md px-2 py-1.5">
+              <Tag className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              {renaming === name ? (
+                <Input
+                  autoFocus value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") doRename(name); if (e.key === "Escape") setRenaming(null); }}
+                  className="h-7 text-xs flex-1"
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="text-sm font-medium flex-1 text-left truncate hover:text-primary"
+                  onClick={() => onPickList(name)}
+                  title="Filter by this list"
+                >
+                  {name}
+                </button>
+              )}
+              <span className="text-[10px] text-muted-foreground tabular-nums">{counts.get(name) ?? 0}</span>
+              {renaming === name ? (
+                <>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={busy} onClick={() => doRename(name)} title="Save"><Check className="w-3.5 h-3.5" /></Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={busy} onClick={() => setRenaming(null)} title="Cancel"><X className="w-3.5 h-3.5" /></Button>
+                </>
+              ) : (
+                <>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={busy} onClick={() => { setRenaming(name); setRenameValue(name); }} title="Rename"><Pencil className="w-3.5 h-3.5" /></Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" disabled={busy} onClick={() => doDelete(name)} title="Delete list"><Trash2 className="w-3.5 h-3.5" /></Button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
