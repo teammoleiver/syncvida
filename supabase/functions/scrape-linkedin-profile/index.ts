@@ -167,6 +167,7 @@ Deno.serve(async (req: Request) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const fallbackToken = Deno.env.get("APIFY_API_TOKEN");
     const defaultActor = Deno.env.get("APIFY_LINKEDIN_ACTOR_ID") ?? "94SdiE9JwTx0RNyfS";
+    const defaultProfileActor = Deno.env.get("APIFY_LINKEDIN_PROFILE_ACTOR_ID") ?? "apivault_labs/linkedin-profile-scraper";
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
@@ -246,6 +247,28 @@ Deno.serve(async (req: Request) => {
       let winningAccount: any = null;
       let lastError = "No results";
       const attempts = candidates.length > 0 ? candidates : [{ id: null, label: "env", api_token: fallbackToken, actor_id: profile.apify_actor_id || defaultActor, actor_input_defaults: {} }];
+
+      if (profile.is_self) {
+        try {
+          const { data: oauthConn } = await admin.from("social_oauth_connections")
+            .select("avatar_url, display_name")
+            .eq("user_id", user.id)
+            .eq("provider", "linkedin")
+            .maybeSingle();
+          const tokenForMeta = attempts.find((a: any) => a?.api_token)?.api_token ?? fallbackToken;
+          const profileMeta = tokenForMeta ? await scrapeProfileMeta(tokenForMeta, defaultProfileActor, profile).catch((e) => ({ _error: String(e?.message ?? e) })) : {};
+          const metaPatch: Record<string, any> = {};
+          if (oauthConn?.avatar_url || profileMeta.avatar_url) metaPatch.avatar_url = oauthConn?.avatar_url ?? profileMeta.avatar_url;
+          if (profileMeta.num_followers != null) { metaPatch.num_followers = profileMeta.num_followers; metaPatch.followers = profileMeta.num_followers; }
+          if (profileMeta.display_name && !profile.display_name) metaPatch.display_name = profileMeta.display_name;
+          if (profileMeta.title && !profile.title) metaPatch.title = profileMeta.title;
+          if (profileMeta.location && !profile.location) metaPatch.location = profileMeta.location;
+          if (profileMeta.info_summary && !profile.info_summary) metaPatch.info_summary = profileMeta.info_summary;
+          if (Object.keys(metaPatch).length) await admin.from("social_profiles").update(metaPatch).eq("id", profile.id);
+        } catch (e) {
+          console.warn("self profile metadata scrape failed", e);
+        }
+      }
 
       for (const account of attempts) {
         const token = account.api_token;
