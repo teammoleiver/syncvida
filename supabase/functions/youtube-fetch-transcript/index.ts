@@ -36,14 +36,13 @@ Deno.serve(async (req) => {
       return json({ ok: true, transcript: vid.transcript, cached: true });
     }
 
-    const actorId = await pickTranscriptActor(admin, user.id);
-    if (!actorId) return json({ error: "No youtube_video_transcript actor configured. Add one in Social Hub → Settings → Apify actors." }, 400);
-    const token = await pickApifyToken(admin, user.id);
-    if (!token) return json({ error: "No Apify token available. Add one in Social Hub → Settings → Apify account pool." }, 400);
-
     const freeTranscript = await fetchYouTubeTimedTextTranscript(videoId);
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    const transcript = freeTranscript ?? await runTranscriptActor(token, actorId, videoUrl);
+    const actorId = freeTranscript ? null : await pickTranscriptActor(admin, user.id);
+    if (!freeTranscript && !actorId) return json({ ok: false, message: "No youtube_video_transcript actor configured. Add one in Social Hub → Settings → Apify actors.", fallback: true }, 200);
+    const token = freeTranscript ? "" : await pickApifyToken(admin, user.id);
+    if (!freeTranscript && !token) return json({ ok: false, message: "No Apify token available. Add one in Social Hub → Settings → Apify account pool.", fallback: true }, 200);
+    const transcript = freeTranscript ?? await runTranscriptActor(token, actorId!, videoUrl);
     if (!transcript) {
       return json({
         ok: false,
@@ -132,7 +131,8 @@ async function fetchYouTubeTimedTextTranscript(videoId: string): Promise<string 
   const captionTracks = watch.match(/"captionTracks":(\[.*?\])/)?.[1];
   if (!captionTracks) return null;
 
-  const tracks = JSON.parse(captionTracks.replace(/\\u0026/g, "&"));
+  let tracks: any[] = [];
+  try { tracks = JSON.parse(captionTracks.replace(/\\u0026/g, "&")); } catch { return null; }
   const track = tracks.find((t: any) => String(t.languageCode).startsWith("en")) ?? tracks[0];
   const baseUrl = track?.baseUrl;
   if (!baseUrl) return null;
