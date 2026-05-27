@@ -2036,6 +2036,97 @@ function ScrapeHistoryPanel() {
   );
 }
 
+// ───────── Manage Lists Dialog ─────────
+function ManageListsDialog({
+  open, onClose, lists, counts, onChanged, onPickList,
+}: {
+  open: boolean;
+  onClose: () => void;
+  lists: string[];
+  counts: Map<string, number>;
+  onChanged: () => void;
+  onPickList: (name: string) => void;
+}) {
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function doRename(oldName: string) {
+    const next = renameValue.trim();
+    if (!next || next === oldName) { setRenaming(null); return; }
+    setBusy(true);
+    try {
+      await renameProfileList(oldName, next);
+      toast.success(`Renamed to "${next}"`);
+      setRenaming(null);
+      onChanged();
+    } catch (e: any) { toast.error(e?.message ?? "Rename failed"); }
+    finally { setBusy(false); }
+  }
+  async function doDelete(name: string) {
+    if (!confirm(`Delete list "${name}"? Profiles stay, but the list label will be removed from them.`)) return;
+    setBusy(true);
+    try {
+      const n = await deleteProfileList(name);
+      toast.success(`Removed "${name}" from ${n} profile${n === 1 ? "" : "s"}`);
+      onChanged();
+    } catch (e: any) { toast.error(e?.message ?? "Delete failed"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Manage lists</DialogTitle></DialogHeader>
+        <p className="text-xs text-muted-foreground">
+          Lists let you group tracked profiles (e.g. <em>Clay</em>, <em>Founders</em>, <em>GTM</em>). Add profiles to a list from the bulk action bar after selecting them.
+        </p>
+        <div className="space-y-1.5 max-h-[50vh] overflow-y-auto">
+          {lists.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-6">
+              No lists yet. Select some profiles in the table, then use the “New list…” field in the bulk action bar to create one.
+            </p>
+          )}
+          {lists.map((name) => (
+            <div key={name} className="flex items-center gap-2 border border-border rounded-md px-2 py-1.5">
+              <Tag className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              {renaming === name ? (
+                <Input
+                  autoFocus value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") doRename(name); if (e.key === "Escape") setRenaming(null); }}
+                  className="h-7 text-xs flex-1"
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="text-sm font-medium flex-1 text-left truncate hover:text-primary"
+                  onClick={() => onPickList(name)}
+                  title="Filter by this list"
+                >
+                  {name}
+                </button>
+              )}
+              <span className="text-[10px] text-muted-foreground tabular-nums">{counts.get(name) ?? 0}</span>
+              {renaming === name ? (
+                <>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={busy} onClick={() => doRename(name)} title="Save"><Check className="w-3.5 h-3.5" /></Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={busy} onClick={() => setRenaming(null)} title="Cancel"><X className="w-3.5 h-3.5" /></Button>
+                </>
+              ) : (
+                <>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" disabled={busy} onClick={() => { setRenaming(name); setRenameValue(name); }} title="Rename"><Pencil className="w-3.5 h-3.5" /></Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" disabled={busy} onClick={() => doDelete(name)} title="Delete list"><Trash2 className="w-3.5 h-3.5" /></Button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function WebsiteEnrichmentHistory({ refreshKey }: { refreshKey: string }) {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
