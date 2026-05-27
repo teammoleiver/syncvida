@@ -237,7 +237,10 @@ export async function listSocialPosts(filters?: { profile_id?: string; limit?: n
   return (data as any[]) ?? [];
 }
 export async function deleteSocialPost(id: string) {
-  await supabase.from("social_posts" as any).delete().eq("id", id);
+  // Cascade-delete any engagement comment first (no FK cascade in schema), then the post itself.
+  await supabase.from("linkedin_engagement_comments" as any).delete().eq("post_id", id);
+  const { error } = await supabase.from("social_posts" as any).delete().eq("id", id);
+  if (error) throw error;
 }
 export async function createManualSocialPost(p: { profile_id?: string; author?: string; company?: string; post_text: string; post_url?: string; posted_at?: string; }) {
   const u = await uid(); if (!u) return null;
