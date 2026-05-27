@@ -100,6 +100,9 @@ async function runTranscriptActor(token: string, actorId: string, videoUrl: stri
     language: "en",
     languages: ["en"],
     subtitlesLanguage: "en",
+    maxItems: 1,
+    maxResults: 1,
+    maxResultStreams: 1,
   };
   const res = await fetch(url, {
     method: "POST",
