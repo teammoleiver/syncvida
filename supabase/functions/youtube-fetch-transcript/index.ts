@@ -127,8 +127,14 @@ async function runTranscriptActor(token: string, actorId: string, videoUrl: stri
 }
 
 async function fetchYouTubeTimedTextTranscript(videoId: string): Promise<string | null> {
+  const innerTubeTranscript = await fetchYouTubeInnerTubeTranscript(videoId);
+  if (innerTubeTranscript) return innerTubeTranscript;
+
   const watch = await fetch(`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`, {
-    headers: { "Accept-Language": "en-US,en;q=0.9" },
+    headers: {
+      "Accept-Language": "en-US,en;q=0.9",
+      "User-Agent": WEB_USER_AGENT,
+    },
   }).then((r) => r.ok ? r.text() : "").catch(() => "");
   const captionTracks = watch.match(/"captionTracks":(\[.*?\])/)?.[1];
   if (!captionTracks) return null;
@@ -146,6 +152,67 @@ async function fetchYouTubeTimedTextTranscript(videoId: string): Promise<string 
     .replace(/\s+/g, " ")
     .trim();
   return text.length > 50 ? text : null;
+}
+
+const WEB_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36";
+const ANDROID_YOUTUBE_VERSION = "20.10.38";
+const ANDROID_USER_AGENT = `com.google.android.youtube/${ANDROID_YOUTUBE_VERSION} (Linux; U; Android 14)`;
+
+async function fetchYouTubeInnerTubeTranscript(videoId: string): Promise<string | null> {
+  try {
+    const res = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": ANDROID_USER_AGENT,
+      },
+      body: JSON.stringify({
+        context: { client: { clientName: "ANDROID", clientVersion: ANDROID_YOUTUBE_VERSION, hl: "en", gl: "US" } },
+        videoId,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    if (!Array.isArray(tracks) || tracks.length === 0) return null;
+
+    const track = pickBestCaptionTrack(tracks);
+    const baseUrl = String(track?.baseUrl ?? "");
+    if (!isSafeYouTubeCaptionUrl(baseUrl)) return null;
+
+    const transcriptRes = await fetch(baseUrl, { headers: { "User-Agent": WEB_USER_AGENT, "Accept-Language": "en-US,en;q=0.9" } });
+    if (!transcriptRes.ok) return null;
+    const xml = await transcriptRes.text();
+    const text = parseTimedTextXml(xml);
+    return text.length > 50 ? text : null;
+  } catch {
+    return null;
+  }
+}
+
+function pickBestCaptionTrack(tracks: any[]): any {
+  return tracks.find((t) => t?.languageCode === "en" && t?.kind !== "asr")
+    ?? tracks.find((t) => String(t?.languageCode ?? "").startsWith("en"))
+    ?? tracks[0];
+}
+
+function isSafeYouTubeCaptionUrl(input: string): boolean {
+  try {
+    const url = new URL(input);
+    return url.protocol === "https:" && (url.hostname === "www.youtube.com" || url.hostname.endsWith(".youtube.com") || url.hostname === "video.google.com");
+  } catch {
+    return false;
+  }
+}
+
+function parseTimedTextXml(xml: string): string {
+  const srv3 = Array.from(xml.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/g))
+    .map((m) => decodeHtml(m[1].replace(/<[^>]+>/g, "")))
+    .join(" ");
+  const classic = Array.from(xml.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g))
+    .map((m) => decodeHtml(m[1].replace(/<[^>]+>/g, " ")))
+    .join(" ");
+  return `${srv3} ${classic}`.replace(/\s+/g, " ").trim();
 }
 
 function decodeHtml(input: string): string {
