@@ -108,6 +108,7 @@ export default function VideoDetailDialog({
     setSavedPostKeys(new Set());
     setTaskedKeys(new Set());
     setTranscriptOpen(false);
+    setTranscriptDebug(null);
     setLiked(!!video.is_liked);
     setSource({
       video_id: video.video_id,
@@ -446,12 +447,12 @@ export default function VideoDetailDialog({
             </div>
           )}
 
-          {/* Transcript debug (when actor returned items but parser couldn't extract) */}
+          {/* Transcript debug */}
           {transcriptDebug && (
             <Card className="p-3 border-destructive/40 bg-destructive/5">
-              <div className="text-xs font-medium text-destructive mb-1">Actor ran but no transcript text was found</div>
+              <div className="text-xs font-medium text-destructive mb-1">Transcript is unavailable</div>
               <p className="text-[11px] text-muted-foreground mb-2">
-                Copy this and paste it back to me — I'll teach the parser this actor's output shape.
+                No Apify actor was run unless explicitly enabled, so this did not use Apify credits.
               </p>
               <pre className="text-[10px] bg-background/50 p-2 rounded border border-border overflow-x-auto whitespace-pre-wrap">
                 {JSON.stringify(transcriptDebug, null, 2)}
