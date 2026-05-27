@@ -2331,6 +2331,48 @@ export type Database = {
           },
         ]
       }
+      social_self_snapshots: {
+        Row: {
+          captured_at: string
+          connections: number | null
+          followers: number | null
+          id: string
+          posts_count: number | null
+          raw: Json | null
+          total_comments: number | null
+          total_likes: number | null
+          total_shares: number | null
+          total_views: number | null
+          user_id: string
+        }
+        Insert: {
+          captured_at?: string
+          connections?: number | null
+          followers?: number | null
+          id?: string
+          posts_count?: number | null
+          raw?: Json | null
+          total_comments?: number | null
+          total_likes?: number | null
+          total_shares?: number | null
+          total_views?: number | null
+          user_id: string
+        }
+        Update: {
+          captured_at?: string
+          connections?: number | null
+          followers?: number | null
+          id?: string
+          posts_count?: number | null
+          raw?: Json | null
+          total_comments?: number | null
+          total_likes?: number | null
+          total_shares?: number | null
+          total_views?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       social_webhook_settings: {
         Row: {
           active: boolean
