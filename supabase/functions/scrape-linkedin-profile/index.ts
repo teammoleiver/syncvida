@@ -140,6 +140,39 @@ function extractProfileMeta(items: any[], fallback: any) {
   return meta;
 }
 
+function extractFollowerCountFromText(...chunks: any[]): number | null {
+  const text = chunks.map((c) => String(c ?? "")).join("\n");
+  const patterns = [
+    /([\d][\d,\.\s]*\s*[kKmMbB]?)\s*(?:\+\s*)?followers?\b/i,
+    /followers?\s*[:•\-]?\s*([\d][\d,\.\s]*\s*[kKmMbB]?)/i,
+  ];
+  for (const pattern of patterns) {
+    const parsed = parseCount(text.match(pattern)?.[1]);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+async function scrapeLinkupProfileMeta(apiKey: string, profileUrl: string) {
+  const res = await fetch("https://api.linkup.so/v1/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      q: `LinkedIn profile ${profileUrl} follower count, connections, profile photo, headline and location. Return the exact follower count shown publicly.`,
+      depth: "deep",
+      outputType: "sourcedAnswer",
+      includeImages: true,
+    }),
+  });
+  if (!res.ok) throw new Error(`Linkup ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const json = await res.json();
+  const sources = Array.isArray(json?.sources ?? json?.results) ? (json.sources ?? json.results) : [];
+  return {
+    num_followers: extractFollowerCountFromText(json?.answer, ...sources.map((s: any) => `${s?.name ?? s?.title ?? ""}\n${s?.snippet ?? s?.content ?? ""}`)),
+    avatar_url: firstString(...sources.map((s: any) => s?.image ?? s?.imageUrl ?? s?.thumbnail ?? s?.thumbnailUrl)),
+  };
+}
+
 async function scrapeProfileMeta(token: string, actorIdRaw: string, profile: any) {
   const actorId = normalizeActorId(actorIdRaw);
   const input = {
