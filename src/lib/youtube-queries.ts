@@ -161,7 +161,7 @@ export type PostLength = "short" | "long";
 export type VideoPost = { platform: "linkedin" | "twitter" | "instagram"; hook: string; body: string; hashtags: string[]; length: number; variant?: PostLength };
 export type SummaryPoint = { headline: string; detail: string };
 
-export async function fetchVideoTranscript(video_id: string, refresh = false): Promise<{ transcript: string; cached: boolean }> {
+export async function fetchVideoTranscript(video_id: string, refresh = false): Promise<{ ok?: boolean; transcript?: string; cached?: boolean; message?: string; error_type?: string; action_url?: string; fallback?: boolean }> {
   return callEdge("youtube-fetch-transcript", { video_id, refresh });
 }
 
