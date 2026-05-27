@@ -97,7 +97,7 @@ async function pickTranscriptActor(admin: any, userId: string): Promise<string |
   return Deno.env.get("APIFY_YT_TRANSCRIPT_ACTOR") ?? null;
 }
 
-async function pickApifyToken(admin: any, userId: string): Promise<string> {
+async function pickApifyTokens(admin: any, userId: string): Promise<string[]> {
   const { data } = await admin.from("social_apify_accounts")
     .select("api_token, monthly_budget_usd, posts_used_this_period, cost_per_10_posts_usd, active")
     .eq("user_id", userId).eq("active", true);
@@ -109,9 +109,29 @@ async function pickApifyToken(admin: any, userId: string): Promise<string> {
       })
       .filter((x) => x.token && x.remaining > 0)
       .sort((a, b) => b.remaining - a.remaining);
-    if (ranked[0]?.token) return ranked[0].token;
+    if (ranked.length > 0) return ranked.map((x) => x.token);
   }
-  return Deno.env.get("APIFY_API_TOKEN") ?? "";
+  const envToken = Deno.env.get("APIFY_API_TOKEN") ?? "";
+  return envToken ? [envToken] : [];
+}
+
+async function runTranscriptActorWithFallback(tokens: string[], actorId: string, videoUrl: string): Promise<string | null> {
+  let lastCreditError: ApifyActorError | null = null;
+  for (let i = 0; i < tokens.length; i += 1) {
+    try {
+      const transcript = await runTranscriptActor(tokens[i], actorId, videoUrl);
+      if (transcript) return transcript;
+    } catch (e) {
+      if (e instanceof ApifyActorError && e.isCreditError) {
+        lastCreditError = e;
+        console.log(`youtube-fetch-transcript: Apify token ${i + 1}/${tokens.length} lacks credits; trying next token`);
+        continue;
+      }
+      throw e;
+    }
+  }
+  if (lastCreditError) throw lastCreditError;
+  return null;
 }
 
 async function runTranscriptActor(token: string, actorId: string, videoUrl: string): Promise<string | null> {
