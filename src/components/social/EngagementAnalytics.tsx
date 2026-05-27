@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Target, Flame, TrendingUp, Pencil, Check, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { getCommentAnalytics, saveCommentTargets, type CommentAnalytics, type CommentTargets } from "@/lib/social-queries";
+import { getCommentAnalytics, saveCommentTargets, getPostingAnalytics12mo, type CommentAnalytics, type CommentTargets, type PostingAnalytics } from "@/lib/social-queries";
 
 function pct(n: number, d: number) { if (!d) return 0; return Math.min(100, Math.round((n / d) * 100)); }
 
@@ -63,6 +63,7 @@ function HeatStrip({ data }: { data: { date: string; count: number }[] }) {
 
 export default function EngagementAnalytics() {
   const [data, setData] = useState<CommentAnalytics | null>(null);
+  const [posting, setPosting] = useState<PostingAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -71,9 +72,13 @@ export default function EngagementAnalytics() {
   async function load() {
     setLoading(true);
     try {
-      const a = await getCommentAnalytics();
+      const [a, p] = await Promise.all([
+        getCommentAnalytics(),
+        getPostingAnalytics12mo().catch(() => null),
+      ]);
       setData(a);
       setForm(a.targets);
+      setPosting(p);
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to load analytics");
     } finally { setLoading(false); }
@@ -93,7 +98,7 @@ export default function EngagementAnalytics() {
   }
 
   const sparkData = useMemo(() => (data?.byDayLast30 || []).map((d) => d.count), [data]);
-  const monthMax = useMemo(() => Math.max(0, ...(data?.byMonthLast12 || []).map((m) => m.count)), [data]);
+  const postingMax = useMemo(() => Math.max(0, ...(posting?.byMonth || []).map((m) => m.total)), [posting]);
 
   return (
     <Card className="p-4 space-y-4">
@@ -169,26 +174,36 @@ export default function EngagementAnalytics() {
             </div>
             <div className="rounded-lg border border-border p-3 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-medium">Last 12 months</span>
-                <span className="text-muted-foreground tabular-nums">{data.byMonthLast12.reduce((a, b) => a + b.count, 0)} comments</span>
+                <span className="font-medium">Posts · last 12 months</span>
+                <span className="text-muted-foreground tabular-nums">
+                  {posting ? `${posting.totals.scraped + posting.totals.planner} posts` : "—"}
+                </span>
               </div>
               <div className="flex items-end gap-1 h-16">
-                {data.byMonthLast12.map((m) => {
-                  const h = monthMax ? Math.max(2, (m.count / monthMax) * 100) : 2;
-                  const hitMonthly = m.count >= data.targets.monthly && data.targets.monthly > 0;
+                {(posting?.byMonth ?? []).map((m) => {
+                  const totalH = postingMax ? Math.max(2, (m.total / postingMax) * 100) : 2;
+                  const scrapedRatio = m.total ? m.scraped / m.total : 0;
                   return (
-                    <div key={m.month} className="flex-1 flex flex-col items-center gap-1 group" title={`${m.month}: ${m.count}`}>
-                      <div
-                        className={`w-full rounded-sm transition-colors ${hitMonthly ? "bg-emerald-500" : "bg-primary/70 group-hover:bg-primary"}`}
-                        style={{ height: `${h}%` }}
-                      />
+                    <div
+                      key={m.month}
+                      className="flex-1 flex flex-col-reverse group"
+                      title={`${m.month}: ${m.scraped} scraped · ${m.planner} planner`}
+                      style={{ height: "100%" }}
+                    >
+                      <div className="w-full flex flex-col-reverse" style={{ height: `${totalH}%` }}>
+                        <div className="w-full bg-primary/80 group-hover:bg-primary transition-colors rounded-b-sm" style={{ height: `${scrapedRatio * 100}%` }} />
+                        <div className="w-full bg-emerald-500/70 group-hover:bg-emerald-500 transition-colors rounded-t-sm" style={{ height: `${(1 - scrapedRatio) * 100}%` }} />
+                      </div>
                     </div>
                   );
                 })}
               </div>
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>{data.byMonthLast12[0]?.month}</span>
-                <span>{data.byMonthLast12[data.byMonthLast12.length - 1]?.month}</span>
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-primary/80" /> LinkedIn ({posting?.totals.scraped ?? 0})</span>
+                  <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500/70" /> Planner ({posting?.totals.planner ?? 0})</span>
+                </div>
+                <span>{posting?.byMonth[0]?.month} → {posting?.byMonth[posting.byMonth.length - 1]?.month}</span>
               </div>
             </div>
           </div>
