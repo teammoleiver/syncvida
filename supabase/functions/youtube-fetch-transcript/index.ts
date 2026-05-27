@@ -215,16 +215,35 @@ async function fetchYouTubeInnerTubeTranscriptForClient(videoId: string, client:
     const baseUrl = String(track?.baseUrl ?? "");
     if (!isSafeYouTubeCaptionUrl(baseUrl)) return null;
 
-    const transcriptRes = await fetch(baseUrl, { headers: { "User-Agent": client.userAgent, "Accept-Language": "en-US,en;q=0.9" } });
-    if (!transcriptRes.ok) return null;
-    const xml = await transcriptRes.text();
-    const text = parseTimedTextXml(xml);
-    trace.push({ stage: "timedtext", client: client.name, status: transcriptRes.status, language: track?.languageCode, kind: track?.kind ?? "manual", chars: text.length });
+    const text = await fetchCaptionTrackText(baseUrl, client.userAgent, trace, { client: client.name, language: track?.languageCode, kind: track?.kind ?? "manual" });
     return text.length > 50 ? text : null;
   } catch (error) {
     trace.push({ stage: "innertube", client: client.name, error: String((error as Error)?.message ?? error) });
     return null;
   }
+}
+
+async function fetchCaptionTrackText(baseUrl: string, userAgent: string, trace: Record<string, unknown>[], meta: Record<string, unknown>): Promise<string> {
+  const urls = [baseUrl, appendCaptionParam(baseUrl, "fmt", "json3"), appendCaptionParam(baseUrl, "fmt", "srv3")];
+  for (const url of urls) {
+    const format = new URL(url).searchParams.get("fmt") ?? "xml";
+    const transcriptRes = await fetch(url, { headers: { "User-Agent": userAgent, "Accept-Language": "en-US,en;q=0.9" } });
+    if (!transcriptRes.ok) {
+      trace.push({ stage: "timedtext", ...meta, format, status: transcriptRes.status, chars: 0 });
+      continue;
+    }
+    const raw = await transcriptRes.text();
+    const text = raw.trim().startsWith("{") ? parseTimedTextJson3(raw) : parseTimedTextXml(raw);
+    trace.push({ stage: "timedtext", ...meta, format, status: transcriptRes.status, contentType: transcriptRes.headers.get("content-type"), rawChars: raw.length, chars: text.length });
+    if (text.length > 50) return text;
+  }
+  return "";
+}
+
+function appendCaptionParam(input: string, key: string, value: string): string {
+  const url = new URL(input);
+  url.searchParams.set(key, value);
+  return url.toString();
 }
 
 function pickBestCaptionTrack(tracks: any[]): any {
