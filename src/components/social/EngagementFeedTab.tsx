@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   listSocialPosts, listSocialProfiles, deleteSocialPost,
-  listEngagementComments, upsertEngagementComment, generateEngagementComment, suggestCommentTone, listCommentTones,
+  listEngagementComments, upsertEngagementComment, generateEngagementComment, suggestCommentTone, listCommentTones, previewAllTones,
   type EngagementRow, type CommentTone,
 } from "@/lib/social-queries";
 import { getMyLinkedInConnection, startLinkedInAuth, type SocialConnectionMeta } from "@/lib/social-connections";
@@ -406,6 +406,18 @@ function EngagementDialog({ post, row, tones, onClose, onUpdate }: { post: any; 
         toast.success(`Tone set to "${tones.find((t) => t.id === r.tone_id)?.label}"`);
       }
     } finally { setSuggestingTone(false); }
+  }
+
+  // ── Live preview: one example per tone for this exact post ──
+  const [previews, setPreviews] = useState<{ tone_id: string; label: string; comment: string; error?: string }[] | null>(null);
+  const [loadingPreviews, setLoadingPreviews] = useState(false);
+  async function loadPreviews() {
+    setLoadingPreviews(true); setPreviews(null);
+    try {
+      const r = await previewAllTones({ post_text: post.post_text || "", author: post.author });
+      if (r.error) { toast.error(r.error); return; }
+      setPreviews(r.previews || []);
+    } finally { setLoadingPreviews(false); }
   }
 
   async function save(nextStatus?: EngagementRow["status"], extras?: Partial<EngagementRow>) {
