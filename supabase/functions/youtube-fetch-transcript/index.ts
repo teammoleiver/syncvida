@@ -43,8 +43,10 @@ Deno.serve(async (req) => {
       console.log(`youtube-fetch-transcript: no public captions; apify skipped video_id=${videoId} trace=${JSON.stringify(freeResult.trace).slice(0, 1600)}`);
       return json({
         ok: false,
-        message: "No public YouTube captions were found for this video. The app did not run Apify, so no Apify credits were used.",
-        error_type: "youtube-captions-unavailable",
+        message: freeResult.trace.some((t: any) => t?.playability === "LOGIN_REQUIRED")
+          ? "YouTube is blocking transcript access from the Supabase Edge server with bot detection. No Apify credits were used. Use Retry with Apify only if you want to spend actor credits, or connect a dedicated transcript API/proxy."
+          : "No public YouTube captions were found for this video. The app did not run Apify, so no Apify credits were used.",
+        error_type: freeResult.trace.some((t: any) => t?.playability === "LOGIN_REQUIRED") ? "youtube-bot-blocked" : "youtube-captions-unavailable",
         fallback: true,
         debug: freeResult.trace,
       }, 200);
@@ -178,6 +180,7 @@ const IOS_USER_AGENT = `com.google.ios.youtube/${IOS_YOUTUBE_VERSION} (iPhone16,
 const INNERTUBE_CLIENTS = [
   { name: "ANDROID", version: ANDROID_YOUTUBE_VERSION, userAgent: ANDROID_USER_AGENT },
   { name: "IOS", version: IOS_YOUTUBE_VERSION, userAgent: IOS_USER_AGENT },
+  { name: "TVHTML5_SIMPLY_EMBEDDED_PLAYER", version: "2.0", userAgent: WEB_USER_AGENT },
 ] as const;
 
 async function fetchYouTubeInnerTubeTranscript(videoId: string, trace: Record<string, unknown>[]): Promise<string | null> {
@@ -200,6 +203,8 @@ async function fetchYouTubeInnerTubeTranscriptForClient(videoId: string, client:
       body: JSON.stringify({
         context: { client: { clientName: client.name, clientVersion: client.version, hl: "en", gl: "US" } },
         videoId,
+        contentCheckOk: true,
+        racyCheckOk: true,
       }),
     });
     if (!res.ok) {
