@@ -110,13 +110,29 @@ function ProfilesTab() {
   const PAGE_SIZE = 25;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [favOnly, setFavOnly] = useState(false);
+  const [listFilter, setListFilter] = useState<string>("all"); // "all" | listName
+  const [manageOpen, setManageOpen] = useState(false);
+  const [newListInput, setNewListInput] = useState("");
 
   const load = async () => { setLoading(true); setProfiles(await listSocialProfiles()); setLoading(false); };
   useEffect(() => { load(); }, []);
 
   const filtered = profiles.filter((p) =>
-    !search || [p.username, p.display_name, p.full_name, p.first_name, p.last_name, p.company, p.location, p.profile_url, p.title, p.job_title, p.email, p.company_domain].some((f) => (f ?? "").toString().toLowerCase().includes(search.toLowerCase()))
+    (!search || [p.username, p.display_name, p.full_name, p.first_name, p.last_name, p.company, p.location, p.profile_url, p.title, p.job_title, p.email, p.company_domain].some((f) => (f ?? "").toString().toLowerCase().includes(search.toLowerCase())))
+    && (!favOnly || p.is_favorite)
+    && (listFilter === "all" || (Array.isArray(p.lists) && p.lists.includes(listFilter)))
   );
+
+  // All list names that exist on any profile (sorted, deduped)
+  const allLists = (() => {
+    const s = new Set<string>();
+    for (const p of profiles) for (const n of (p.lists ?? [])) if (n) s.add(String(n));
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  })();
+  const favCount = profiles.filter((p) => p.is_favorite).length;
+  const listCounts = new Map<string, number>();
+  for (const p of profiles) for (const n of (p.lists ?? [])) listCounts.set(n, (listCounts.get(n) || 0) + 1);
 
   const nameOf = (p: any) => p.full_name || p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || p.username || "";
   const sorted = [...filtered].sort((a, b) => {
