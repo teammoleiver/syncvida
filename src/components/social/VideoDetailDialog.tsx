@@ -165,12 +165,12 @@ export default function VideoDetailDialog({
     });
   }
 
-  async function getTranscript(refresh = false) {
+  async function getTranscript(refresh = false, allowApify = false) {
     if (!video) return;
     setLoadingTranscript(true);
     setTranscriptDebug(null);
     try {
-      const r = await fetchVideoTranscript(video.video_id, refresh);
+      const r = await fetchVideoTranscript(video.video_id, refresh, allowApify);
       if (!r.transcript) {
         toast.error(r.message ?? "Transcript is not available for this video", {
           action: r.action_url ? { label: "Open Apify billing", onClick: () => window.open(r.action_url, "_blank", "noopener,noreferrer") } : undefined,

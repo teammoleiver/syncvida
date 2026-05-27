@@ -161,8 +161,8 @@ export type PostLength = "short" | "long";
 export type VideoPost = { platform: "linkedin" | "twitter" | "instagram"; hook: string; body: string; hashtags: string[]; length: number; variant?: PostLength };
 export type SummaryPoint = { headline: string; detail: string };
 
-export async function fetchVideoTranscript(video_id: string, refresh = false): Promise<{ ok?: boolean; transcript?: string; cached?: boolean; message?: string; error_type?: string; action_url?: string; fallback?: boolean }> {
-  return callEdge("youtube-fetch-transcript", { video_id, refresh });
+export async function fetchVideoTranscript(video_id: string, refresh = false, allow_apify = false): Promise<{ ok?: boolean; transcript?: string; cached?: boolean; message?: string; error_type?: string; action_url?: string; fallback?: boolean }> {
+  return callEdge("youtube-fetch-transcript", { video_id, refresh, allow_apify });
 }
 
 export async function generateVideoIdeas(video_id: string, count = 7, refresh = false): Promise<{ ideas: VideoIdea[]; cached?: boolean; source_video: { video_id: string; title: string; channel: string } }> {
