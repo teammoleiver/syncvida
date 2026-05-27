@@ -138,7 +138,7 @@ export default function LinkedInAnalyticsTab() {
     }
   }
 
-  const followers = profile?.num_followers ?? (profile?.followers && profile.followers > 0 ? profile.followers : null);
+  const followers = profile?.num_followers && profile.num_followers > 0 ? profile.num_followers : profile?.followers && profile.followers > 0 ? profile.followers : null;
   const profileAvatar = profile?.avatar_url || linkedinConn?.avatar_url || null;
   const followerSeries = useMemo(() => snaps.map((s) => s.followers ?? 0), [snaps]);
   const followerGrowth = useMemo(() => {
