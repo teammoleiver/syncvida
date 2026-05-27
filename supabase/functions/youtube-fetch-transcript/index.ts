@@ -93,6 +93,7 @@ async function runTranscriptActor(token: string, actorId: string, videoUrl: stri
   const url = new URL(`https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`);
   url.searchParams.set("token", token);
   url.searchParams.set("maxItems", "10");
+  url.searchParams.set("maxTotalChargeUsd", "1");
 
   const body: Record<string, any> = {
     videoUrls: [videoUrl],
@@ -106,6 +107,7 @@ async function runTranscriptActor(token: string, actorId: string, videoUrl: stri
     maxItems: 10,
     maxResults: 10,
     maxResultStreams: 10,
+    maxTotalChargeUsd: 1,
   };
   const res = await fetch(url, {
     method: "POST",
