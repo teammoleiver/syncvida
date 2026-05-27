@@ -1886,6 +1886,7 @@ export type Database = {
         Row: {
           active: boolean
           apify_actor_id: string | null
+          avatar_url: string | null
           certifications_summary: string | null
           company: string | null
           company_domain: string | null
@@ -1931,6 +1932,7 @@ export type Database = {
         Insert: {
           active?: boolean
           apify_actor_id?: string | null
+          avatar_url?: string | null
           certifications_summary?: string | null
           company?: string | null
           company_domain?: string | null
@@ -1976,6 +1978,7 @@ export type Database = {
         Update: {
           active?: boolean
           apify_actor_id?: string | null
+          avatar_url?: string | null
           certifications_summary?: string | null
           company?: string | null
           company_domain?: string | null
