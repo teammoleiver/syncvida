@@ -39,6 +39,7 @@ Deno.serve(async (req) => {
     const freeTranscript = await fetchYouTubeTimedTextTranscript(videoId);
     const allowApifyFallback = body?.allow_apify === true;
     if (!freeTranscript && !allowApifyFallback) {
+      console.log(`youtube-fetch-transcript: no public captions; apify skipped video_id=${videoId}`);
       return json({
         ok: false,
         message: "No public YouTube captions were found for this video. The app did not run Apify, so no Apify credits were used.",
@@ -65,6 +66,8 @@ Deno.serve(async (req) => {
       transcript_fetched_at: new Date().toISOString(),
       transcript_source: freeTranscript ? "youtube_timedtext" : "apify",
     }).eq("id", vid.id);
+
+    console.log(`youtube-fetch-transcript: saved transcript source=${freeTranscript ? "youtube_timedtext" : "apify"} video_id=${videoId} chars=${transcript.length}`);
 
     return json({ ok: true, transcript, cached: false });
   } catch (e) {
