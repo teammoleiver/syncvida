@@ -7,43 +7,46 @@ const corsHeaders = {
 };
 
 // ── Default tones (editable per user in Settings) ──
-export const DEFAULT_TONES: { id: string; label: string; description: string; prompt: string }[] = [
-  { id: "peer-sharp", label: "Peer / sharp", description: "Practitioner, peer-to-peer.",
-    prompt: "1 sentence max ~20 words. Land ONE concrete take: a tactic, number, or sharp counterpoint. Sound like a practitioner texting a peer, not a thought leader writing a post." },
-  { id: "supportive", label: "Supportive", description: "Warm, additive, one line.",
-    prompt: "1 short sentence (max ~18 words). Agree by pointing at the ONE specific thing in the post that lands, and why. No 'love this', no 'great post', no recap." },
-  { id: "contrarian", label: "Contrarian", description: "Polite pushback, one line.",
-    prompt: "1-2 short sentences, max ~28 words total. Name where you disagree and the reason in plain words. No 'respectfully', no hedging, no essay." },
-  { id: "curious", label: "Curious", description: "Light add + a soft question.",
-    prompt: "1 short sentence, max ~22 words. Reference one specific thing from the post, then a small natural question. Casual, not interview-style." },
-  { id: "question-only", label: "Question only", description: "Just one sharp question.",
-    prompt: "Output ONE question only. Max ~18 words. Specific to something in the post (not generic 'thoughts?'). No setup, no preamble, no statement before it." },
-  { id: "tactical", label: "Tactical add-on", description: "One concrete tactic.",
-    prompt: "1-2 short sentences, max ~28 words. Add ONE specific tactic, tool, or step that extends the post. Concrete and casual, no framing language." },
-  { id: "reflective", label: "Reflective", description: "One honest personal line.",
-    prompt: "1 short sentence, max ~22 words. Share a small honest reaction the post triggered. First person, plain words, no advice, no question." },
-  { id: "funny", label: "Funny / light", description: "Dry one-liner.",
-    prompt: "1 short sentence, max ~18 words. One dry, lightly funny line rooted in the post. Not corny, not meme-y, not 'haha'." },
-  { id: "expert", label: "Expert nuance", description: "One sharp insider note.",
-    prompt: "1-2 short sentences, max ~30 words. Add ONE nuance only someone who's done the work would notice — an edge case, mechanism, or pattern. No jargon dump." },
-  { id: "short", label: "Ultra short", description: "Max 10 words.",
-    prompt: "Max 10 words total. One punchy line that still says something specific. No greeting, no filler." },
-  { id: "story", label: "Mini-story", description: "Two-line micro anecdote.",
-    prompt: "2 short sentences, max ~32 words total. Tiny concrete moment from your own work that mirrors the post. Land the point in the second line — no question." },
+export const DEFAULT_TONES: { id: string; label: string; description: string; prompt: string; max_words: number }[] = [
+  { id: "peer-sharp", label: "Peer / sharp", description: "Practitioner, peer-to-peer.", max_words: 20,
+    prompt: "1 sentence. Land ONE concrete take: a tactic, number, or sharp counterpoint. Sound like a practitioner texting a peer, not a thought leader writing a post." },
+  { id: "supportive", label: "Supportive", description: "Warm, additive, one line.", max_words: 18,
+    prompt: "1 short sentence. Agree by pointing at the ONE specific phrase or number in the post that lands, and why in 4-6 words. No 'love this', no 'great post', no recap." },
+  { id: "contrarian", label: "Contrarian", description: "Polite pushback, one line.", max_words: 28,
+    prompt: "1-2 short sentences. Name where you disagree and the reason in plain words. No 'respectfully', no hedging, no essay." },
+  { id: "curious", label: "Curious", description: "Light add + a soft question.", max_words: 22,
+    prompt: "1 short sentence. Reference one specific thing from the post, then a small natural question. Casual, not interview-style." },
+  { id: "question-only", label: "Question only", description: "One sharp, specific question.", max_words: 16,
+    prompt: "Output ONE question only — nothing else. It MUST quote or reference a specific concrete detail from the post (a number, name, tool, phrase, or claim) so it could not be asked on any other post. No generic 'thoughts?', 'curious to hear', 'what do you think?'. No setup sentence, no greeting, no opinion before the question. End with a question mark. If you cannot find a specific detail, ask about the single most surprising claim in the post." },
+  { id: "tactical", label: "Tactical add-on", description: "One concrete tactic.", max_words: 28,
+    prompt: "1-2 short sentences. Add ONE specific tactic, tool, or step that extends the post. Concrete and casual, no framing language." },
+  { id: "reflective", label: "Reflective", description: "One honest personal line.", max_words: 22,
+    prompt: "1 short sentence. Share a small honest reaction the post triggered. First person, plain words, no advice, no question." },
+  { id: "funny", label: "Funny / light", description: "Dry one-liner.", max_words: 18,
+    prompt: "1 short sentence. One dry, lightly funny line rooted in the post. Not corny, not meme-y, not 'haha'." },
+  { id: "expert", label: "Expert nuance", description: "One sharp insider note.", max_words: 30,
+    prompt: "1-2 short sentences. Add ONE nuance only someone who's done the work would notice — an edge case, mechanism, or pattern. No jargon dump." },
+  { id: "short", label: "Ultra short", description: "Max 10 words.", max_words: 10,
+    prompt: "One punchy line that still says something specific. No greeting, no filler." },
+  { id: "story", label: "Mini-story", description: "Two-line micro anecdote.", max_words: 32,
+    prompt: "2 short sentences. Tiny concrete moment from your own work that mirrors the post. Land the point in the second line — no question." },
 ];
 
 const BASE_SYSTEM = `You write LinkedIn comments on OTHER people's posts on behalf of the user described in the persona block.
 
 Hard rules (apply to every tone, no exceptions):
-- Output ONLY the comment text. No preamble, no quotes, no labels, no markdown, no bullet points.
+- Output ONLY the comment text. No preamble, no quotes, no labels, no markdown, no bullet points, no headers.
 - DEFAULT LENGTH IS SHORT. Most real LinkedIn comments are 1 sentence. Never exceed the word limit set by the tone. If unsure, shorter wins.
 - Sound like a busy human typing on their phone — not an AI, not a newsletter, not a thought leader.
 - Use plain words. Contractions. Lowercase is fine. One idea per comment, never two.
 - Reference one specific thing from the post (a phrase, number, name) so it can't read as a template.
-- No emojis (unless the post is emoji-heavy). No hashtags. No links. No @mentions. No em-dashes.
-- BANNED phrases/openers: "Couldn't agree more", "This resonates", "Spot on", "Great post", "Love this", "I appreciate", "Thanks for sharing", "This is great", "Well said", "100%", "So true", "Insightful", "Powerful", "Important reminder", "It's easy to", "Critical for", "I've seen that exact", "speaks to", "underscores", "highlights the importance".
-- Never explain the post back to the author. Never summarize what they said. Never give unsolicited advice.
-- Vary sentence length. Don't start with "I" every time. It's OK to start mid-thought.`;
+- No emojis (unless the post is emoji-heavy). No hashtags. No links. No @mentions. No em-dashes. No semicolons.
+
+Anti-repetition / variety rules (CRITICAL — real humans don't sound like a script):
+- NEVER open with the same word/structure twice in a session. Rotate openers: a verb, a noun, a number, a fragment, a question, "yeah", "honestly", a name from the post, a quoted phrase. Avoid starting with "I" more than 1 in 3 comments.
+- BANNED openers (never start a comment with any of these or a paraphrase): "I", "I've", "I'm", "We", "This", "That", "Such", "Really", "Big +", "+1", "Yes,", "Absolutely", "Couldn't agree more", "This resonates", "Spot on", "Great post", "Love this", "I appreciate", "Thanks for sharing", "This is great", "Well said", "100%", "So true", "Insightful", "Powerful", "Important reminder", "It's easy to", "Critical for", "I've seen that exact", "speaks to", "underscores", "highlights the importance".
+- Vary sentence structure. Mix: fragments, statements, single questions, "X, then Y" patterns. Do NOT use the same template across tones.
+- Never explain the post back to the author. Never summarize what they said. Never give unsolicited advice unless the tone explicitly asks for it.`;
 
 function personaBlock(s: any): string {
   if (!s) return "Persona: B2B operator. (No profile filled in yet.)";
@@ -55,6 +58,21 @@ function personaBlock(s: any): string {
     s.voice_notes && `Voice notes: ${s.voice_notes}`,
   ].filter(Boolean).join("\n");
   return `Persona (write AS this person, in first person, never about them):\n${bits || "(empty)"}`;
+}
+
+// Enforce a hard word cap on the model's output. Cuts cleanly at sentence boundaries when possible.
+function enforceWordLimit(text: string, maxWords: number): string {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  const words = cleaned.split(" ").filter(Boolean);
+  if (words.length <= maxWords) return cleaned;
+  // Try to cut at the last sentence boundary within the cap
+  const slice = words.slice(0, maxWords).join(" ");
+  const lastPunct = Math.max(slice.lastIndexOf("."), slice.lastIndexOf("?"), slice.lastIndexOf("!"));
+  if (lastPunct > slice.length * 0.6) return slice.slice(0, lastPunct + 1);
+  // Otherwise truncate and add a sensible terminal punctuation
+  const trimmed = slice.replace(/[,;:\-\s]+$/, "");
+  if (/[.?!]$/.test(trimmed)) return trimmed;
+  return trimmed + (cleaned.includes("?") && !cleaned.includes(".") ? "?" : ".");
 }
 
 async function callAI(systemPrompt: string, userPrompt: string) {
@@ -99,7 +117,12 @@ serve(async (req) => {
 
     const { data: settings } = await admin.from("social_writer_settings").select("*").eq("user_id", user.id).maybeSingle();
     const customTones: any[] = Array.isArray(settings?.comment_tones) ? settings!.comment_tones : [];
-    const tones = customTones.length ? customTones : DEFAULT_TONES;
+    // Merge: if user has custom tones, use them but fill missing max_words from defaults (or fall back to 30).
+    const tones = (customTones.length ? customTones : DEFAULT_TONES).map((t: any) => {
+      if (typeof t.max_words === "number") return t;
+      const d = DEFAULT_TONES.find((x) => x.id === t.id);
+      return { ...t, max_words: d?.max_words ?? 30 };
+    });
 
     // ── List tones ──
     if (action === "list_tones") {
@@ -132,6 +155,26 @@ serve(async (req) => {
       return new Response(JSON.stringify({ tone_id: valid, reason: parsed.reason || "" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // ── Preview: generate ONE short example per tone for a given post ──
+    if (action === "preview_all") {
+      const post_text = String((body as any).post_text || "").slice(0, 4000);
+      if (!post_text.trim()) return new Response(JSON.stringify({ error: "post_text required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const author = (body as any).author;
+      const results = await Promise.all(tones.map(async (t: any) => {
+        try {
+          const sys = `${BASE_SYSTEM}\n\n${personaBlock(settings)}\n\nTONE INSTRUCTIONS:\n${t.prompt}\n\nHARD LIMIT: ${t.max_words} words maximum. If you exceed it, the output is rejected.`;
+          const usr = `Write a LinkedIn comment for this post${author ? ` by ${author}` : ""}.\n\n--- POST ---\n${post_text}`;
+          let c = await callAI(sys, usr);
+          c = c.replace(/^["“]|["”]$/g, "").trim();
+          c = enforceWordLimit(c, t.max_words);
+          return { tone_id: t.id, label: t.label, comment: c };
+        } catch (err: any) {
+          return { tone_id: t.id, label: t.label, comment: "", error: String(err?.message || "failed") };
+        }
+      }));
+      return new Response(JSON.stringify({ previews: results }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // ── Generate comment (default action) ──
     const post_text = String((body as any).post_text || "");
     const author = (body as any).author;
@@ -140,10 +183,11 @@ serve(async (req) => {
     if (!post_text.trim()) return new Response(JSON.stringify({ error: "post_text required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const tone = tones.find((t: any) => t.id === tone_id) || tones[0];
-    const sys = `${BASE_SYSTEM}\n\n${personaBlock(settings)}\n\n${tone.prompt}`;
+    const sys = `${BASE_SYSTEM}\n\n${personaBlock(settings)}\n\nTONE INSTRUCTIONS:\n${tone.prompt}\n\nHARD LIMIT: ${tone.max_words} words maximum. Going over is a failure — count your words before responding.`;
     const usr = `Write a LinkedIn comment for this post${author ? ` by ${author}` : ""}.${instruction ? `\nExtra instruction: ${instruction}.` : ""}\n\n--- POST ---\n${post_text.slice(0, 4000)}`;
     let comment = await callAI(sys, usr);
     comment = comment.replace(/^["“]|["”]$/g, "").trim();
+    comment = enforceWordLimit(comment, tone.max_words);
     return new Response(JSON.stringify({ comment, tone_id: tone.id }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     const msg = String(e?.message ?? "Unknown");
