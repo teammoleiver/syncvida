@@ -271,6 +271,20 @@ function parseTimedTextXml(xml: string): string {
   return `${srv3} ${classic}`.replace(/\s+/g, " ").trim();
 }
 
+function parseTimedTextJson3(raw: string): string {
+  try {
+    const data = JSON.parse(raw);
+    return (Array.isArray(data?.events) ? data.events : [])
+      .flatMap((event: any) => Array.isArray(event?.segs) ? event.segs : [])
+      .map((seg: any) => typeof seg?.utf8 === "string" ? seg.utf8 : "")
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+  } catch {
+    return "";
+  }
+}
+
 function decodeHtml(input: string): string {
   return input
     .replace(/&amp;/g, "&")
