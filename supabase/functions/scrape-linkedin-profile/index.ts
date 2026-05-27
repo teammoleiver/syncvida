@@ -297,6 +297,49 @@ Deno.serve(async (req: Request) => {
         }
         polling.push({ t: new Date().toISOString(), step: "inserted", count: inserted - beforeInsert, errors: insertErrors.slice(0, 5) });
 
+        // ── For the user's own profile, try to extract avatar + followers from items.
+        if (profile.is_self && flat.length) {
+          let avatar: string | null = null;
+          let followers: number | null = null;
+          let displayName: string | null = null;
+          let title: string | null = null;
+          const matchHandle = (profile.username || "").toLowerCase();
+          for (const it of flat) {
+            // Prefer items that are not reposts so author === self.
+            const isRepost = it?.is_repost || it?.activity_type === "Repost";
+            if (isRepost) continue;
+            const a = it?.author ?? it?.actor ?? {};
+            const aUrl = String(a?.url ?? a?.profileUrl ?? "").toLowerCase();
+            const aHandle = String(a?.public_identifier ?? a?.publicIdentifier ?? a?.username ?? "").toLowerCase();
+            const looksSelf = (matchHandle && (aHandle === matchHandle || aUrl.includes(`/in/${matchHandle}`))) || !matchHandle;
+            if (!looksSelf) continue;
+            avatar = firstString(a?.profilePicture, a?.profile_picture, a?.image_url, a?.imageUrl, a?.photo, a?.picture, it?.authorImage, it?.authorPicture) || avatar;
+            const fRaw = a?.followersCount ?? a?.numFollowers ?? a?.num_followers ?? a?.followers ?? it?.followersCount ?? it?.numFollowers ?? null;
+            if (followers == null && fRaw != null) {
+              const n = typeof fRaw === "number" ? fRaw : Number(String(fRaw).replace(/[,\s]/g, "").match(/\d+/)?.[0] ?? "");
+              if (Number.isFinite(n) && n > 0) followers = n;
+            }
+            // Some actors return "occupation" like "12,345 followers"
+            const occ = String(a?.occupation ?? a?.subtitle ?? "");
+            if (followers == null && /follower/i.test(occ)) {
+              const n = Number(occ.replace(/[,\s]/g, "").match(/\d+/)?.[0] ?? "");
+              if (Number.isFinite(n) && n > 0) followers = n;
+            }
+            displayName = firstString(a?.name, a?.fullName, a?.full_name, a?.title) || displayName;
+            title = firstString(a?.headline, a?.subtitle) || title;
+            if (avatar && followers != null) break;
+          }
+          const selfPatch: Record<string, any> = {};
+          if (avatar) selfPatch.avatar_url = avatar;
+          if (followers != null) { selfPatch.num_followers = followers; selfPatch.followers = followers; }
+          if (displayName && !profile.display_name) selfPatch.display_name = displayName;
+          if (title && !profile.title) selfPatch.title = title;
+          if (Object.keys(selfPatch).length) {
+            await admin.from("social_profiles").update(selfPatch).eq("id", profile.id);
+            polling.push({ t: new Date().toISOString(), step: "self_meta", patch: selfPatch });
+          }
+        }
+
         if (inserted === 0) {
           zeroReason = flat.length === 0 ? "Actor returned 0 items" : insertErrors.length ? `Database insert failed: ${insertErrors[0]}` : "Items returned but no usable text/id found";
           lastError = zeroReason;
