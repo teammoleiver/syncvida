@@ -36,15 +36,17 @@ Deno.serve(async (req) => {
       return json({ ok: true, transcript: vid.transcript, cached: true });
     }
 
-    const freeTranscript = await fetchYouTubeTimedTextTranscript(videoId);
+    const freeResult = await fetchYouTubeTimedTextTranscript(videoId);
+    const freeTranscript = freeResult.text;
     const allowApifyFallback = body?.allow_apify === true;
     if (!freeTranscript && !allowApifyFallback) {
-      console.log(`youtube-fetch-transcript: no public captions; apify skipped video_id=${videoId}`);
+      console.log(`youtube-fetch-transcript: no public captions; apify skipped video_id=${videoId} trace=${JSON.stringify(freeResult.trace).slice(0, 1600)}`);
       return json({
         ok: false,
         message: "No public YouTube captions were found for this video. The app did not run Apify, so no Apify credits were used.",
         error_type: "youtube-captions-unavailable",
         fallback: true,
+        debug: freeResult.trace,
       }, 200);
     }
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -138,9 +140,12 @@ async function runTranscriptActor(token: string, actorId: string, videoUrl: stri
   return extractTranscriptFromItems(items);
 }
 
-async function fetchYouTubeTimedTextTranscript(videoId: string): Promise<string | null> {
-  const innerTubeTranscript = await fetchYouTubeInnerTubeTranscript(videoId);
-  if (innerTubeTranscript) return innerTubeTranscript;
+type TranscriptFetchResult = { text: string | null; trace: Record<string, unknown>[] };
+
+async function fetchYouTubeTimedTextTranscript(videoId: string): Promise<TranscriptFetchResult> {
+  const trace: Record<string, unknown>[] = [];
+  const innerTubeTranscript = await fetchYouTubeInnerTubeTranscript(videoId, trace);
+  if (innerTubeTranscript) return { text: innerTubeTranscript, trace };
 
   const watch = await fetch(`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`, {
     headers: {
@@ -149,18 +154,19 @@ async function fetchYouTubeTimedTextTranscript(videoId: string): Promise<string 
     },
   }).then((r) => r.ok ? r.text() : "").catch(() => "");
   const captionTracks = watch.match(/"captionTracks":(\[.*?\])/)?.[1];
-  if (!captionTracks) return null;
+  if (!captionTracks) return { text: null, trace };
 
   let tracks: any[] = [];
-  try { tracks = JSON.parse(captionTracks.replace(/\\u0026/g, "&")); } catch { return null; }
+  try { tracks = JSON.parse(captionTracks.replace(/\\u0026/g, "&")); } catch { return { text: null, trace }; }
   const track = tracks.find((t: any) => String(t.languageCode).startsWith("en")) ?? tracks[0];
   const baseUrl = track?.baseUrl;
-  if (!baseUrl) return null;
+  if (!baseUrl) return { text: null, trace };
 
   const transcriptRes = await fetch(`${baseUrl}&fmt=srv3`, { headers: { "User-Agent": WEB_USER_AGENT, "Accept-Language": "en-US,en;q=0.9" } });
   const xml = await transcriptRes.text();
   const text = parseTimedTextXml(xml);
-  return text.length > 50 ? text : null;
+  trace.push({ stage: "watch_html", tracks: tracks.length, transcriptStatus: transcriptRes.status, chars: text.length });
+  return { text: text.length > 50 ? text : null, trace };
 }
 
 const WEB_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36";
