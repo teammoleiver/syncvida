@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle } from "lucide-react";
+import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle, Star, ListPlus, Tag, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   listSocialProfiles, createSocialProfile, updateSocialProfile, deleteSocialProfile,
   bulkCreateSocialProfiles, listExistingProfileUrls, bulkUpdateSocialProfiles, bulkDeleteSocialProfiles, bulkMergeBlankSocialProfiles,
+  setProfileFavorite, bulkSetProfileFavorite, addProfilesToList, removeProfilesFromList, renameProfileList, deleteProfileList,
   listSocialPosts, createManualSocialPost, deleteSocialPost,
   listHotTopics, clusterHotTopics, deleteHotTopic,
   listContentPlan, createPlanEntry, updatePlanEntry, deletePlanEntry,
