@@ -424,14 +424,33 @@ function ProfilesTab() {
             <thead className="bg-muted/40 text-xs uppercase tracking-wide">
               <tr>
                 <th className="w-8 px-2 py-2">
-                  <input
-                    type="checkbox"
-                    aria-label="Select page"
-                    checked={allOnPageSelected}
-                    ref={(el) => { if (el) el.indeterminate = !allOnPageSelected && someOnPageSelected; }}
-                    onChange={togglePageSelection}
-                    className="cursor-pointer"
-                  />
+                  <div className="flex items-center gap-0.5">
+                    <input
+                      type="checkbox"
+                      aria-label="Select page"
+                      checked={allOnPageSelected}
+                      ref={(el) => { if (el) el.indeterminate = !allOnPageSelected && someOnPageSelected; }}
+                      onChange={togglePageSelection}
+                      className="cursor-pointer"
+                    />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className="text-muted-foreground hover:text-foreground p-0.5" aria-label="Selection options">
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="text-xs">
+                        <DropdownMenuItem onClick={() => setSelectedIds((prev) => { const n = new Set(prev); pageIds.forEach((id) => n.add(id)); return n; })}>
+                          Select current page ({pageIds.length})
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={selectAllFiltered}>
+                          Select all {sorted.length} {listFilter !== "all" || favOnly || search ? "(filtered)" : "profiles"}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={clearSelection}>Clear selection</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </th>
                 <SortHeader k="name" label="Name" />
                 <SortHeader k="job_title" label="Job Title" />
