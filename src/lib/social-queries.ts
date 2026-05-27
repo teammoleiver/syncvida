@@ -389,6 +389,105 @@ export async function upsertWriterSettings(s: Record<string, any>) {
   return data;
 }
 
+// ── Engagement analytics ──────────────────────────────────────────────
+export type CommentTargets = { daily: number; weekly: number; monthly: number };
+export type CommentAnalytics = {
+  targets: CommentTargets;
+  today: number;
+  week: number;
+  month: number;
+  year: number;
+  total: number;
+  byDayLast30: { date: string; count: number }[];
+  byMonthLast12: { month: string; count: number }[]; // YYYY-MM
+  streakDays: number;
+};
+
+function startOfDay(d: Date) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
+function startOfWeek(d: Date) { // Monday-based
+  const x = startOfDay(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); return x;
+}
+function startOfMonth(d: Date) { const x = startOfDay(d); x.setDate(1); return x; }
+function startOfYear(d: Date) { const x = startOfMonth(d); x.setMonth(0); return x; }
+function ymd(d: Date) { return d.toISOString().slice(0, 10); }
+function ym(d: Date) { return d.toISOString().slice(0, 7); }
+
+export async function getCommentAnalytics(): Promise<CommentAnalytics> {
+  const u = await uid();
+  const empty: CommentAnalytics = {
+    targets: { daily: 10, weekly: 50, monthly: 200 },
+    today: 0, week: 0, month: 0, year: 0, total: 0,
+    byDayLast30: [], byMonthLast12: [], streakDays: 0,
+  };
+  if (!u) return empty;
+  const settings = await getWriterSettings().catch(() => null) as any;
+  const targets: CommentTargets = {
+    daily: Number(settings?.comment_target_daily ?? 10),
+    weekly: Number(settings?.comment_target_weekly ?? 50),
+    monthly: Number(settings?.comment_target_monthly ?? 200),
+  };
+  const since = startOfDay(new Date()); since.setDate(since.getDate() - 365);
+  const { data, error } = await supabase
+    .from("linkedin_engagement_comments" as any)
+    .select("status,posted_at,updated_at,created_at")
+    .eq("user_id", u)
+    .in("status", ["posted", "copied"])
+    .gte("updated_at", since.toISOString())
+    .limit(5000);
+  if (error) throw error;
+  const rows = (data || []) as any[];
+
+  const now = new Date();
+  const dayStart = startOfDay(now);
+  const weekStart = startOfWeek(now);
+  const monthStart = startOfMonth(now);
+  const yearStart = startOfYear(now);
+
+  const byDay = new Map<string, number>();
+  const byMonth = new Map<string, number>();
+  let today = 0, week = 0, month = 0, year = 0;
+  for (const r of rows) {
+    const t = new Date(r.posted_at || r.updated_at || r.created_at);
+    if (isNaN(+t)) continue;
+    if (t >= dayStart) today++;
+    if (t >= weekStart) week++;
+    if (t >= monthStart) month++;
+    if (t >= yearStart) year++;
+    byDay.set(ymd(t), (byDay.get(ymd(t)) || 0) + 1);
+    byMonth.set(ym(t), (byMonth.get(ym(t)) || 0) + 1);
+  }
+
+  const byDayLast30: { date: string; count: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(dayStart); d.setDate(d.getDate() - i);
+    byDayLast30.push({ date: ymd(d), count: byDay.get(ymd(d)) || 0 });
+  }
+  const byMonthLast12: { month: string; count: number }[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(monthStart); d.setMonth(d.getMonth() - i);
+    byMonthLast12.push({ month: ym(d), count: byMonth.get(ym(d)) || 0 });
+  }
+  // streak: consecutive days (ending today or yesterday) with >=1 comment
+  let streakDays = 0;
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(dayStart); d.setDate(d.getDate() - i);
+    const c = byDay.get(ymd(d)) || 0;
+    if (c > 0) streakDays++;
+    else if (i === 0) continue; // allow no comment yet today
+    else break;
+  }
+
+  return { targets, today, week, month, year, total: rows.length, byDayLast30, byMonthLast12, streakDays };
+}
+
+export async function saveCommentTargets(t: CommentTargets) {
+  return upsertWriterSettings({
+    comment_target_daily: Math.max(0, Math.floor(t.daily)),
+    comment_target_weekly: Math.max(0, Math.floor(t.weekly)),
+    comment_target_monthly: Math.max(0, Math.floor(t.monthly)),
+  });
+}
+
 // ── Edge function calls ──
 export async function scrapeProfile(profile_id: string) {
   return supabase.functions.invoke("scrape-linkedin-profile", { body: { profile_id } });
