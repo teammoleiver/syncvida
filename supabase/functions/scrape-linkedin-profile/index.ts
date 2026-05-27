@@ -140,6 +140,39 @@ function extractProfileMeta(items: any[], fallback: any) {
   return meta;
 }
 
+function extractFollowerCountFromText(...chunks: any[]): number | null {
+  const text = chunks.map((c) => String(c ?? "")).join("\n");
+  const patterns = [
+    /([\d][\d,\.\s]*\s*[kKmMbB]?)\s*(?:\+\s*)?followers?\b/i,
+    /followers?\s*[:•\-]?\s*([\d][\d,\.\s]*\s*[kKmMbB]?)/i,
+  ];
+  for (const pattern of patterns) {
+    const parsed = parseCount(text.match(pattern)?.[1]);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+async function scrapeLinkupProfileMeta(apiKey: string, profileUrl: string) {
+  const res = await fetch("https://api.linkup.so/v1/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      q: `LinkedIn profile ${profileUrl} follower count, connections, profile photo, headline and location. Return the exact follower count shown publicly.`,
+      depth: "deep",
+      outputType: "sourcedAnswer",
+      includeImages: true,
+    }),
+  });
+  if (!res.ok) throw new Error(`Linkup ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const json = await res.json();
+  const sources = Array.isArray(json?.sources ?? json?.results) ? (json.sources ?? json.results) : [];
+  return {
+    num_followers: extractFollowerCountFromText(json?.answer, ...sources.map((s: any) => `${s?.name ?? s?.title ?? ""}\n${s?.snippet ?? s?.content ?? ""}`)),
+    avatar_url: firstString(...sources.map((s: any) => s?.image ?? s?.imageUrl ?? s?.thumbnail ?? s?.thumbnailUrl)),
+  };
+}
+
 async function scrapeProfileMeta(token: string, actorIdRaw: string, profile: any) {
   const actorId = normalizeActorId(actorIdRaw);
   const input = {
@@ -168,6 +201,7 @@ Deno.serve(async (req: Request) => {
     const fallbackToken = Deno.env.get("APIFY_API_TOKEN");
     const defaultActor = Deno.env.get("APIFY_LINKEDIN_ACTOR_ID") ?? "94SdiE9JwTx0RNyfS";
     const defaultProfileActor = Deno.env.get("APIFY_LINKEDIN_PROFILE_ACTOR_ID") ?? "apivault_labs/linkedin-profile-scraper";
+    const linkupKey = Deno.env.get("LINKUP_API_KEY");
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
@@ -256,7 +290,9 @@ Deno.serve(async (req: Request) => {
             .eq("provider", "linkedin")
             .maybeSingle();
           const tokenForMeta = attempts.find((a: any) => a?.api_token)?.api_token ?? fallbackToken;
-          const profileMeta = tokenForMeta ? await scrapeProfileMeta(tokenForMeta, defaultProfileActor, profile).catch((e) => ({ _error: String(e?.message ?? e) })) : {};
+          const apifyMeta = tokenForMeta ? await scrapeProfileMeta(tokenForMeta, defaultProfileActor, profile).catch((e) => ({ _error: String(e?.message ?? e) })) : {};
+          const linkupMeta = linkupKey ? await scrapeLinkupProfileMeta(linkupKey, profile.profile_url).catch((e) => ({ _error: String(e?.message ?? e) })) : {};
+          const profileMeta = { ...linkupMeta, ...apifyMeta, num_followers: apifyMeta.num_followers ?? linkupMeta.num_followers, avatar_url: apifyMeta.avatar_url ?? linkupMeta.avatar_url };
           const metaPatch: Record<string, any> = {};
           if (oauthConn?.avatar_url || profileMeta.avatar_url) metaPatch.avatar_url = oauthConn?.avatar_url ?? profileMeta.avatar_url;
           if (profileMeta.num_followers != null) { metaPatch.num_followers = profileMeta.num_followers; metaPatch.followers = profileMeta.num_followers; }

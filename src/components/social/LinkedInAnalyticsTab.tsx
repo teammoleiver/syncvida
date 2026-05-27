@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +74,7 @@ export default function LinkedInAnalyticsTab() {
   const [scraping, setScraping] = useState(false);
   const [linkedinConn, setLinkedinConn] = useState<SocialConnectionMeta | null>(null);
   const [profileUrl, setProfileUrl] = useState("");
+  const autoFollowerBackfillRef = useRef(false);
 
   async function load() {
     setLoading(true);
@@ -147,6 +148,16 @@ export default function LinkedInAnalyticsTab() {
     if (prev == null) return null;
     return followers - prev;
   }, [snaps, followers]);
+
+  useEffect(() => {
+    if (loading || !profile?.profile_url || followers != null || autoFollowerBackfillRef.current) return;
+    autoFollowerBackfillRef.current = true;
+    setRefreshing(true);
+    analyzeSelfProfile(profile.profile_url)
+      .then(() => load())
+      .catch((e) => console.warn("automatic follower backfill failed", e?.message ?? e))
+      .finally(() => setRefreshing(false));
+  }, [loading, profile?.profile_url, followers]);
 
   if (loading && !profile) {
     return <div className="py-12 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;

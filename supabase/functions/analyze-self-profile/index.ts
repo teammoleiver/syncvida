@@ -13,11 +13,46 @@ function jr(body: unknown, status = 200) {
   });
 }
 
-async function linkupSearch(apiKey: string, query: string, depth: "standard" | "deep" = "deep") {
+function firstString(...values: any[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function parseCount(value: any): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const match = text.match(/([\d][\d,\.\s]*)\s*([kKmMbB])?/);
+  if (!match) return null;
+  const base = Number(match[1].replace(/[\s,]/g, ""));
+  if (!Number.isFinite(base)) return null;
+  const suffix = (match[2] ?? "").toLowerCase();
+  const multiplier = suffix === "k" ? 1_000 : suffix === "m" ? 1_000_000 : suffix === "b" ? 1_000_000_000 : 1;
+  const parsed = Math.round(base * multiplier);
+  return parsed > 0 ? parsed : null;
+}
+
+function extractFollowerCount(...chunks: any[]): number | null {
+  const text = chunks.map((c) => String(c ?? "")).join("\n");
+  const patterns = [
+    /([\d][\d,\.\s]*\s*[kKmMbB]?)\s*(?:\+\s*)?followers?\b/i,
+    /followers?\s*[:•\-]?\s*([\d][\d,\.\s]*\s*[kKmMbB]?)/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    const parsed = parseCount(match?.[1]);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+async function linkupSearch(apiKey: string, query: string, depth: "standard" | "deep" = "deep", includeImages = false) {
   const r = await fetch("https://api.linkup.so/v1/search", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ q: query, depth, outputType: "sourcedAnswer", includeImages: false }),
+    body: JSON.stringify({ q: query, depth, outputType: "sourcedAnswer", includeImages }),
   });
   const text = await r.text();
   let json: any = null;
@@ -28,7 +63,7 @@ async function linkupSearch(apiKey: string, query: string, depth: "standard" | "
   return {
     answer,
     sources: Array.isArray(sources)
-      ? sources.slice(0, 12).map((s) => ({ name: s?.name ?? s?.title ?? "", url: s?.url ?? "", snippet: s?.snippet ?? s?.content ?? "" }))
+      ? sources.slice(0, 12).map((s) => ({ name: s?.name ?? s?.title ?? "", url: s?.url ?? "", snippet: s?.snippet ?? s?.content ?? "", image: s?.image ?? s?.imageUrl ?? s?.thumbnail ?? s?.thumbnailUrl ?? "" }))
       : [],
   };
 }
@@ -61,12 +96,14 @@ Deno.serve(async (req: Request) => {
     const handle = (() => { try { return new URL(url).pathname.split("/").filter(Boolean).pop() ?? ""; } catch { return ""; } })();
 
     // ── Linkup search 1: profile-focused (name, headline, about, current role) ──
-    const profileQuery = `LinkedIn profile ${url} — full name, current job title and company, headline, about/bio, location, country, years of experience, expertise areas, skills, target audience. Use the public LinkedIn page and any other public web sources (company site, press, conference bios, podcasts).`;
-    const profileSearch = await linkupSearch(linkupKey, profileQuery, "deep");
+    const profileQuery = `LinkedIn profile ${url} — full name, current job title and company, headline, about/bio, location, country, number of followers, number of connections, years of experience, expertise areas, skills, target audience. Use the public LinkedIn page and any other public web sources (company site, press, conference bios, podcasts).`;
+    const profileSearch = await linkupSearch(linkupKey, profileQuery, "deep", true);
 
     // ── Linkup search 2: posts & writing style ──
     const postsQuery = `Recent public LinkedIn posts and articles authored by the person at ${url} (handle: ${handle}). Return the actual post text excerpts when available, the topics they post about, post format (short hooks, long-form, listicles), tone and writing style.`;
     const postsSearch = await linkupSearch(linkupKey, postsQuery, "deep").catch((e) => ({ answer: `(posts search failed: ${e.message})`, sources: [] as any[] }));
+    const followerCount = extractFollowerCount(profileSearch.answer, ...profileSearch.sources.map((s) => `${s.name}\n${s.snippet}`));
+    const avatarUrl = firstString(...profileSearch.sources.map((s) => s.image));
 
     if (!profileSearch.answer && !postsSearch.answer) {
       return jr({ error: "Linkup returned no usable data for this LinkedIn URL." }, 422);
@@ -154,6 +191,8 @@ ${postsSearch.answer.slice(0, 6000)}`;
     if (location) profilePatch.location = location;
     if (headline) profilePatch.title = headline;
     if (about_me) profilePatch.info_summary = about_me;
+    if (followerCount != null) { profilePatch.num_followers = followerCount; profilePatch.followers = followerCount; }
+    if (avatarUrl) profilePatch.avatar_url = avatarUrl;
 
     if (selfProfileId) {
       await admin.from("social_profiles").update(profilePatch).eq("id", selfProfileId);
@@ -168,7 +207,7 @@ ${postsSearch.answer.slice(0, 6000)}`;
       ok: true,
       self_profile_id: selfProfileId,
       source: "linkup",
-      scraped: { fullName, headline, company, location },
+      scraped: { fullName, headline, company, location, followers: followerCount, avatarUrl },
       summary: { about_me, career_summary, expertise, target_audience, writing_samples },
       web_context: {
         profile: { answer: profileSearch.answer, sources: profileSearch.sources },
