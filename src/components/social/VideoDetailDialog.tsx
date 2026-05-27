@@ -165,7 +165,7 @@ export default function VideoDetailDialog({
     });
   }
 
-  async function getTranscript(refresh = false, allowApify = false) {
+  async function getTranscript(refresh = false, allowApify = true) {
     if (!video) return;
     setLoadingTranscript(true);
     setTranscriptDebug(null);
@@ -390,7 +390,7 @@ export default function VideoDetailDialog({
                 <Button size="sm" variant="outline" asChild>
                   <a href={ytUrl} target="_blank" rel="noreferrer"><ExternalLink className="w-3.5 h-3.5 mr-1" /> Watch on YouTube</a>
                 </Button>
-                <Button size="sm" onClick={() => getTranscript(false)} disabled={loadingTranscript}>
+                <Button size="sm" onClick={() => getTranscript(false, true)} disabled={loadingTranscript}>
                   {loadingTranscript ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <FileText className="w-3.5 h-3.5 mr-1" />}
                   {transcript ? "View transcript" : "Get transcript"}
                 </Button>
@@ -499,7 +499,7 @@ export default function VideoDetailDialog({
                   <Button size="sm" variant="ghost" onClick={() => copyToClipboard(transcript)} title="Copy">
                     <Copy className="w-3 h-3" />
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => getTranscript(true)} disabled={loadingTranscript} title="Re-fetch">
+                  <Button size="sm" variant="ghost" onClick={() => getTranscript(true, true)} disabled={loadingTranscript} title="Re-fetch">
                     {loadingTranscript ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                   </Button>
                 </div>
