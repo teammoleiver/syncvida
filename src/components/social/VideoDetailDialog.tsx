@@ -452,11 +452,11 @@ export default function VideoDetailDialog({
             <Card className="p-3 border-destructive/40 bg-destructive/5 space-y-2">
               <div className="text-xs font-medium text-destructive">Transcript is unavailable</div>
               <p className="text-[11px] text-muted-foreground">
-                {transcriptDebug.error_type === "youtube-captions-unavailable" 
-                  ? "No public YouTube captions were found. You can try fetching via Apify, which uses actor credits."
+                {(transcriptDebug.error_type === "youtube-captions-unavailable" || transcriptDebug.error_type === "youtube-bot-blocked")
+                  ? "YouTube captions could not be retrieved automatically. You can retry via Apify (uses actor credits)."
                   : transcriptDebug.message || "An error occurred while fetching the transcript."}
               </p>
-              {transcriptDebug.error_type === "youtube-captions-unavailable" && (
+              {(transcriptDebug.error_type === "youtube-captions-unavailable" || transcriptDebug.error_type === "youtube-bot-blocked") && (
                 <Button 
                   size="sm" 
                   variant="outline" 
