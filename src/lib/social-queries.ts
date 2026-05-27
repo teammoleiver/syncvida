@@ -801,6 +801,134 @@ export async function enrichVoiceFromPosts() {
   return supabase.functions.invoke("enrich-voice-from-posts", { body: {} });
 }
 
+// ── Self LinkedIn analytics (profile + posts + growth snapshots) ──
+export type SelfProfile = {
+  id: string;
+  display_name: string | null;
+  full_name: string | null;
+  title: string | null;
+  company: string | null;
+  location: string | null;
+  country: string | null;
+  info_summary: string | null;
+  num_followers: number | null;
+  followers: number | null;
+  profile_url: string | null;
+  username: string | null;
+  last_scraped_at: string | null;
+};
+
+export async function getSelfProfile(): Promise<SelfProfile | null> {
+  const u = await uid(); if (!u) return null;
+  const { data } = await supabase.from("social_profiles" as any)
+    .select("id,display_name,full_name,title,company,location,country,info_summary,num_followers,followers,profile_url,username,last_scraped_at")
+    .eq("user_id", u).eq("is_self", true).maybeSingle();
+  return (data as any) ?? null;
+}
+
+export type SelfPostsAnalytics = {
+  count: number;
+  totals: { likes: number; comments: number; shares: number; views: number };
+  averages: { likes: number; comments: number; shares: number; views: number };
+  byMonth: { month: string; posts: number; likes: number; comments: number; shares: number }[];
+  top: { id: string; post_url: string | null; post_text: string | null; posted_at: string | null; likes: number; comments: number; shares: number; views: number; score: number }[];
+  latestPostedAt: string | null;
+};
+
+export async function getSelfPostsAnalytics(): Promise<SelfPostsAnalytics> {
+  const empty: SelfPostsAnalytics = {
+    count: 0, totals: { likes:0, comments:0, shares:0, views:0 },
+    averages: { likes:0, comments:0, shares:0, views:0 },
+    byMonth: [], top: [], latestPostedAt: null,
+  };
+  const id = await getSelfProfileId();
+  if (!id) return empty;
+  const { data, error } = await supabase.from("linkedin_posts" as any)
+    .select("id,post_url,post_text,posted_at,likes,comments,shares,views")
+    .eq("profile_id", id)
+    .order("posted_at", { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  const rows = (data || []) as any[];
+  const totals = { likes:0, comments:0, shares:0, views:0 };
+  const byMonthMap = new Map<string, { posts:number; likes:number; comments:number; shares:number }>();
+  for (const r of rows) {
+    totals.likes += r.likes || 0;
+    totals.comments += r.comments || 0;
+    totals.shares += r.shares || 0;
+    totals.views += r.views || 0;
+    if (r.posted_at) {
+      const m = String(r.posted_at).slice(0, 7);
+      const cur = byMonthMap.get(m) || { posts:0, likes:0, comments:0, shares:0 };
+      cur.posts++; cur.likes += r.likes || 0; cur.comments += r.comments || 0; cur.shares += r.shares || 0;
+      byMonthMap.set(m, cur);
+    }
+  }
+  const count = rows.length;
+  const averages = {
+    likes: count ? Math.round(totals.likes / count) : 0,
+    comments: count ? Math.round(totals.comments / count) : 0,
+    shares: count ? Math.round(totals.shares / count) : 0,
+    views: count ? Math.round(totals.views / count) : 0,
+  };
+  // build 12-month series ending current month
+  const now = new Date(); now.setDate(1); now.setHours(0,0,0,0);
+  const byMonth: SelfPostsAnalytics["byMonth"] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now); d.setMonth(d.getMonth() - i);
+    const key = d.toISOString().slice(0, 7);
+    const cur = byMonthMap.get(key) || { posts:0, likes:0, comments:0, shares:0 };
+    byMonth.push({ month: key, ...cur });
+  }
+  const top = [...rows]
+    .map((r) => ({ ...r, score: (r.likes||0) + 2*(r.comments||0) + 3*(r.shares||0) }))
+    .sort((a,b) => b.score - a.score)
+    .slice(0, 5);
+  return { count, totals, averages, byMonth, top, latestPostedAt: rows[0]?.posted_at ?? null };
+}
+
+export type SelfSnapshot = {
+  id: string;
+  captured_at: string;
+  followers: number | null;
+  connections: number | null;
+  posts_count: number | null;
+  total_likes: number | null;
+  total_comments: number | null;
+  total_shares: number | null;
+  total_views: number | null;
+};
+
+export async function listSelfSnapshots(limit = 52): Promise<SelfSnapshot[]> {
+  const u = await uid(); if (!u) return [];
+  const { data, error } = await supabase.from("social_self_snapshots" as any)
+    .select("id,captured_at,followers,connections,posts_count,total_likes,total_comments,total_shares,total_views")
+    .eq("user_id", u)
+    .order("captured_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return ((data || []) as any[]).reverse();
+}
+
+export async function recordSelfSnapshot(): Promise<SelfSnapshot | null> {
+  const u = await uid(); if (!u) return null;
+  const [profile, analytics] = await Promise.all([getSelfProfile(), getSelfPostsAnalytics()]);
+  const followers = profile?.num_followers ?? profile?.followers ?? null;
+  const row = {
+    user_id: u,
+    followers,
+    connections: null as number | null,
+    posts_count: analytics.count,
+    total_likes: analytics.totals.likes,
+    total_comments: analytics.totals.comments,
+    total_shares: analytics.totals.shares,
+    total_views: analytics.totals.views,
+  };
+  const { data, error } = await supabase.from("social_self_snapshots" as any).insert(row).select().single();
+  if (error) throw error;
+  return data as any;
+}
+
 // ── Reference websites enrichment (Linkup deep-search of competitor/topic sites) ──
 export async function enrichFromWebsites(websites?: string[]) {
   return supabase.functions.invoke("enrich-from-websites", { body: websites ? { websites } : {} });
