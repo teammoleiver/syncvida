@@ -90,7 +90,10 @@ async function pickApifyToken(admin: any, userId: string): Promise<string> {
 
 async function runTranscriptActor(token: string, actorId: string, videoUrl: string): Promise<string | null> {
   // Send several common field names so the actor's expected schema is covered.
-  const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${token}`;
+  const url = new URL(`https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`);
+  url.searchParams.set("token", token);
+  url.searchParams.set("maxItems", "10");
+
   const body: Record<string, any> = {
     videoUrls: [videoUrl],
     startUrls: [{ url: videoUrl }],
