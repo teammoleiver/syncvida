@@ -157,12 +157,9 @@ async function fetchYouTubeTimedTextTranscript(videoId: string): Promise<string 
   const baseUrl = track?.baseUrl;
   if (!baseUrl) return null;
 
-  const xml = await fetch(`${baseUrl}&fmt=srv3`).then((r) => r.ok ? r.text() : "").catch(() => "");
-  const text = Array.from(xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g))
-    .map((m) => decodeHtml(m[1].replace(/<[^>]+>/g, " ")))
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const transcriptRes = await fetch(`${baseUrl}&fmt=srv3`, { headers: { "User-Agent": WEB_USER_AGENT, "Accept-Language": "en-US,en;q=0.9" } });
+  const xml = await transcriptRes.text();
+  const text = parseTimedTextXml(xml);
   return text.length > 50 ? text : null;
 }
 
@@ -340,3 +337,4 @@ function extractTranscriptFromItems(items: any[]): string | null {
 function json(o: any, s = 200) {
   return new Response(JSON.stringify(o), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
+
