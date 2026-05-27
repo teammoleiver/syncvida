@@ -156,14 +156,46 @@ export default function LinkedInAnalyticsTab() {
       {/* Self profile header */}
       <Card className="p-5">
         {!profile ? (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
-            <div>
-              <h3 className="font-semibold">Connect your LinkedIn profile</h3>
-              <p className="text-sm text-muted-foreground">Analyze your own profile to see follower growth, post performance and engagement.</p>
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              {linkedinConn?.avatar_url ? (
+                <img src={linkedinConn.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground font-semibold shrink-0">
+                  {initials(linkedinConn?.display_name) || "in"}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold">Analyze your LinkedIn profile</h3>
+                {linkedinConn ? (
+                  <p className="text-sm text-muted-foreground">
+                    Connected as <span className="text-foreground font-medium">{linkedinConn.display_name}</span>
+                    {linkedinConn.email ? ` · ${linkedinConn.email}` : ""}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Connect your LinkedIn account in Settings → Connections, then paste your public profile URL below to analyze followers, posts and engagement.
+                  </p>
+                )}
+              </div>
             </div>
-            <Button onClick={refreshProfile} disabled={refreshing} className="gap-1.5">
-              {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Analyze my LinkedIn
-            </Button>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">LinkedIn profile URL</label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  value={profileUrl}
+                  onChange={(e) => setProfileUrl(e.target.value)}
+                  placeholder="https://www.linkedin.com/in/your-handle/"
+                  className="flex-1"
+                />
+                <Button onClick={refreshProfile} disabled={refreshing || !profileUrl.trim()} className="gap-1.5">
+                  {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Analyze my LinkedIn
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                LinkedIn's login doesn't expose your public URL — we save this once, then scrape your profile and posts via Apify.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col md:flex-row md:items-center gap-4">
