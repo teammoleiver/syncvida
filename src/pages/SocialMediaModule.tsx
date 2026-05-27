@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle, Star, ListPlus, Tag, Folder, ChevronDown } from "lucide-react";
+import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle, Star, ListPlus, Tag, Folder, ChevronDown, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,8 +31,9 @@ import {
 } from "@/lib/social-queries";
 import ApifyActorsPanel from "@/components/social/ApifyActorsPanel";
 import EngagementFeedTab from "@/components/social/EngagementFeedTab";
+import LinkedInAnalyticsTab from "@/components/social/LinkedInAnalyticsTab";
 
-type Tab = "profiles" | "posts" | "engagement" | "topics" | "planner" | "settings";
+type Tab = "profiles" | "posts" | "engagement" | "analytics" | "topics" | "planner" | "settings";
 
 // Build a clean LinkedIn post URL. Stored URLs sometimes contain raw `urn:li:activity:...`
 // which Chrome can mangle (the colons are reserved). Rebuild from the activity id and
@@ -50,6 +51,7 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<any> }[] = [
   { id: "profiles", label: "Profiles to Track", icon: Users },
   { id: "posts", label: "Scraped Posts", icon: FileText },
   { id: "engagement", label: "Engagement Feed", icon: MessageCircle },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "topics", label: "Hot Topics & Rewrites", icon: TrendingUp },
   { id: "planner", label: "Content Planner", icon: CalendarDays },
   { id: "settings", label: "Settings", icon: SettingsIcon },
@@ -86,6 +88,7 @@ export default function SocialMediaModule({ defaultTab, hideHeader }: { defaultT
       {tab === "profiles" && <ProfilesTab />}
       {tab === "posts" && <PostsTab />}
       {tab === "engagement" && <EngagementFeedTab />}
+      {tab === "analytics" && <LinkedInAnalyticsTab />}
       {tab === "topics" && <TopicsTab />}
       {tab === "planner" && <PlannerTab />}
       {tab === "settings" && <SettingsTab />}
