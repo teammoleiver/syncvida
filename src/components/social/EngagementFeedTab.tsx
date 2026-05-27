@@ -528,6 +528,56 @@ function EngagementDialog({ post, row, tones, onClose, onUpdate }: { post: any; 
             )}
           </div>
 
+          {/* Live preview — one example per tone for THIS post */}
+          <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-medium flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-primary" /> Tone preview
+                <span className="text-muted-foreground font-normal">— see how each tone would reply to this post</span>
+              </div>
+              <Button size="sm" variant="outline" onClick={loadPreviews} disabled={loadingPreviews} className="h-7 gap-1.5 text-xs">
+                {loadingPreviews ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                {previews ? "Regenerate" : "Preview all tones"}
+              </Button>
+            </div>
+            {loadingPreviews && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-16 rounded-md bg-muted/40 animate-pulse" />
+                ))}
+              </div>
+            )}
+            {!loadingPreviews && previews && previews.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+                {previews.map((p) => {
+                  const active = toneId === p.tone_id;
+                  return (
+                    <button
+                      key={p.tone_id}
+                      type="button"
+                      onClick={() => { setToneId(p.tone_id); if (p.comment) setDraft(p.comment); }}
+                      className={`text-left rounded-md border p-2.5 transition-colors ${active ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 bg-background"}`}
+                      title="Click to use this as your draft"
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-[11px] font-medium">{p.label}</span>
+                        <span className="text-[10px] text-muted-foreground">{p.comment ? `${p.comment.split(/\s+/).filter(Boolean).length}w` : ""}</span>
+                      </div>
+                      {p.error ? (
+                        <p className="text-[11px] text-destructive">Couldn't generate</p>
+                      ) : (
+                        <p className="text-xs leading-snug whitespace-pre-wrap line-clamp-3">{p.comment || "—"}</p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {!loadingPreviews && !previews && (
+              <p className="text-[11px] text-muted-foreground">Generates one short example per tone tailored to this post. Click any example to drop it into your draft.</p>
+            )}
+          </div>
+
           {/* Comment composer */}
           <div className="space-y-2">
             <label className="text-xs text-muted-foreground flex items-center justify-between">
