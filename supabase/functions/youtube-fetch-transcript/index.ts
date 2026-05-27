@@ -39,9 +39,10 @@ Deno.serve(async (req) => {
     const freeResult = await fetchYouTubeTimedTextTranscript(videoId);
     const freeTranscript = freeResult.text;
     // Default to allowing Apify fallback: YouTube actively bot-blocks Supabase
-    // Edge, so without Apify most videos cannot be transcribed. Caller can
-    // explicitly opt out with allow_apify: false.
-    const allowApifyFallback = body?.allow_apify !== false;
+    // Edge, so without Apify most videos cannot be transcribed. Older frontend
+    // bundles sent allow_apify:false by default, so only skip on an explicit
+    // skip_apify flag.
+    const allowApifyFallback = body?.skip_apify !== true;
     if (!freeTranscript && !allowApifyFallback) {
       console.log(`youtube-fetch-transcript: no public captions; apify skipped video_id=${videoId} trace=${JSON.stringify(freeResult.trace).slice(0, 1600)}`);
       return json({
@@ -57,9 +58,9 @@ Deno.serve(async (req) => {
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const actorId = freeTranscript ? null : await pickTranscriptActor(admin, user.id);
     if (!freeTranscript && !actorId) return json({ ok: false, message: "No youtube_video_transcript actor configured. Add one in Social Hub → Settings → Apify actors.", fallback: true }, 200);
-    const token = freeTranscript ? "" : await pickApifyToken(admin, user.id);
-    if (!freeTranscript && !token) return json({ ok: false, message: "No Apify token available. Add one in Social Hub → Settings → Apify account pool.", fallback: true }, 200);
-    const transcript = freeTranscript ?? await runTranscriptActor(token, actorId!, videoUrl);
+    const tokenCandidates = freeTranscript ? [] : await pickApifyTokens(admin, user.id);
+    if (!freeTranscript && tokenCandidates.length === 0) return json({ ok: false, message: "No Apify token available. Add one in Social Hub → Settings → Apify account pool.", fallback: true }, 200);
+    const transcript = freeTranscript ?? await runTranscriptActorWithFallback(tokenCandidates, actorId!, videoUrl);
     if (!transcript) {
       return json({
         ok: false,
