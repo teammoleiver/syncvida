@@ -538,6 +538,14 @@ function ProfilesTab() {
       )}
 
       <ProfileDetailDialog profile={detailProfile} onClose={() => setDetailProfile(null)} onSaved={() => { setDetailProfile(null); load(); }} />
+      <ManageListsDialog
+        open={manageOpen}
+        onClose={() => setManageOpen(false)}
+        lists={allLists}
+        counts={listCounts}
+        onChanged={load}
+        onPickList={(name) => { setListFilter(name); setManageOpen(false); }}
+      />
       <ImportPreviewDialog
         preview={importPreview}
         onClose={() => setImportPreview(null)}
