@@ -55,6 +55,7 @@ export default function EngagementFeedTab() {
   const [profileFilter, setProfileFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "todo" | "draft" | "posted" | "liked">("all");
+  const [dateFilter, setDateFilter] = useState<"all" | "1" | "7" | "30" | "90">("all");
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
@@ -110,9 +111,14 @@ export default function EngagementFeedTab() {
 
   const filtered = useMemo(() => {
     const q = deferredSearch.trim().toLowerCase();
+    const cutoff = dateFilter === "all" ? null : Date.now() - parseInt(dateFilter, 10) * 86400000;
     return posts.filter((p) => {
       if (hideNoLink && !linkByPost.get(p.id)) return false;
       if (q && !((p.post_text || "").toLowerCase().includes(q) || (p.author || "").toLowerCase().includes(q))) return false;
+      if (cutoff != null) {
+        const t = p.posted_at ? new Date(p.posted_at).getTime() : NaN;
+        if (!Number.isFinite(t) || t < cutoff) return false;
+      }
       const e = engagement[p.id];
       if (statusFilter === "todo" && (e?.draft_text || e?.liked || e?.status === "posted")) return false;
       if (statusFilter === "draft" && e?.status !== "draft" && !e?.draft_text) return false;
@@ -120,10 +126,10 @@ export default function EngagementFeedTab() {
       if (statusFilter === "liked" && !e?.liked) return false;
       return true;
     });
-  }, [posts, engagement, deferredSearch, statusFilter, hideNoLink, linkByPost]);
+  }, [posts, engagement, deferredSearch, statusFilter, dateFilter, hideNoLink, linkByPost]);
 
   // Reset to page 1 whenever filters change
-  useEffect(() => { setPage(1); }, [search, statusFilter, profileFilter, hideNoLink]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, dateFilter, profileFilter, hideNoLink]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -265,6 +271,16 @@ export default function EngagementFeedTab() {
               <SelectItem value="draft">Has draft</SelectItem>
               <SelectItem value="posted">Commented</SelectItem>
               <SelectItem value="liked">Liked</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as any)}>
+            <SelectTrigger className="w-[160px]" title="Filter by post date"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any date</SelectItem>
+              <SelectItem value="1">Last 24 hours</SelectItem>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
           <label className="flex items-center gap-2 text-xs text-muted-foreground border border-border rounded-md px-2.5 h-9" title="Hide posts that don't have a public LinkedIn URL — you can't open them to paste a comment anyway.">
