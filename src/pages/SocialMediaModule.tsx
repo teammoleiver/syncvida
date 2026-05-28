@@ -934,7 +934,7 @@ function ProfileDetailDialog({ profile, onClose, onSaved }: { profile: any | nul
                       <span>👍 {p.likes ?? 0} · 💬 {p.comments ?? 0} · 🔁 {p.shares ?? 0}</span>
                     </div>
                     <p className="text-sm whitespace-pre-wrap line-clamp-6">{p.post_text}</p>
-                    {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+                    {p.post_url && <button type="button" onClick={() => copyLinkedInUrl(p.post_url)} className="text-xs text-primary inline-flex items-center gap-1 hover:underline">Copy LinkedIn link <Copy className="w-3 h-3" /></button>}
                   </Card>
                 ))}
               </div>
@@ -1141,7 +1141,7 @@ function PostInspectorDialog({ post, onClose }: { post: any; onClose: () => void
           <Card className="p-4 bg-muted/30 whitespace-pre-wrap text-sm">{post.post_text}</Card>
           <div className="text-xs text-muted-foreground flex gap-3">
             <span>👍 {post.likes}</span><span>💬 {post.comments}</span><span>🔁 {post.shares}</span>
-            {post.post_url && <a href={normalizeLinkedInUrl(post.post_url)} target="_blank" rel="noopener noreferrer" className="text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+            {post.post_url && <button type="button" onClick={() => copyLinkedInUrl(post.post_url)} className="text-primary inline-flex items-center gap-1 hover:underline">Copy LinkedIn link <Copy className="w-3 h-3" /></button>}
           </div>
 
           <div className="border-t border-border pt-4">
@@ -2280,7 +2280,7 @@ function ProfileHistoryButton({ profile }: { profile: any }) {
                   <span>👍 {p.likes ?? 0} · 💬 {p.comments ?? 0} · 🔁 {p.shares ?? 0}</span>
                 </div>
                 <p className="text-sm whitespace-pre-wrap line-clamp-6">{p.post_text}</p>
-                {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+                {p.post_url && <button type="button" onClick={() => copyLinkedInUrl(p.post_url)} className="text-xs text-primary inline-flex items-center gap-1 hover:underline">Copy LinkedIn link <Copy className="w-3 h-3" /></button>}
               </Card>
             ))}
           </div>
