@@ -47,6 +47,21 @@ function normalizeLinkedInUrl(raw?: string | null): string {
   return /^https?:\/\//i.test(url) ? url : `https://${url.replace(/^\/+/, "")}`;
 }
 
+// Some users' networks (corporate filters, browser extensions) block direct
+// navigation to linkedin.com with ERR_BLOCKED_BY_RESPONSE. Copy the URL to the
+// clipboard instead of opening a new tab so they can paste it into a context
+// where LinkedIn is allowed.
+async function copyLinkedInUrl(raw?: string | null) {
+  const url = normalizeLinkedInUrl(raw);
+  if (!url) { toast.error("No LinkedIn URL available"); return; }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast.success("LinkedIn link copied — paste it in a tab where LinkedIn isn't blocked.");
+  } catch {
+    toast.error("Could not copy link");
+  }
+}
+
 const TABS: { id: Tab; label: string; icon: React.ComponentType<any> }[] = [
   { id: "profiles", label: "Profiles to Track", icon: Users },
   { id: "posts", label: "Scraped Posts", icon: FileText },
@@ -919,7 +934,7 @@ function ProfileDetailDialog({ profile, onClose, onSaved }: { profile: any | nul
                       <span>👍 {p.likes ?? 0} · 💬 {p.comments ?? 0} · 🔁 {p.shares ?? 0}</span>
                     </div>
                     <p className="text-sm whitespace-pre-wrap line-clamp-6">{p.post_text}</p>
-                    {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+                    {p.post_url && <button type="button" onClick={() => copyLinkedInUrl(p.post_url)} className="text-xs text-primary inline-flex items-center gap-1 hover:underline">Copy LinkedIn link <Copy className="w-3 h-3" /></button>}
                   </Card>
                 ))}
               </div>
@@ -1126,7 +1141,7 @@ function PostInspectorDialog({ post, onClose }: { post: any; onClose: () => void
           <Card className="p-4 bg-muted/30 whitespace-pre-wrap text-sm">{post.post_text}</Card>
           <div className="text-xs text-muted-foreground flex gap-3">
             <span>👍 {post.likes}</span><span>💬 {post.comments}</span><span>🔁 {post.shares}</span>
-            {post.post_url && <a href={normalizeLinkedInUrl(post.post_url)} target="_blank" rel="noopener noreferrer" className="text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+            {post.post_url && <button type="button" onClick={() => copyLinkedInUrl(post.post_url)} className="text-primary inline-flex items-center gap-1 hover:underline">Copy LinkedIn link <Copy className="w-3 h-3" /></button>}
           </div>
 
           <div className="border-t border-border pt-4">
@@ -2265,7 +2280,7 @@ function ProfileHistoryButton({ profile }: { profile: any }) {
                   <span>👍 {p.likes ?? 0} · 💬 {p.comments ?? 0} · 🔁 {p.shares ?? 0}</span>
                 </div>
                 <p className="text-sm whitespace-pre-wrap line-clamp-6">{p.post_text}</p>
-                {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" className="text-xs text-primary inline-flex items-center gap-1">View on LinkedIn <ArrowUpRight className="w-3 h-3" /></a>}
+                {p.post_url && <button type="button" onClick={() => copyLinkedInUrl(p.post_url)} className="text-xs text-primary inline-flex items-center gap-1 hover:underline">Copy LinkedIn link <Copy className="w-3 h-3" /></button>}
               </Card>
             ))}
           </div>

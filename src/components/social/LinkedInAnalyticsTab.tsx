@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Loader2, RefreshCw, ExternalLink, MapPin, Building2, Users, TrendingUp, Heart, MessageCircle, Share2, Eye, Sparkles, Camera } from "lucide-react";
+import { Loader2, RefreshCw, Copy, MapPin, Building2, Users, TrendingUp, Heart, MessageCircle, Share2, Eye, Sparkles, Camera } from "lucide-react";
 import { toast } from "sonner";
 import {
   getSelfProfile, getSelfPostsAnalytics, listSelfSnapshots, recordSelfSnapshot,
@@ -228,9 +228,18 @@ export default function LinkedInAnalyticsTab() {
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-lg font-semibold truncate">{profile.display_name || profile.full_name || profile.username}</h3>
                 {profile.profile_url && (
-                  <a href={profile.profile_url} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1 hover:underline">
-                    View on LinkedIn <ExternalLink className="w-3 h-3" />
-                  </a>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(profile.profile_url!);
+                        toast.success("LinkedIn link copied — paste it in a tab where LinkedIn isn't blocked.");
+                      } catch { toast.error("Could not copy link"); }
+                    }}
+                    className="text-xs text-primary inline-flex items-center gap-1 hover:underline"
+                  >
+                    Copy LinkedIn link <Copy className="w-3 h-3" />
+                  </button>
                 )}
               </div>
               {profile.title && <div className="text-sm text-foreground/80">{profile.title}</div>}
@@ -346,9 +355,18 @@ export default function LinkedInAnalyticsTab() {
                       </div>
                     </div>
                     {p.post_url && (
-                      <a href={p.post_url} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1 hover:underline shrink-0">
-                        Open <ExternalLink className="w-3 h-3" />
-                      </a>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(p.post_url!);
+                            toast.success("LinkedIn link copied — paste it in a tab where LinkedIn isn't blocked.");
+                          } catch { toast.error("Could not copy link"); }
+                        }}
+                        className="text-xs text-primary inline-flex items-center gap-1 hover:underline shrink-0"
+                      >
+                        Copy <Copy className="w-3 h-3" />
+                      </button>
                     )}
                   </div>
                 ))}
