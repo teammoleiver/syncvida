@@ -47,6 +47,21 @@ function normalizeLinkedInUrl(raw?: string | null): string {
   return /^https?:\/\//i.test(url) ? url : `https://${url.replace(/^\/+/, "")}`;
 }
 
+// Some users' networks (corporate filters, browser extensions) block direct
+// navigation to linkedin.com with ERR_BLOCKED_BY_RESPONSE. Copy the URL to the
+// clipboard instead of opening a new tab so they can paste it into a context
+// where LinkedIn is allowed.
+async function copyLinkedInUrl(raw?: string | null) {
+  const url = normalizeLinkedInUrl(raw);
+  if (!url) { toast.error("No LinkedIn URL available"); return; }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast.success("LinkedIn link copied — paste it in a tab where LinkedIn isn't blocked.");
+  } catch {
+    toast.error("Could not copy link");
+  }
+}
+
 const TABS: { id: Tab; label: string; icon: React.ComponentType<any> }[] = [
   { id: "profiles", label: "Profiles to Track", icon: Users },
   { id: "posts", label: "Scraped Posts", icon: FileText },
