@@ -355,9 +355,18 @@ export default function LinkedInAnalyticsTab() {
                       </div>
                     </div>
                     {p.post_url && (
-                      <a href={p.post_url} target="_blank" rel="noreferrer" className="text-xs text-primary inline-flex items-center gap-1 hover:underline shrink-0">
-                        Open <ExternalLink className="w-3 h-3" />
-                      </a>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(p.post_url!);
+                            toast.success("LinkedIn link copied — paste it in a tab where LinkedIn isn't blocked.");
+                          } catch { toast.error("Could not copy link"); }
+                        }}
+                        className="text-xs text-primary inline-flex items-center gap-1 hover:underline shrink-0"
+                      >
+                        Copy <Copy className="w-3 h-3" />
+                      </button>
                     )}
                   </div>
                 ))}
