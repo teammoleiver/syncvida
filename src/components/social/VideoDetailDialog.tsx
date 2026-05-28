@@ -41,6 +41,20 @@ function makeRun<T>(items: T[]): Run<T> {
   return { id: (crypto as any)?.randomUUID?.() ?? `r_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, createdAt: new Date().toISOString(), items };
 }
 
+function buildYouTubeUrl(videoId: string) {
+  return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+}
+
+async function copyYouTubeLink(videoId: string) {
+  const url = buildYouTubeUrl(videoId);
+  try {
+    await navigator.clipboard.writeText(url);
+    toast.success("YouTube link copied");
+  } catch {
+    toast.info(url);
+  }
+}
+
 function itemMatches(query: string, item: any, type: "idea" | "post" | "summary"): boolean {
   const t = query.trim().toLowerCase();
   if (!t) return true;
@@ -154,7 +168,7 @@ export default function VideoDetailDialog({
 
   if (!video) return null;
 
-  const ytUrl = `https://youtu.be/${video.video_id}`;
+  const ytUrl = buildYouTubeUrl(video.video_id);
 
   function persist(next: Partial<{ ideas: Run<VideoIdea>[]; posts: Run<VideoPost>[]; summary: Run<SummaryPoint>[] }>) {
     if (!video) return;
@@ -360,13 +374,13 @@ export default function VideoDetailDialog({
         <div className="space-y-4">
           {/* Video preview */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <a href={ytUrl} target="_blank" rel="noreferrer" className="sm:col-span-1 block">
+            <button type="button" onClick={() => copyYouTubeLink(video.video_id)} className="sm:col-span-1 block text-left" title="Copy YouTube link">
               {video.thumbnail_url ? (
                 <img src={video.thumbnail_url} alt="" className="w-full aspect-video object-cover rounded-md" />
               ) : (
                 <div className="w-full aspect-video bg-muted rounded-md" />
               )}
-            </a>
+            </button>
             <div className="sm:col-span-2 space-y-2 text-sm">
               <div className="text-muted-foreground">
                 {channelTitle || video.channel_id}
@@ -387,8 +401,8 @@ export default function VideoDetailDialog({
                   <Heart className={`w-3.5 h-3.5 mr-1 ${liked ? "fill-current" : ""}`} />
                   {liked ? "Liked" : "Like"}
                 </Button>
-                <Button size="sm" variant="outline" asChild>
-                  <a href={ytUrl} target="_blank" rel="noreferrer"><ExternalLink className="w-3.5 h-3.5 mr-1" /> Watch on YouTube</a>
+                <Button size="sm" variant="outline" onClick={() => copyYouTubeLink(video.video_id)} title={ytUrl}>
+                  <Copy className="w-3.5 h-3.5 mr-1" /> Copy YouTube link
                 </Button>
                 <Button size="sm" onClick={() => getTranscript(false, true)} disabled={loadingTranscript}>
                   {loadingTranscript ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <FileText className="w-3.5 h-3.5 mr-1" />}
