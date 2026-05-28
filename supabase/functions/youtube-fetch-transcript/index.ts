@@ -135,27 +135,18 @@ async function runTranscriptActorWithFallback(tokens: string[], actorId: string,
 }
 
 async function runTranscriptActor(token: string, actorId: string, videoUrl: string): Promise<string | null> {
-  // Send several common field names so the actor's expected schema is covered.
+  // Keep charged-run limits only in the Apify API query string. Some transcript
+  // actors reject extra input fields even when they look harmless.
   const url = new URL(`https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`);
   url.searchParams.set("token", token);
   url.searchParams.set("maxItems", "10");
   url.searchParams.set("maxTotalChargeUsd", "1");
+  url.searchParams.set("clean", "true");
+  url.searchParams.set("format", "json");
 
   const body: Record<string, any> = {
-    videoUrls: [videoUrl],
-    startUrls: [{ url: videoUrl }],
     videoUrl,
-    url: videoUrl,
-    urls: [videoUrl],
-    language: "en",
-    languages: ["en"],
-    subtitlesLanguage: "en",
     targetLanguage: "en",
-    lang: "en",
-    maxItems: 10,
-    maxResults: 10,
-    maxResultStreams: 10,
-    maxTotalChargeUsd: 1,
   };
   const res = await fetch(url, {
     method: "POST",

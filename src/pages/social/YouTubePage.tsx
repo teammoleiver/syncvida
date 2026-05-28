@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Loader2, Plus, RefreshCw, Search, Sparkles, Trash2, Youtube,
-  ExternalLink, Bell, BellOff, Calendar, FileText, Heart, Combine, CheckSquare, X,
+  Copy, Bell, BellOff, Calendar, FileText, Heart, Combine, CheckSquare, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -255,6 +255,15 @@ export default function YouTubePage() {
     });
   }
 
+  async function copyLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("YouTube link copied");
+    } catch {
+      toast.info(url);
+    }
+  }
+
   // Resolve picked video_ids to full video objects (preserving selection order).
   const pickedVideoObjs = useMemo(() => {
     const map = new Map(videos.map((v) => [v.video_id, v]));
@@ -363,8 +372,8 @@ export default function YouTubePage() {
                     <Button size="sm" variant="ghost" onClick={() => refreshOne(c.id)} disabled={refreshingId === c.id} title="Refresh videos">
                       {refreshingId === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                     </Button>
-                    <Button size="sm" variant="ghost" asChild>
-                      <a href={c.source_url} target="_blank" rel="noreferrer" title="Open on YouTube"><ExternalLink className="w-3.5 h-3.5" /></a>
+                    <Button size="sm" variant="ghost" onClick={() => copyLink(c.source_url)} title="Copy YouTube link">
+                      <Copy className="w-3.5 h-3.5" />
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => remove(c.id, c.title ?? c.channel_id)} title="Remove">
                       <Trash2 className="w-3.5 h-3.5" />
@@ -408,7 +417,7 @@ export default function YouTubePage() {
                 <ol className="mt-1 space-y-0.5">
                   {answer.sources.map((s) => (
                     <li key={s.video_id} className="text-muted-foreground">
-                      [{s.n}] <a href={s.url} target="_blank" rel="noreferrer" className="underline text-primary">{s.title}</a> — <span>{s.channel}</span>
+                      [{s.n}] <button type="button" onClick={() => copyLink(s.url)} className="underline text-primary text-left">{s.title}</button> — <span>{s.channel}</span>
                     </li>
                   ))}
                 </ol>
