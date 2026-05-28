@@ -154,7 +154,7 @@ export default function VideoDetailDialog({
 
   if (!video) return null;
 
-  const ytUrl = `https://www.youtube.com/watch?v=${video.video_id}`;
+  const ytUrl = `https://youtu.be/${video.video_id}`;
 
   function persist(next: Partial<{ ideas: Run<VideoIdea>[]; posts: Run<VideoPost>[]; summary: Run<SummaryPoint>[] }>) {
     if (!video) return;
