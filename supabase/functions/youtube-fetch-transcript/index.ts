@@ -150,6 +150,8 @@ async function runTranscriptActor(token: string, actorId: string, videoUrl: stri
     language: "en",
     languages: ["en"],
     subtitlesLanguage: "en",
+    targetLanguage: "en",
+    lang: "en",
     maxItems: 10,
     maxResults: 10,
     maxResultStreams: 10,
