@@ -340,7 +340,10 @@ class ApifyActorError extends Error {
       return new ApifyActorError(type, "All configured Apify accounts were tried, but none had enough usage credit to run this paid transcript actor. Add credits or upgrade an Apify account, then try again.", "https://console.apify.com/billing/subscription", true);
     }
     if (type === "max-items-must-be-greater-than-zero") {
-      return new ApifyActorError(type, "Apify rejected the actor run limit. The app now sends positive maxItems and maxTotalChargeUsd values; if this keeps happening, switch this channel to another YouTube transcript actor in Social Hub settings.");
+      // This Apify account requires the run's maxItems to be set on the account
+      // itself. Treat it as a per-token error so we rotate to the next token
+      // instead of failing the whole request.
+      return new ApifyActorError(type, "This Apify account rejects the transcript actor run limit. Rotating to the next configured Apify account.", undefined, true);
     }
     return new ApifyActorError(type, `Apify ${status}: ${message}`);
   }
