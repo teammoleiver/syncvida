@@ -1121,6 +1121,36 @@ export type Database = {
         }
         Relationships: []
       }
+      linkedin_profile_audits: {
+        Row: {
+          created_at: string
+          diff: Json | null
+          id: string
+          overall_score: number | null
+          profile_url: string | null
+          report: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          diff?: Json | null
+          id?: string
+          overall_score?: number | null
+          profile_url?: string | null
+          report: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          diff?: Json | null
+          id?: string
+          overall_score?: number | null
+          profile_url?: string | null
+          report?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       meal_logs: {
         Row: {
           calories: number | null
