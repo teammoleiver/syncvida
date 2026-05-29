@@ -28,9 +28,8 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const channelPk: string | undefined = body?.channel_pk;
-    const apiKey = Deno.env.get("YOUTUBE_API_KEY") ?? "";
-    const apifyToken = Deno.env.get("APIFY_API_TOKEN") ?? "";
-    const apifyActor = Deno.env.get("APIFY_YT_CHANNEL_ACTOR") ?? "67Q6fmd8iedTVcCwY";
+    const apifyActor = await pickChannelActor(admin, user.id);
+    const apifyAccounts = await pickApifyAccounts(admin, user.id);
     const apifyMax = Math.min(1000, Math.max(10, Number((body as any)?.max_results ?? 200)));
 
     let q = admin.from("youtube_channels").select("*").eq("user_id", user.id);
@@ -46,10 +45,10 @@ Deno.serve(async (req) => {
         let videos: any[] = [];
         let usedSource = "rss";
         let apifyError: string | null = null;
-        if (apifyToken) {
+        if (apifyActor && apifyAccounts.length > 0) {
           try {
             const sourceUrl = ch.source_url || (ch.handle ? `https://www.youtube.com/@${ch.handle}` : `https://www.youtube.com/channel/${ch.channel_id}`);
-            const r = await fetchChannelApify(apifyToken, apifyActor, sourceUrl, apifyMax);
+            const r = await fetchChannelApifyWithFallback(admin, apifyAccounts, apifyActor, sourceUrl, apifyMax);
             videos = r.videos;
             usedSource = "apify";
           } catch (e) {
@@ -158,8 +157,75 @@ async function fetchVideosRss(channelId: string): Promise<any[]> {
   }).filter((v) => v.video_id);
 }
 
+type ApifyAccountCandidate = { id: string | null; label: string; token: string; remaining: number; postsUsed: number };
+
+async function pickChannelActor(admin: any, userId: string): Promise<string | null> {
+  const { data } = await admin.from("apify_actors")
+    .select("actor_id")
+    .eq("user_id", userId).eq("kind", "youtube_channel").eq("is_default", true)
+    .maybeSingle();
+  return data?.actor_id ?? Deno.env.get("APIFY_YT_CHANNEL_ACTOR") ?? "67Q6fmd8iedTVcCwY";
+}
+
+async function pickApifyAccounts(admin: any, userId: string): Promise<ApifyAccountCandidate[]> {
+  const { data } = await admin.from("social_apify_accounts")
+    .select("id, label, api_token, monthly_budget_usd, posts_used_this_period, cost_per_10_posts_usd, active, last_used_at")
+    .eq("user_id", userId).eq("active", true);
+  if (Array.isArray(data) && data.length > 0) {
+    return data.map((a: any) => {
+      const cost = (Number(a.posts_used_this_period ?? 0) / 10) * Number(a.cost_per_10_posts_usd ?? 0.5);
+      return { id: a.id, label: String(a.label ?? "Apify account"), token: a.api_token, remaining: Number(a.monthly_budget_usd ?? 5) - cost, postsUsed: Number(a.posts_used_this_period ?? 0), lastUsedAt: a.last_used_at ? new Date(a.last_used_at).getTime() : 0 };
+    }).filter((a: any) => a.token && a.remaining > 0).sort((a: any, b: any) => (b.remaining - a.remaining) || (a.lastUsedAt - b.lastUsedAt));
+  }
+  const envToken = Deno.env.get("APIFY_API_TOKEN") ?? "";
+  return envToken ? [{ id: null, label: "Project Apify token", token: envToken, remaining: Number.POSITIVE_INFINITY, postsUsed: 0 }] : [];
+}
+
+async function fetchChannelApifyWithFallback(admin: any, accounts: ApifyAccountCandidate[], actorId: string, sourceUrl: string, maxResults: number): Promise<{ videos: any[]; meta: any | null }> {
+  let lastError: Error | null = null;
+  for (let i = 0; i < accounts.length; i += 1) {
+    const account = accounts[i];
+    try {
+      const result = await fetchChannelApify(account.token, actorId, sourceUrl, maxResults);
+      if (account.id && result.videos.length > 0) {
+        await admin.from("social_apify_accounts").update({ posts_used_this_period: account.postsUsed + result.videos.length, last_used_at: new Date().toISOString(), last_test_status: "ok", last_test_at: new Date().toISOString() }).eq("id", account.id);
+      }
+      return result;
+    } catch (e) {
+      lastError = e as Error;
+      if (isApifyUsageLimitError(e)) {
+        if (account.id) await admin.from("social_apify_accounts").update({ last_test_status: "usage limit", last_test_at: new Date().toISOString() }).eq("id", account.id);
+        console.log(`youtube-fetch-videos: ${account.label} (${i + 1}/${accounts.length}) hit Apify usage limit; trying next account`);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastError ?? new Error("No Apify account available");
+}
+
+function normalizeActorId(input: string): string {
+  const raw = (input ?? "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const actorIndex = parts.indexOf("actors");
+    if (actorIndex >= 0 && parts[actorIndex + 1]) return parts[actorIndex + 1];
+    const storeIndex = parts.indexOf("store");
+    if (storeIndex >= 0 && parts[storeIndex + 1] && parts[storeIndex + 2]) return `${parts[storeIndex + 1]}~${parts[storeIndex + 2]}`;
+  } catch { /* raw actor id */ }
+  const cleaned = raw.replace(/^\/+/, "").replace(/\/+$/, "");
+  if (cleaned.startsWith("actors/")) return cleaned.split("/")[1] ?? "";
+  return cleaned.replace("/", "~");
+}
+
+function isApifyUsageLimitError(e: unknown): boolean {
+  return /monthly usage hard limit exceeded|usage hard limit|not-enough-usage-to-run-paid-actor|exceed your remaining usage|platform-feature-disabled/i.test(String((e as Error)?.message ?? e));
+}
+
 async function fetchChannelApify(token: string, actorId: string, sourceUrl: string, maxResults: number): Promise<{ videos: any[]; meta: any | null }> {
-  const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${token}`;
+  const url = `https://api.apify.com/v2/acts/${encodeURIComponent(normalizeActorId(actorId))}/run-sync-get-dataset-items?token=${token}`;
   const body = {
     maxResults,
     maxResultStreams: 0,
