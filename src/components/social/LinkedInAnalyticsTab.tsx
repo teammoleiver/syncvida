@@ -12,6 +12,7 @@ import {
 } from "@/lib/social-queries";
 import { getMyLinkedInConnection, type SocialConnectionMeta } from "@/lib/social-connections";
 import EngagementAnalytics from "./EngagementAnalytics";
+import LinkedInProfileAudit from "./LinkedInProfileAudit";
 
 function num(n?: number | null) {
   if (n == null) return "—";
@@ -378,6 +379,9 @@ export default function LinkedInAnalyticsTab() {
 
       {/* Commenting analytics (moved from Engagement Feed) */}
       <EngagementAnalytics />
+
+      {/* Full profile optimization audit (AI) */}
+      {profile && <LinkedInProfileAudit />}
     </div>
   );
 }
