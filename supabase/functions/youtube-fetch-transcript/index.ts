@@ -58,9 +58,9 @@ Deno.serve(async (req) => {
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const actorId = freeTranscript ? null : await pickTranscriptActor(admin, user.id);
     if (!freeTranscript && !actorId) return json({ ok: false, message: "No youtube_video_transcript actor configured. Add one in Social Hub → Settings → Apify actors.", fallback: true }, 200);
-    const tokenCandidates = freeTranscript ? [] : await pickApifyTokens(admin, user.id);
-    if (!freeTranscript && tokenCandidates.length === 0) return json({ ok: false, message: "No Apify token available. Add one in Social Hub → Settings → Apify account pool.", fallback: true }, 200);
-    const transcript = freeTranscript ?? await runTranscriptActorWithFallback(tokenCandidates, actorId!, videoUrl);
+    const accountCandidates = freeTranscript ? [] : await pickApifyAccounts(admin, user.id);
+    if (!freeTranscript && accountCandidates.length === 0) return json({ ok: false, message: "No Apify token available. Add one in Social Hub → Settings → Apify account pool.", fallback: true }, 200);
+    const transcript = freeTranscript ?? await runTranscriptActorWithFallback(admin, accountCandidates, actorId!, videoUrl);
     if (!transcript) {
       return json({
         ok: false,
@@ -97,34 +97,76 @@ async function pickTranscriptActor(admin: any, userId: string): Promise<string |
   return Deno.env.get("APIFY_YT_TRANSCRIPT_ACTOR") ?? null;
 }
 
-async function pickApifyTokens(admin: any, userId: string): Promise<string[]> {
+function normalizeActorId(input?: string | null): string {
+  const raw = (input ?? "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const actorIndex = parts.indexOf("actors");
+    if (actorIndex >= 0 && parts[actorIndex + 1]) return parts[actorIndex + 1];
+    const storeIndex = parts.indexOf("store");
+    if (storeIndex >= 0 && parts[storeIndex + 1] && parts[storeIndex + 2]) return `${parts[storeIndex + 1]}~${parts[storeIndex + 2]}`;
+  } catch { /* raw actor id */ }
+  const cleaned = raw.replace(/^\/+/, "").replace(/\/+$/, "");
+  if (cleaned.startsWith("actors/")) return cleaned.split("/")[1] ?? "";
+  return cleaned.replace("/", "~");
+}
+
+type ApifyAccountCandidate = { id: string | null; label: string; token: string; remaining: number; postsUsed: number };
+
+async function pickApifyAccounts(admin: any, userId: string): Promise<ApifyAccountCandidate[]> {
   const { data } = await admin.from("social_apify_accounts")
-    .select("api_token, monthly_budget_usd, posts_used_this_period, cost_per_10_posts_usd, active")
+    .select("id, label, api_token, monthly_budget_usd, posts_used_this_period, cost_per_10_posts_usd, active, last_used_at")
     .eq("user_id", userId).eq("active", true);
   if (Array.isArray(data) && data.length > 0) {
     const ranked = data
       .map((a: any) => {
         const cost = (Number(a.posts_used_this_period ?? 0) / 10) * Number(a.cost_per_10_posts_usd ?? 0.5);
-        return { token: a.api_token as string, remaining: Number(a.monthly_budget_usd ?? 5) - cost };
+        return {
+          id: a.id as string,
+          label: String(a.label ?? "Apify account"),
+          token: a.api_token as string,
+          remaining: Number(a.monthly_budget_usd ?? 5) - cost,
+          postsUsed: Number(a.posts_used_this_period ?? 0),
+          lastUsedAt: a.last_used_at ? new Date(a.last_used_at).getTime() : 0,
+        };
       })
       .filter((x) => x.token && x.remaining > 0)
-      .sort((a, b) => b.remaining - a.remaining);
-    if (ranked.length > 0) return ranked.map((x) => x.token);
+      .sort((a, b) => (b.remaining - a.remaining) || (a.lastUsedAt - b.lastUsedAt));
+    if (ranked.length > 0) return ranked.map(({ id, label, token, remaining, postsUsed }) => ({ id, label, token, remaining, postsUsed }));
   }
   const envToken = Deno.env.get("APIFY_API_TOKEN") ?? "";
-  return envToken ? [envToken] : [];
+  return envToken ? [{ id: null, label: "Project Apify token", token: envToken, remaining: Number.POSITIVE_INFINITY, postsUsed: 0 }] : [];
 }
 
-async function runTranscriptActorWithFallback(tokens: string[], actorId: string, videoUrl: string): Promise<string | null> {
+async function runTranscriptActorWithFallback(admin: any, accounts: ApifyAccountCandidate[], actorId: string, videoUrl: string): Promise<string | null> {
   let lastCreditError: ApifyActorError | null = null;
-  for (let i = 0; i < tokens.length; i += 1) {
+  for (let i = 0; i < accounts.length; i += 1) {
+    const account = accounts[i];
     try {
-      const transcript = await runTranscriptActor(tokens[i], actorId, videoUrl);
-      if (transcript) return transcript;
+      const transcript = await runTranscriptActor(account.token, actorId, videoUrl);
+      if (transcript) {
+        if (account.id) {
+          await admin.from("social_apify_accounts").update({
+            posts_used_this_period: account.postsUsed + 1,
+            last_used_at: new Date().toISOString(),
+            last_test_status: "ok",
+            last_test_at: new Date().toISOString(),
+          }).eq("id", account.id);
+        }
+        return transcript;
+      }
     } catch (e) {
       if (e instanceof ApifyActorError && e.isCreditError) {
         lastCreditError = e;
-        console.log(`youtube-fetch-transcript: Apify token ${i + 1}/${tokens.length} lacks credits; trying next token`);
+        if (account.id) {
+          await admin.from("social_apify_accounts").update({
+            last_test_status: "usage limit",
+            last_test_at: new Date().toISOString(),
+          }).eq("id", account.id);
+        }
+        console.log(`youtube-fetch-transcript: ${account.label} (${i + 1}/${accounts.length}) hit Apify usage limit; trying next account`);
         continue;
       }
       throw e;
@@ -137,7 +179,7 @@ async function runTranscriptActorWithFallback(tokens: string[], actorId: string,
 async function runTranscriptActor(token: string, actorId: string, videoUrl: string): Promise<string | null> {
   // Keep charged-run limits only in the Apify API query string. Some transcript
   // actors reject extra input fields even when they look harmless.
-  const url = new URL(`https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`);
+  const url = new URL(`https://api.apify.com/v2/acts/${encodeURIComponent(normalizeActorId(actorId))}/run-sync-get-dataset-items`);
   url.searchParams.set("token", token);
   url.searchParams.set("maxItems", "10");
   url.searchParams.set("maxTotalChargeUsd", "1");
@@ -336,7 +378,7 @@ class ApifyActorError extends Error {
     try { parsed = JSON.parse(text); } catch { /* keep null */ }
     const type = parsed?.error?.type ?? `apify-${status}`;
     const message = parsed?.error?.message ?? text;
-    if (status === 402 || type === "not-enough-usage-to-run-paid-actor") {
+    if (status === 402 || type === "not-enough-usage-to-run-paid-actor" || /monthly usage hard limit exceeded|exceed your remaining usage|usage hard limit/i.test(message)) {
       return new ApifyActorError(type, "All configured Apify accounts were tried, but none had enough usage credit to run this paid transcript actor. Add credits or upgrade an Apify account, then try again.", "https://console.apify.com/billing/subscription", true);
     }
     if (type === "max-items-must-be-greater-than-zero") {
@@ -360,11 +402,11 @@ function apifyFallbackFromUnknownError(e: unknown) {
       fallback: true,
     };
   }
-  if (raw.includes("not-enough-usage-to-run-paid-actor") || raw.includes("exceed your remaining usage")) {
+  if (raw.includes("not-enough-usage-to-run-paid-actor") || raw.includes("exceed your remaining usage") || /monthly usage hard limit exceeded|usage hard limit/i.test(raw)) {
     return {
       ok: false,
-      message: "Apify does not have enough usage credit to run this paid transcript actor. Add credits or upgrade the Apify account, then try again.",
-      error_type: "not-enough-usage-to-run-paid-actor",
+      message: "All configured Apify accounts were tried, but none had enough usage credit to run this paid transcript actor. Add credits or add another Apify account, then try again.",
+      error_type: "apify-usage-limit",
       action_url: "https://console.apify.com/billing/subscription",
       fallback: true,
     };
