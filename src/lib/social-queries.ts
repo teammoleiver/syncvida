@@ -930,6 +930,36 @@ export async function recordSelfSnapshot(): Promise<SelfSnapshot | null> {
   return data as any;
 }
 
+// ── LinkedIn profile optimization audit ──
+export type ProfileAudit = {
+  id: string;
+  created_at: string;
+  profile_url: string | null;
+  overall_score: number | null;
+  report: any;
+  diff: any;
+};
+
+export async function runProfileAudit() {
+  return supabase.functions.invoke("linkedin-profile-audit", { body: {} });
+}
+
+export async function listProfileAudits(limit = 20): Promise<ProfileAudit[]> {
+  const u = await uid(); if (!u) return [];
+  const { data, error } = await supabase.from("linkedin_profile_audits" as any)
+    .select("id,created_at,profile_url,overall_score,report,diff")
+    .eq("user_id", u)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return ((data || []) as any[]) as ProfileAudit[];
+}
+
+export async function deleteProfileAudit(id: string) {
+  const { error } = await supabase.from("linkedin_profile_audits" as any).delete().eq("id", id);
+  if (error) throw error;
+}
+
 // ── Combined posting analytics (scraped LinkedIn + Content Planner) ──
 export type PostingAnalytics = {
   byMonth: { month: string; scraped: number; planner: number; total: number }[];
