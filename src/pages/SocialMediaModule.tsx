@@ -1828,7 +1828,7 @@ function ApifyAccountsPanel() {
         <div className="flex items-center gap-2"><LinkIcon className="w-5 h-5 text-primary" /><h2 className="font-medium">Apify account pool</h2></div>
         <Button size="sm" variant="outline" onClick={() => setShowAdd((v) => !v)}><Plus className="w-4 h-4 mr-1" />Add account</Button>
       </div>
-      <p className="text-xs text-muted-foreground">Add up to 10 Apify tokens. The scraper auto-picks the account with most remaining credit and never reuses an account twice in the same week. Each account = $5 / 30 days (rolling). 10 posts cost ~$0.50.</p>
+      <p className="text-xs text-muted-foreground">Add up to 10 Apify tokens. LinkedIn scraping and YouTube transcript fetching rotate through this pool, trying the next account when one hits an Apify usage limit. Each account = $5 / 30 days (rolling). 10 posts cost ~$0.50.</p>
 
       {/* Health bar */}
       <div className="space-y-2">
