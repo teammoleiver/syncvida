@@ -47,7 +47,7 @@ Deno.serve(async (req: Request) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") ?? Deno.env.get("OPENAI_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
     const userClient = createClient(SUPABASE_URL, ANON, {
       global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
@@ -55,7 +55,7 @@ Deno.serve(async (req: Request) => {
     const { data: userRes } = await userClient.auth.getUser();
     const user = userRes.user;
     if (!user) return jr({ error: "Unauthorized" }, 401);
-    if (!LOVABLE_API_KEY) return jr({ error: "LOVABLE_API_KEY not configured" }, 400);
+    if (!OPENAI_API_KEY) return jr({ error: "OPENAI_API_KEY not configured" }, 400);
 
     const admin = createClient(SUPABASE_URL, SERVICE);
 
@@ -166,11 +166,11 @@ Return JSON with this EXACT shape:
 
 All scores are 0-100 except SSI which is 0-25 per pillar (0-100 total). overall_score must be your weighted average of section scores.`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_API_KEY}` },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
