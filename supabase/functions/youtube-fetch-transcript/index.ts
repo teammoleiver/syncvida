@@ -97,6 +97,22 @@ async function pickTranscriptActor(admin: any, userId: string): Promise<string |
   return Deno.env.get("APIFY_YT_TRANSCRIPT_ACTOR") ?? null;
 }
 
+function normalizeActorId(input?: string | null): string {
+  const raw = (input ?? "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const actorIndex = parts.indexOf("actors");
+    if (actorIndex >= 0 && parts[actorIndex + 1]) return parts[actorIndex + 1];
+    const storeIndex = parts.indexOf("store");
+    if (storeIndex >= 0 && parts[storeIndex + 1] && parts[storeIndex + 2]) return `${parts[storeIndex + 1]}~${parts[storeIndex + 2]}`;
+  } catch { /* raw actor id */ }
+  const cleaned = raw.replace(/^\/+/, "").replace(/\/+$/, "");
+  if (cleaned.startsWith("actors/")) return cleaned.split("/")[1] ?? "";
+  return cleaned.replace("/", "~");
+}
+
 type ApifyAccountCandidate = { id: string | null; label: string; token: string; remaining: number; postsUsed: number };
 
 async function pickApifyAccounts(admin: any, userId: string): Promise<ApifyAccountCandidate[]> {
@@ -362,7 +378,7 @@ class ApifyActorError extends Error {
     try { parsed = JSON.parse(text); } catch { /* keep null */ }
     const type = parsed?.error?.type ?? `apify-${status}`;
     const message = parsed?.error?.message ?? text;
-    if (status === 402 || type === "not-enough-usage-to-run-paid-actor") {
+    if (status === 402 || type === "not-enough-usage-to-run-paid-actor" || /monthly usage hard limit exceeded|exceed your remaining usage|usage hard limit/i.test(message)) {
       return new ApifyActorError(type, "All configured Apify accounts were tried, but none had enough usage credit to run this paid transcript actor. Add credits or upgrade an Apify account, then try again.", "https://console.apify.com/billing/subscription", true);
     }
     if (type === "max-items-must-be-greater-than-zero") {
@@ -386,11 +402,11 @@ function apifyFallbackFromUnknownError(e: unknown) {
       fallback: true,
     };
   }
-  if (raw.includes("not-enough-usage-to-run-paid-actor") || raw.includes("exceed your remaining usage")) {
+  if (raw.includes("not-enough-usage-to-run-paid-actor") || raw.includes("exceed your remaining usage") || /monthly usage hard limit exceeded|usage hard limit/i.test(raw)) {
     return {
       ok: false,
-      message: "Apify does not have enough usage credit to run this paid transcript actor. Add credits or upgrade the Apify account, then try again.",
-      error_type: "not-enough-usage-to-run-paid-actor",
+      message: "All configured Apify accounts were tried, but none had enough usage credit to run this paid transcript actor. Add credits or add another Apify account, then try again.",
+      error_type: "apify-usage-limit",
       action_url: "https://console.apify.com/billing/subscription",
       fallback: true,
     };
