@@ -1329,10 +1329,17 @@ function ManualPostDialog({ profiles, onCreated }: { profiles: any[]; onCreated:
   );
 }
 
-function PostInspectorDialog({ post, onClose }: { post: any; onClose: () => void }) {
+function PostInspectorDialog({ post, onClose, onGenerated }: { post: any; onClose: () => void; onGenerated?: () => void }) {
   const [suggestions, setSuggestions] = useState<{ framework: string; reason: string }[] | null>(null);
   const [drafts, setDrafts] = useState<Record<string, { body: string; loading: boolean }>>({});
   const [suggesting, setSuggesting] = useState(false);
+  const [existing, setExisting] = useState<any[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    listDraftsForPost(post.id).then((d) => { if (alive) setExisting(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, [post.id]);
 
   const suggest = async () => {
     setSuggesting(true);
@@ -1347,12 +1354,15 @@ function PostInspectorDialog({ post, onClose }: { post: any; onClose: () => void
     const { data, error } = await generatePost({ framework, source_post_id: post.id });
     if (error) { setDrafts((d) => ({ ...d, [framework]: { body: "", loading: false } })); return toast.error(error.message); }
     setDrafts((d) => ({ ...d, [framework]: { body: (data as any)?.draft?.body ?? "", loading: false } }));
+    onGenerated?.();
+    try { setExisting(await listDraftsForPost(post.id)); } catch {}
   };
 
   const sendToPlanner = async (framework: string, body: string) => {
     const hookLine = body.split("\n").find((l) => l.trim()) || body.slice(0, 80);
     await createPlanEntry({ hook: hookLine.slice(0, 140), body, framework, format: framework === "Listicle" ? "framework" : "insight", status: "planned", source_post_id: post.id });
     toast.success("Added to Content Planner");
+    onGenerated?.();
   };
 
   return (
@@ -1360,6 +1370,13 @@ function PostInspectorDialog({ post, onClose }: { post: any; onClose: () => void
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle className="flex items-center gap-2"><FileText className="w-5 h-5" />Post by {post.author}</DialogTitle></DialogHeader>
         <div className="space-y-4">
+          {existing.length > 0 && (
+            <div className="flex items-center gap-2 text-xs bg-primary/10 border border-primary/30 text-primary rounded-md px-3 py-2">
+              <Sparkles className="w-3.5 h-3.5" />
+              You've already generated <strong>{existing.length}</strong> draft{existing.length === 1 ? "" : "s"} from this post
+              {existing[0]?.created_at && <span className="text-primary/70">· last {new Date(existing[0].created_at).toLocaleDateString()}</span>}
+            </div>
+          )}
           <Card className="p-4 bg-muted/30 whitespace-pre-wrap text-sm">{post.post_text}</Card>
           <div className="text-xs text-muted-foreground flex gap-3">
             <span>👍 {post.likes}</span><span>💬 {post.comments}</span><span>🔁 {post.shares}</span>
