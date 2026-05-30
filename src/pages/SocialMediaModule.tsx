@@ -1431,12 +1431,36 @@ function PostInspectorDialog({ post, onClose, onGenerated }: { post: any; onClos
   const [drafts, setDrafts] = useState<Record<string, { body: string; loading: boolean }>>({});
   const [suggesting, setSuggesting] = useState(false);
   const [existing, setExisting] = useState<any[]>([]);
+  const initialFields: any = post.relevance_fields ?? {};
+  const [relevance, setRelevance] = useState<{ score: number | null; fields: string[]; matched: string[]; reasoning: string; computed_at: string | null }>({
+    score: post.relevance_score ?? null,
+    fields: Array.isArray(initialFields?.fields) ? initialFields.fields : [],
+    matched: Array.isArray(initialFields?.matched_to_user) ? initialFields.matched_to_user : [],
+    reasoning: post.relevance_reasoning ?? "",
+    computed_at: post.relevance_computed_at ?? null,
+  });
+  const [scoring, setScoring] = useState(false);
 
   useEffect(() => {
     let alive = true;
     listDraftsForPost(post.id).then((d) => { if (alive) setExisting(d); }).catch(() => {});
     return () => { alive = false; };
   }, [post.id]);
+
+  const runScore = async (force = false) => {
+    setScoring(true);
+    const { data, error } = await scorePostRelevance(post.id, force);
+    setScoring(false);
+    if (error) return toast.error(error.message);
+    const d: any = data;
+    setRelevance({
+      score: typeof d.score === "number" ? d.score : null,
+      fields: Array.isArray(d.fields) ? d.fields : [],
+      matched: Array.isArray(d.matched_to_user) ? d.matched_to_user : [],
+      reasoning: d.reasoning ?? "",
+      computed_at: d.computed_at ?? new Date().toISOString(),
+    });
+  };
 
   const suggest = async () => {
     setSuggesting(true);
@@ -1474,6 +1498,44 @@ function PostInspectorDialog({ post, onClose, onGenerated }: { post: any; onClos
               {existing[0]?.created_at && <span className="text-primary/70">· last {new Date(existing[0].created_at).toLocaleDateString()}</span>}
             </div>
           )}
+
+          {/* Relevance panel */}
+          <Card className="p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                {relevance.score != null ? (
+                  <div className={`w-14 h-14 rounded-full flex items-center justify-center font-display text-lg font-semibold border-2 ${
+                    relevance.score >= 75 ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/40"
+                    : relevance.score >= 50 ? "bg-amber-500/15 text-amber-600 border-amber-500/40"
+                    : "bg-rose-500/15 text-rose-500 border-rose-500/40"
+                  }`}>{relevance.score}%</div>
+                ) : (
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center text-xs text-muted-foreground border-2 border-dashed border-border">—</div>
+                )}
+                <div className="space-y-1.5">
+                  <div className="text-sm font-medium">Relevance to you</div>
+                  {relevance.score == null && <div className="text-xs text-muted-foreground">Get an AI estimate of how aligned this post is with your expertise & audience.</div>}
+                  {relevance.reasoning && <div className="text-xs text-muted-foreground max-w-md">{relevance.reasoning}</div>}
+                  {(relevance.fields.length > 0 || relevance.matched.length > 0) && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {relevance.fields.map((f, i) => (
+                        <Badge key={`f-${i}`} variant="outline" className="text-[10px] py-0 h-5">{f}</Badge>
+                      ))}
+                      {relevance.matched.map((f, i) => (
+                        <Badge key={`m-${i}`} variant="secondary" className="text-[10px] py-0 h-5 bg-emerald-500/15 text-emerald-600 border-emerald-500/30">✓ {f}</Badge>
+                      ))}
+                    </div>
+                  )}
+                  {relevance.computed_at && <div className="text-[10px] text-muted-foreground">Computed {new Date(relevance.computed_at).toLocaleString()}</div>}
+                </div>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => runScore(relevance.score != null)} disabled={scoring}>
+                {scoring ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Activity className="w-3 h-3 mr-1" />}
+                {relevance.score == null ? "Analyze" : "Recompute"}
+              </Button>
+            </div>
+          </Card>
+
           <Card className="p-4 bg-muted/30 whitespace-pre-wrap text-sm">{post.post_text}</Card>
           <div className="text-xs text-muted-foreground flex gap-3">
             <span>👍 {post.likes}</span><span>💬 {post.comments}</span><span>🔁 {post.shares}</span>
