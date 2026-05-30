@@ -1852,6 +1852,8 @@ export type Database = {
           company: string | null
           external_id: string | null
           id: string
+          ignored_at: string | null
+          ignored_reason: string | null
           likes: number | null
           post_text: string | null
           post_type: string | null
@@ -1859,6 +1861,10 @@ export type Database = {
           posted_at: string | null
           profile_id: string | null
           raw_payload: Json | null
+          relevance_computed_at: string | null
+          relevance_fields: Json | null
+          relevance_reasoning: string | null
+          relevance_score: number | null
           scraped_at: string
           shares: number | null
           user_id: string
@@ -1871,6 +1877,8 @@ export type Database = {
           company?: string | null
           external_id?: string | null
           id?: string
+          ignored_at?: string | null
+          ignored_reason?: string | null
           likes?: number | null
           post_text?: string | null
           post_type?: string | null
@@ -1878,6 +1886,10 @@ export type Database = {
           posted_at?: string | null
           profile_id?: string | null
           raw_payload?: Json | null
+          relevance_computed_at?: string | null
+          relevance_fields?: Json | null
+          relevance_reasoning?: string | null
+          relevance_score?: number | null
           scraped_at?: string
           shares?: number | null
           user_id: string
@@ -1890,6 +1902,8 @@ export type Database = {
           company?: string | null
           external_id?: string | null
           id?: string
+          ignored_at?: string | null
+          ignored_reason?: string | null
           likes?: number | null
           post_text?: string | null
           post_type?: string | null
@@ -1897,6 +1911,10 @@ export type Database = {
           posted_at?: string | null
           profile_id?: string | null
           raw_payload?: Json | null
+          relevance_computed_at?: string | null
+          relevance_fields?: Json | null
+          relevance_reasoning?: string | null
+          relevance_score?: number | null
           scraped_at?: string
           shares?: number | null
           user_id?: string
