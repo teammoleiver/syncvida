@@ -1167,6 +1167,7 @@ function PostsTab() {
   const [posts, setPosts] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [profileFilter, setProfileFilter] = useState<string>("all");
+  const [listFilter, setListFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [openPost, setOpenPost] = useState<any | null>(null);
@@ -1175,7 +1176,23 @@ function PostsTab() {
   const load = async () => { setLoading(true); const [pp, pr] = await Promise.all([listSocialPosts(profileFilter !== "all" ? { profile_id: profileFilter } : {}), listSocialProfiles()]); setPosts(pp); setProfiles(pr); setLoading(false); };
   useEffect(() => { load(); }, [profileFilter]);
 
-  const filtered = posts.filter((p) => !search || (p.post_text || "").toLowerCase().includes(search.toLowerCase()) || (p.author || "").toLowerCase().includes(search.toLowerCase()));
+  const profileById = new Map(profiles.map((p) => [p.id, p]));
+  const allLists = (() => {
+    const s = new Set<string>();
+    for (const p of profiles) for (const n of (p.lists ?? [])) if (n) s.add(String(n));
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  })();
+  const filtered = posts.filter((p) => {
+    if (search) {
+      const q = search.toLowerCase();
+      if (!(p.post_text || "").toLowerCase().includes(q) && !(p.author || "").toLowerCase().includes(q)) return false;
+    }
+    if (listFilter !== "all") {
+      const prof = profileById.get(p.profile_id);
+      if (!prof || !Array.isArray(prof.lists) || !prof.lists.includes(listFilter)) return false;
+    }
+    return true;
+  });
 
   return (
     <section className="space-y-4">
@@ -1187,6 +1204,16 @@ function PostsTab() {
             <SelectContent>
               <SelectItem value="all">All profiles</SelectItem>
               {profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.display_name || p.username}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={listFilter} onValueChange={setListFilter}>
+            <SelectTrigger className="w-[180px]" title="Filter by list">
+              <div className="inline-flex items-center gap-1.5"><Folder className="w-3.5 h-3.5" /><SelectValue placeholder="All lists" /></div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All lists</SelectItem>
+              {allLists.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+              {allLists.length === 0 && <div className="px-2 py-1.5 text-xs text-muted-foreground">No lists yet</div>}
             </SelectContent>
           </Select>
         </div>
