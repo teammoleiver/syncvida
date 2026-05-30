@@ -1169,12 +1169,23 @@ function PostsTab() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [profileFilter, setProfileFilter] = useState<string>("all");
   const [listFilter, setListFilter] = useState<string>("all");
+  const [usageFilter, setUsageFilter] = useState<"all" | "used" | "unused">("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [openPost, setOpenPost] = useState<any | null>(null);
   const [showManual, setShowManual] = useState(false);
+  const [usage, setUsage] = useState<Record<string, { drafts: number; plans: number }>>({});
 
-  const load = async () => { setLoading(true); const [pp, pr] = await Promise.all([listSocialPosts(profileFilter !== "all" ? { profile_id: profileFilter } : {}), listSocialProfiles()]); setPosts(pp); setProfiles(pr); setLoading(false); };
+  const load = async () => {
+    setLoading(true);
+    const [pp, pr, uu] = await Promise.all([
+      listSocialPosts(profileFilter !== "all" ? { profile_id: profileFilter } : {}),
+      listSocialProfiles(),
+      listUsedSourcePostCounts(),
+    ]);
+    setPosts(pp); setProfiles(pr); setUsage(uu); setLoading(false);
+  };
+  const refreshUsage = async () => { try { setUsage(await listUsedSourcePostCounts()); } catch {} };
   useEffect(() => { load(); }, [profileFilter]);
 
   const profileById = new Map(profiles.map((p) => [p.id, p]));
@@ -1192,6 +1203,9 @@ function PostsTab() {
       const prof = profileById.get(p.profile_id);
       if (!prof || !Array.isArray(prof.lists) || !prof.lists.includes(listFilter)) return false;
     }
+    const used = !!usage[p.id];
+    if (usageFilter === "used" && !used) return false;
+    if (usageFilter === "unused" && used) return false;
     return true;
   });
 
@@ -1215,6 +1229,16 @@ function PostsTab() {
               <SelectItem value="all">All lists</SelectItem>
               {allLists.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
               {allLists.length === 0 && <div className="px-2 py-1.5 text-xs text-muted-foreground">No lists yet</div>}
+            </SelectContent>
+          </Select>
+          <Select value={usageFilter} onValueChange={(v) => setUsageFilter(v as any)}>
+            <SelectTrigger className="w-[170px]" title="Filter by generation status">
+              <div className="inline-flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5" /><SelectValue /></div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All posts</SelectItem>
+              <SelectItem value="unused">Not yet generated</SelectItem>
+              <SelectItem value="used">Already generated</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -1244,10 +1268,24 @@ function PostsTab() {
             </thead>
             <tbody>
               {filtered.map((p) => (
-                <tr key={p.id} className="border-t border-border hover:bg-muted/20 cursor-pointer" onClick={() => setOpenPost(p)}>
-                  <td className="px-3 py-2 font-medium">{p.author || "—"}</td>
+                <tr key={p.id} className={`border-t border-border cursor-pointer ${usage[p.id] ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/20"}`} onClick={() => setOpenPost(p)}>
+                  <td className="px-3 py-2 font-medium">
+                    <div className="flex items-center gap-2">
+                      {usage[p.id] && <span title={`Generated ${usage[p.id].drafts} draft(s) · ${usage[p.id].plans} planner entry(ies)`} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary"><Sparkles className="w-3 h-3" /></span>}
+                      <span>{p.author || "—"}</span>
+                    </div>
+                  </td>
                   <td className="px-3 py-2">{p.company || "—"}</td>
-                  <td className="px-3 py-2 max-w-md"><div className="line-clamp-2 text-muted-foreground">{p.post_text}</div></td>
+                  <td className="px-3 py-2 max-w-md">
+                    <div className={`line-clamp-2 ${usage[p.id] ? "text-foreground/80" : "text-muted-foreground"}`}>{p.post_text}</div>
+                    {usage[p.id] && (
+                      <div className="mt-1 flex gap-1">
+                        <Badge variant="secondary" className="text-[10px] py-0 h-4 bg-primary/15 text-primary border-primary/30">
+                          {(usage[p.id].drafts + usage[p.id].plans)}× used
+                        </Badge>
+                      </div>
+                    )}
+                  </td>
                   <td className="px-3 py-2">{p.likes}</td>
                   <td className="px-3 py-2">{p.comments}</td>
                   <td className="px-3 py-2 text-xs">{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"}</td>
@@ -1261,7 +1299,7 @@ function PostsTab() {
         </div>
       }
 
-      {openPost && <PostInspectorDialog post={openPost} onClose={() => setOpenPost(null)} />}
+      {openPost && <PostInspectorDialog post={openPost} onClose={() => { setOpenPost(null); refreshUsage(); }} onGenerated={refreshUsage} />}
     </section>
   );
 }
