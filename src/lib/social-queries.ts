@@ -324,6 +324,59 @@ export async function listSocialPosts(filters?: { profile_id?: string; limit?: n
   const { data } = await q;
   return (data as any[]) ?? [];
 }
+
+// Paginated list with ignored filter — used by the Scraped Posts table.
+export async function listSocialPostsPaged(opts: {
+  profile_id?: string;
+  page?: number;          // 1-based
+  pageSize?: number;      // default 25
+  ignored?: "exclude" | "only" | "all";  // default "exclude"
+  search?: string;
+}): Promise<{ rows: any[]; total: number }> {
+  const u = await uid(); if (!u) return { rows: [], total: 0 };
+  const page = Math.max(1, opts.page ?? 1);
+  const pageSize = Math.max(1, Math.min(100, opts.pageSize ?? 25));
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  let q = supabase
+    .from("social_posts" as any)
+    .select("*", { count: "exact" })
+    .eq("user_id", u);
+  if (opts.profile_id) q = q.eq("profile_id", opts.profile_id);
+  const ignored = opts.ignored ?? "exclude";
+  if (ignored === "exclude") q = q.is("ignored_at", null);
+  else if (ignored === "only") q = q.not("ignored_at", "is", null);
+  if (opts.search && opts.search.trim()) {
+    const s = opts.search.trim().replace(/[%_]/g, "");
+    q = q.or(`post_text.ilike.%${s}%,author.ilike.%${s}%,company.ilike.%${s}%`);
+  }
+  q = q.order("posted_at", { ascending: false }).range(from, to);
+  const { data, count } = await q;
+  return { rows: (data as any[]) ?? [], total: count ?? 0 };
+}
+
+export async function ignoreSocialPost(id: string, reason?: string) {
+  const { error } = await supabase.from("social_posts" as any).update({
+    ignored_at: new Date().toISOString(),
+    ignored_reason: reason ?? null,
+  }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function unignoreSocialPost(id: string) {
+  const { error } = await supabase.from("social_posts" as any).update({
+    ignored_at: null, ignored_reason: null,
+  }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function scorePostRelevance(post_id: string, force = false) {
+  const { data, error } = await supabase.functions.invoke("score-post-relevance", { body: { post_id, force } });
+  if (error) return { data: null, error };
+  if ((data as any)?.error) return { data: null, error: { message: (data as any).error } };
+  return { data, error: null };
+}
+
 export async function deleteSocialPost(id: string) {
   // Cascade-delete any engagement comment first (no FK cascade in schema), then the post itself.
   await supabase.from("linkedin_engagement_comments" as any).delete().eq("post_id", id);
