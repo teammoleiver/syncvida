@@ -325,6 +325,7 @@ Deno.serve(async (req) => {
         trigger_kind: single_plan_id ? "manual" : "cron",
       };
       try {
+        await assertPublicUrl(cfg.webhook_url);
         const resp = await fetch(cfg.webhook_url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
