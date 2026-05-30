@@ -437,6 +437,25 @@ export async function deleteDraft(id: string) {
   await supabase.from("social_generated_drafts" as any).delete().eq("id", id);
 }
 
+// Returns counts per source_post_id of generated drafts + planner entries.
+export async function listUsedSourcePostCounts(): Promise<Record<string, { drafts: number; plans: number }>> {
+  const u = await uid(); if (!u) return {};
+  const [d, p] = await Promise.all([
+    supabase.from("social_generated_drafts" as any).select("source_post_id").eq("user_id", u).not("source_post_id", "is", null),
+    supabase.from("social_content_plan" as any).select("source_post_id").eq("user_id", u).not("source_post_id", "is", null),
+  ]);
+  const out: Record<string, { drafts: number; plans: number }> = {};
+  for (const r of ((d.data as any[]) ?? [])) {
+    const id = r.source_post_id; if (!id) continue;
+    out[id] = out[id] || { drafts: 0, plans: 0 }; out[id].drafts++;
+  }
+  for (const r of ((p.data as any[]) ?? [])) {
+    const id = r.source_post_id; if (!id) continue;
+    out[id] = out[id] || { drafts: 0, plans: 0 }; out[id].plans++;
+  }
+  return out;
+}
+
 // ── Content plan ──
 export async function listContentPlan() {
   const u = await uid(); if (!u) return [];
