@@ -1390,8 +1390,12 @@ function PostsTab() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p) => (
-                <tr key={p.id} className={`border-t border-border cursor-pointer ${p.ignored_at ? "opacity-50" : ""} ${usage[p.id] ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/20"}`} onClick={() => setOpenPost(p)}>
+              {filtered.map((p) => {
+                const ageDays = postAgeDays(p);
+                const bucket = ageBucket(ageDays);
+                const tint = usage[p.id] ? "bg-primary/5 hover:bg-primary/10" : (ageRowTint(bucket) || "hover:bg-muted/20");
+                return (
+                <tr key={p.id} className={`border-t border-border cursor-pointer ${p.ignored_at ? "opacity-50" : ""} ${tint}`} onClick={() => setOpenPost(p)}>
                   <td className="px-3 py-2 font-medium">
                     <div className="flex items-center gap-2">
                       {usage[p.id] && <span title={`Generated ${usage[p.id].drafts} draft(s) · ${usage[p.id].plans} planner entry(ies)`} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary"><Sparkles className="w-3 h-3" /></span>}
@@ -1410,6 +1414,12 @@ function PostsTab() {
                       {p.ignored_at && (
                         <Badge variant="secondary" className="text-[10px] py-0 h-4 bg-rose-500/15 text-rose-500 border-rose-500/30">Ignored</Badge>
                       )}
+                      {bucket === "stale" && !p.ignored_at && (
+                        <Badge variant="secondary" className="text-[10px] py-0 h-4 bg-rose-500/15 text-rose-500 border-rose-500/30" title="Posted more than 2 months ago — consider deleting to keep your view clean">Stale · suggest delete</Badge>
+                      )}
+                      {bucket === "aging" && !p.ignored_at && (
+                        <Badge variant="secondary" className="text-[10px] py-0 h-4 bg-amber-500/15 text-amber-600 border-amber-500/30" title="Posted over a month ago">Aging</Badge>
+                      )}
                     </div>
                   </td>
                   <td className="px-3 py-2">
@@ -1421,7 +1431,10 @@ function PostsTab() {
                   </td>
                   <td className="px-3 py-2">{p.likes}</td>
                   <td className="px-3 py-2">{p.comments}</td>
-                  <td className="px-3 py-2 text-xs">{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"}</td>
+                  <td className={`px-3 py-2 text-xs ${ageLabelClass(bucket)}`} title={p.posted_at ? new Date(p.posted_at).toLocaleString() : ""}>
+                    <div>{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"}</div>
+                    <div className="text-[10px] opacity-80">{humanAge(ageDays)}</div>
+                  </td>
                   <td className="px-3 py-2 text-right">
                     <div className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" className="text-primary inline-flex p-1 hover:bg-muted rounded" title="Open on LinkedIn"><ArrowUpRight className="w-4 h-4" /></a>}
@@ -1434,13 +1447,14 @@ function PostsTab() {
                           <X className="w-3.5 h-3.5 text-amber-500" />
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" disabled={busy[p.id]} onClick={() => handleDelete(p)} title="Delete">
+                      <Button size="sm" variant={bucket === "stale" ? "outline" : "ghost"} disabled={busy[p.id]} onClick={() => handleDelete(p)} title={bucket === "stale" ? "Stale post — suggested to delete" : "Delete"} className={bucket === "stale" ? "border-rose-500/40 text-rose-500 hover:bg-rose-500/10 h-7 px-2" : ""}>
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
                       </Button>
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
