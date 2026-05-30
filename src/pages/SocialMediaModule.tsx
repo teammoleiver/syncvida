@@ -586,6 +586,7 @@ function ProfilesTab() {
       />
       <ImportPreviewDialog
         preview={importPreview}
+        allLists={allLists}
         onClose={() => setImportPreview(null)}
         onConfirm={async (rowsToImport, mode) => {
           setImporting(true);
@@ -715,8 +716,9 @@ function parseProfilesCsvWithHeaders(text: string): { rows: Array<Record<string,
   return { rows, headers, mapped };
 }
 
-function ImportPreviewDialog({ preview, onClose, onConfirm }: {
+function ImportPreviewDialog({ preview, allLists = [], onClose, onConfirm }: {
   preview: { rows: Array<Record<string, any>>; headers: string[]; mapped: Record<number, string> } | null;
+  allLists?: string[];
   onClose: () => void;
   onConfirm: (rows: Array<Record<string, any>>, mode: "create" | "merge") => void;
 }) {
@@ -724,9 +726,12 @@ function ImportPreviewDialog({ preview, onClose, onConfirm }: {
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
   const [ignoreDupes, setIgnoreDupes] = useState(true);
   const [mode, setMode] = useState<"create" | "merge">("create");
+  const [listChoice, setListChoice] = useState<string>("__none__");
+  const [newListName, setNewListName] = useState<string>("");
 
   useEffect(() => {
     setExcluded(new Set()); setExistingUrls(new Set());
+    setListChoice("__none__"); setNewListName("");
     if (!preview) return;
     const urls = preview.rows.map((r) => r.profile_url).filter(Boolean);
     listExistingProfileUrls(urls).then((u) => setExistingUrls(new Set(u)));
@@ -765,6 +770,17 @@ function ImportPreviewDialog({ preview, onClose, onConfirm }: {
   const rowsForMode = mode === "merge"
     ? finalRows.filter((r) => existingUrls.has(r.profile_url))
     : finalRows;
+
+  const targetListName = mode === "create"
+    ? (listChoice === "__new__" ? newListName.trim() : (listChoice === "__none__" ? "" : listChoice))
+    : "";
+  const rowsToSubmit = targetListName
+    ? rowsForMode.map((r) => {
+        const existing: string[] = Array.isArray(r.lists) ? r.lists : [];
+        return { ...r, lists: existing.includes(targetListName) ? existing : [...existing, targetListName] };
+      })
+    : rowsForMode;
+  const submitDisabled = !rowsForMode.length || (mode === "create" && listChoice === "__new__" && !newListName.trim());
 
   return (
     <Dialog open={!!preview} onOpenChange={(o) => !o && onClose()}>
@@ -810,6 +826,38 @@ function ImportPreviewDialog({ preview, onClose, onConfirm }: {
                 on existing profiles. Existing values are never overwritten. Use this to enrich the ~840 profiles that
                 are missing followers, country, scores, or summaries.
               </p>
+            </Card>
+          )}
+
+          {mode === "create" && (
+            <Card className="p-3 bg-muted/40 space-y-2">
+              <p className="text-xs font-medium">Assign imported profiles to a list (optional)</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={listChoice}
+                  onChange={(e) => setListChoice(e.target.value)}
+                  className="text-xs h-8 rounded-md border border-border bg-background px-2"
+                >
+                  <option value="__none__">— No list —</option>
+                  <option value="__new__">+ Create new list…</option>
+                  {allLists.length > 0 && <option disabled>──────────</option>}
+                  {allLists.map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+                {listChoice === "__new__" && (
+                  <Input
+                    autoFocus
+                    value={newListName}
+                    onChange={(e) => setNewListName(e.target.value)}
+                    placeholder="New list name"
+                    className="h-8 text-xs w-56"
+                  />
+                )}
+                {targetListName && (
+                  <Badge variant="secondary" className="text-[10px]">
+                    {rowsForMode.length} profile(s) → "{targetListName}"
+                  </Badge>
+                )}
+              </div>
             </Card>
           )}
 
@@ -870,8 +918,10 @@ function ImportPreviewDialog({ preview, onClose, onConfirm }: {
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button disabled={!rowsForMode.length} onClick={() => onConfirm(rowsForMode, mode)}>
-              {mode === "merge" ? `Merge ${rowsForMode.length} profile(s)` : `Import ${rowsForMode.length} profile(s)`}
+            <Button disabled={submitDisabled} onClick={() => onConfirm(rowsToSubmit, mode)}>
+              {mode === "merge"
+                ? `Merge ${rowsForMode.length} profile(s)`
+                : `Import ${rowsForMode.length} profile(s)${targetListName ? ` into "${targetListName}"` : ""}`}
             </Button>
           </div>
         </div>
