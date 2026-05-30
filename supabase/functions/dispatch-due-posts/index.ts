@@ -5,6 +5,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function isPrivateIp(ip: string): boolean {
+  if (ip.includes(":")) {
+    const lower = ip.toLowerCase();
+    if (lower === "::1" || lower.startsWith("fc") || lower.startsWith("fd") || lower.startsWith("fe80") || lower.startsWith("::ffff:")) return true;
+    return false;
+  }
+  const parts = ip.split(".").map(Number);
+  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return false;
+  const [a, b] = parts;
+  if (a === 10 || a === 127 || a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a >= 224) return true;
+  return false;
+}
+async function assertPublicUrl(rawUrl: string): Promise<void> {
+  const u = new URL(rawUrl);
+  if (!/^https?:$/.test(u.protocol)) throw new Error("Only http(s) URLs allowed");
+  const host = u.hostname.toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal") || host.endsWith(".local")) {
+    throw new Error("URL host is not public");
+  }
+  const a4 = await Deno.resolveDns(host, "A").catch(() => [] as string[]);
+  const a6 = await Deno.resolveDns(host, "AAAA").catch(() => [] as string[]);
+  for (const ip of [...a4, ...a6]) if (isPrivateIp(ip)) throw new Error("URL resolves to a private address");
+}
+
 function renderTemplate(tpl: any, ctx: Record<string, any>): any {
   if (tpl == null) return tpl;
   if (typeof tpl === "string") {
@@ -297,6 +325,7 @@ Deno.serve(async (req) => {
         trigger_kind: single_plan_id ? "manual" : "cron",
       };
       try {
+        await assertPublicUrl(cfg.webhook_url);
         const resp = await fetch(cfg.webhook_url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
