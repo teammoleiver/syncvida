@@ -1167,27 +1167,49 @@ function AddProfileDialog({ onCreated }: { onCreated: () => void }) {
 // ───────── Posts tab ─────────
 function PostsTab() {
   const [posts, setPosts] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [profileFilter, setProfileFilter] = useState<string>("all");
   const [listFilter, setListFilter] = useState<string>("all");
   const [usageFilter, setUsageFilter] = useState<"all" | "used" | "unused">("all");
+  const [ignoredFilter, setIgnoredFilter] = useState<"exclude" | "only" | "all">("exclude");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [openPost, setOpenPost] = useState<any | null>(null);
   const [showManual, setShowManual] = useState(false);
   const [usage, setUsage] = useState<Record<string, { drafts: number; plans: number }>>({});
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [scoringAll, setScoringAll] = useState(false);
+
+  // Debounce search input → triggers server-side refetch
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => clearTimeout(id);
+  }, [search]);
+  // Reset to page 1 whenever filters change
+  useEffect(() => { setPage(1); }, [profileFilter, ignoredFilter, debouncedSearch]);
 
   const load = async () => {
     setLoading(true);
-    const [pp, pr, uu] = await Promise.all([
-      listSocialPosts(profileFilter !== "all" ? { profile_id: profileFilter } : {}),
+    const [pageRes, pr, uu] = await Promise.all([
+      listSocialPostsPaged({
+        profile_id: profileFilter !== "all" ? profileFilter : undefined,
+        page,
+        pageSize,
+        ignored: ignoredFilter,
+        search: debouncedSearch || undefined,
+      }),
       listSocialProfiles(),
       listUsedSourcePostCounts(),
     ]);
-    setPosts(pp); setProfiles(pr); setUsage(uu); setLoading(false);
+    setPosts(pageRes.rows); setTotal(pageRes.total);
+    setProfiles(pr); setUsage(uu); setLoading(false);
   };
   const refreshUsage = async () => { try { setUsage(await listUsedSourcePostCounts()); } catch {} };
-  useEffect(() => { load(); }, [profileFilter]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [profileFilter, page, ignoredFilter, debouncedSearch]);
 
   const profileById = new Map(profiles.map((p) => [p.id, p]));
   const allLists = (() => {
@@ -1195,11 +1217,8 @@ function PostsTab() {
     for (const p of profiles) for (const n of (p.lists ?? [])) if (n) s.add(String(n));
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   })();
+  // Client-side filters that apply on top of the current page (list + usage)
   const filtered = posts.filter((p) => {
-    if (search) {
-      const q = search.toLowerCase();
-      if (!(p.post_text || "").toLowerCase().includes(q) && !(p.author || "").toLowerCase().includes(q)) return false;
-    }
     if (listFilter !== "all") {
       const prof = profileById.get(p.profile_id);
       if (!prof || !Array.isArray(prof.lists) || !prof.lists.includes(listFilter)) return false;
@@ -1209,6 +1228,34 @@ function PostsTab() {
     if (usageFilter === "unused" && used) return false;
     return true;
   });
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+
+  const handleIgnore = async (p: any, reason?: string) => {
+    setBusy((b) => ({ ...b, [p.id]: true }));
+    try { await ignoreSocialPost(p.id, reason); toast.success("Marked irrelevant — AI will deprioritize similar posts"); load(); }
+    catch (e: any) { toast.error(e?.message ?? "Failed"); }
+    finally { setBusy((b) => ({ ...b, [p.id]: false })); }
+  };
+  const handleUnignore = async (p: any) => {
+    setBusy((b) => ({ ...b, [p.id]: true }));
+    try { await unignoreSocialPost(p.id); toast.success("Restored"); load(); }
+    catch (e: any) { toast.error(e?.message ?? "Failed"); }
+    finally { setBusy((b) => ({ ...b, [p.id]: false })); }
+  };
+  const handleDelete = async (p: any) => {
+    if (!confirm("Delete this post? This cannot be undone.")) return;
+    setBusy((b) => ({ ...b, [p.id]: true }));
+    try { await deleteSocialPost(p.id); toast.success("Deleted"); load(); }
+    catch (e: any) { toast.error(e?.message ?? "Failed"); }
+    finally { setBusy((b) => ({ ...b, [p.id]: false })); }
+  };
+
+  const scoreColor = (s: number | null | undefined) => {
+    if (s == null) return "bg-muted text-muted-foreground border-border";
+    if (s >= 75) return "bg-emerald-500/15 text-emerald-500 border-emerald-500/30";
+    if (s >= 50) return "bg-amber-500/15 text-amber-600 border-amber-500/30";
+    return "bg-rose-500/15 text-rose-500 border-rose-500/30";
+  };
 
   return (
     <section className="space-y-4">
@@ -1242,9 +1289,19 @@ function PostsTab() {
               <SelectItem value="used">Already generated</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={ignoredFilter} onValueChange={(v) => setIgnoredFilter(v as any)}>
+            <SelectTrigger className="w-[160px]" title="Show ignored posts">
+              <div className="inline-flex items-center gap-1.5"><X className="w-3.5 h-3.5" /><SelectValue /></div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="exclude">Hide ignored</SelectItem>
+              <SelectItem value="only">Only ignored</SelectItem>
+              <SelectItem value="all">All (incl. ignored)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">{filtered.length} posts</span>
+          <span className="text-xs text-muted-foreground">{total} posts{listFilter !== "all" || usageFilter !== "all" ? ` · ${filtered.length} on page` : ""}</span>
           <Dialog open={showManual} onOpenChange={setShowManual}>
             <DialogTrigger asChild><Button variant="outline" size="sm"><Plus className="w-4 h-4 mr-1" />Add manually</Button></DialogTrigger>
             <ManualPostDialog profiles={profiles} onCreated={() => { setShowManual(false); load(); }} />
@@ -1254,6 +1311,7 @@ function PostsTab() {
 
       {loading ? <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div> :
         filtered.length === 0 ? <Card className="p-8 text-center text-muted-foreground">No posts. Run a scrape or add one manually.</Card> :
+        <>
         <div className="border border-border rounded-lg overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase">
@@ -1261,6 +1319,7 @@ function PostsTab() {
                 <th className="text-left px-3 py-2">Author</th>
                 <th className="text-left px-3 py-2">Company</th>
                 <th className="text-left px-3 py-2">Post</th>
+                <th className="text-left px-3 py-2">Relevance</th>
                 <th className="text-left px-3 py-2">Likes</th>
                 <th className="text-left px-3 py-2">Comments</th>
                 <th className="text-left px-3 py-2">Date</th>
@@ -1269,7 +1328,7 @@ function PostsTab() {
             </thead>
             <tbody>
               {filtered.map((p) => (
-                <tr key={p.id} className={`border-t border-border cursor-pointer ${usage[p.id] ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/20"}`} onClick={() => setOpenPost(p)}>
+                <tr key={p.id} className={`border-t border-border cursor-pointer ${p.ignored_at ? "opacity-50" : ""} ${usage[p.id] ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/20"}`} onClick={() => setOpenPost(p)}>
                   <td className="px-3 py-2 font-medium">
                     <div className="flex items-center gap-2">
                       {usage[p.id] && <span title={`Generated ${usage[p.id].drafts} draft(s) · ${usage[p.id].plans} planner entry(ies)`} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary"><Sparkles className="w-3 h-3" /></span>}
@@ -1279,28 +1338,65 @@ function PostsTab() {
                   <td className="px-3 py-2">{p.company || "—"}</td>
                   <td className="px-3 py-2 max-w-md">
                     <div className={`line-clamp-2 ${usage[p.id] ? "text-foreground/80" : "text-muted-foreground"}`}>{p.post_text}</div>
-                    {usage[p.id] && (
-                      <div className="mt-1 flex gap-1">
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {usage[p.id] && (
                         <Badge variant="secondary" className="text-[10px] py-0 h-4 bg-primary/15 text-primary border-primary/30">
                           {(usage[p.id].drafts + usage[p.id].plans)}× used
                         </Badge>
-                      </div>
+                      )}
+                      {p.ignored_at && (
+                        <Badge variant="secondary" className="text-[10px] py-0 h-4 bg-rose-500/15 text-rose-500 border-rose-500/30">Ignored</Badge>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2">
+                    {p.relevance_score != null ? (
+                      <Badge variant="outline" className={`text-[11px] ${scoreColor(p.relevance_score)}`}>{p.relevance_score}%</Badge>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">—</span>
                     )}
                   </td>
                   <td className="px-3 py-2">{p.likes}</td>
                   <td className="px-3 py-2">{p.comments}</td>
                   <td className="px-3 py-2 text-xs">{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"}</td>
                   <td className="px-3 py-2 text-right">
-                    {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-primary inline-flex"><ArrowUpRight className="w-4 h-4" /></a>}
+                    <div className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" className="text-primary inline-flex p-1 hover:bg-muted rounded" title="Open on LinkedIn"><ArrowUpRight className="w-4 h-4" /></a>}
+                      {p.ignored_at ? (
+                        <Button size="sm" variant="ghost" disabled={busy[p.id]} onClick={() => handleUnignore(p)} title="Restore">
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="ghost" disabled={busy[p.id]} onClick={() => handleIgnore(p)} title="Ignore — AI will learn this topic isn't relevant">
+                          <X className="w-3.5 h-3.5 text-amber-500" />
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" disabled={busy[p.id]} onClick={() => handleDelete(p)} title="Delete">
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <div className="text-xs text-muted-foreground">
+            Page {page} of {pageCount} · showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
+          </div>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(1)}>« First</Button>
+            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Prev</Button>
+            <span className="text-xs px-2">{page} / {pageCount}</span>
+            <Button size="sm" variant="outline" disabled={page >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))}>Next ›</Button>
+            <Button size="sm" variant="outline" disabled={page >= pageCount} onClick={() => setPage(pageCount)}>Last »</Button>
+          </div>
+        </div>
+        </>
       }
 
-      {openPost && <PostInspectorDialog post={openPost} onClose={() => { setOpenPost(null); refreshUsage(); }} onGenerated={refreshUsage} />}
+      {openPost && <PostInspectorDialog post={openPost} onClose={() => { setOpenPost(null); refreshUsage(); load(); }} onGenerated={refreshUsage} />}
     </section>
   );
 }
