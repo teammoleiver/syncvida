@@ -29,6 +29,7 @@ import {
   listFrameworkPrompts, saveFrameworkPrompt, suggestFrameworkPromptImprovement,
   analyzeSelfProfile, scrapeMyLastPosts, enrichVoiceFromPosts, enrichFromWebsites, listWebsiteEnrichments,
   listCommentTones, saveCommentTones, type CommentTone,
+  listUsedSourcePostCounts, listDraftsForPost,
 } from "@/lib/social-queries";
 import ApifyActorsPanel from "@/components/social/ApifyActorsPanel";
 import EngagementFeedTab from "@/components/social/EngagementFeedTab";
