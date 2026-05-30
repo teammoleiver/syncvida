@@ -1183,6 +1183,9 @@ function PostsTab() {
   const pageSize = 25;
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [scoringAll, setScoringAll] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleteIntent, setDeleteIntent] = useState<"relevant" | "irrelevant">("relevant");
+  const [staleFilter, setStaleFilter] = useState<"all" | "stale" | "fresh">("all");
 
   // Debounce search input → triggers server-side refetch
   useEffect(() => {
@@ -1226,6 +1229,9 @@ function PostsTab() {
     const used = !!usage[p.id];
     if (usageFilter === "used" && !used) return false;
     if (usageFilter === "unused" && used) return false;
+    const bucket = ageBucket(postAgeDays(p));
+    if (staleFilter === "stale" && bucket !== "stale") return false;
+    if (staleFilter === "fresh" && (bucket === "stale" || bucket === "aging")) return false;
     return true;
   });
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
@@ -1243,9 +1249,22 @@ function PostsTab() {
     finally { setBusy((b) => ({ ...b, [p.id]: false })); }
   };
   const handleDelete = async (p: any) => {
-    if (!confirm("Delete this post? This cannot be undone.")) return;
+    setDeleteIntent("relevant");
+    setDeleteTarget(p);
+  };
+  const confirmDelete = async () => {
+    const p = deleteTarget;
+    if (!p) return;
     setBusy((b) => ({ ...b, [p.id]: true }));
-    try { await deleteSocialPost(p.id); toast.success("Deleted"); load(); }
+    setDeleteTarget(null);
+    try {
+      if (deleteIntent === "irrelevant") {
+        try { await ignoreSocialPost(p.id, "Marked irrelevant on delete"); } catch {}
+      }
+      await deleteSocialPost(p.id);
+      toast.success(deleteIntent === "irrelevant" ? "Deleted — AI will deprioritize similar posts" : "Deleted");
+      load();
+    }
     catch (e: any) { toast.error(e?.message ?? "Failed"); }
     finally { setBusy((b) => ({ ...b, [p.id]: false })); }
   };
@@ -1255,6 +1274,38 @@ function PostsTab() {
     if (s >= 75) return "bg-emerald-500/15 text-emerald-500 border-emerald-500/30";
     if (s >= 50) return "bg-amber-500/15 text-amber-600 border-amber-500/30";
     return "bg-rose-500/15 text-rose-500 border-rose-500/30";
+  };
+
+  // Age helpers — color-code rows + flag stale posts
+  const postAgeDays = (p: any): number | null => {
+    const raw = p.posted_at || p.created_at;
+    if (!raw) return null;
+    const t = new Date(raw).getTime();
+    if (!isFinite(t)) return null;
+    return Math.floor((Date.now() - t) / 86_400_000);
+  };
+  const ageBucket = (d: number | null): "fresh" | "recent" | "aging" | "stale" => {
+    if (d == null) return "recent";
+    if (d <= 7) return "fresh";
+    if (d <= 30) return "recent";
+    if (d <= 60) return "aging";
+    return "stale";
+  };
+  const ageRowTint = (b: "fresh" | "recent" | "aging" | "stale") =>
+    b === "stale" ? "bg-rose-500/5 hover:bg-rose-500/10"
+    : b === "aging" ? "bg-amber-500/5 hover:bg-amber-500/10"
+    : "";
+  const ageLabelClass = (b: "fresh" | "recent" | "aging" | "stale") =>
+    b === "stale" ? "text-rose-500 font-medium"
+    : b === "aging" ? "text-amber-600"
+    : b === "fresh" ? "text-emerald-600"
+    : "text-muted-foreground";
+  const humanAge = (d: number | null) => {
+    if (d == null) return "—";
+    if (d < 1) return "today";
+    if (d < 30) return `${d}d ago`;
+    if (d < 60) return `${Math.floor(d / 7)}w ago`;
+    return `${Math.floor(d / 30)}mo ago`;
   };
 
   return (
