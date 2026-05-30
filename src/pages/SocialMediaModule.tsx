@@ -1352,6 +1352,16 @@ function PostsTab() {
               <SelectItem value="all">All (incl. ignored)</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={staleFilter} onValueChange={(v) => setStaleFilter(v as any)}>
+            <SelectTrigger className="w-[170px]" title="Filter by age">
+              <div className="inline-flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5" /><SelectValue /></div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All ages</SelectItem>
+              <SelectItem value="fresh">Fresh (≤ 30d)</SelectItem>
+              <SelectItem value="stale">Stale (&gt; 2 months)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">{total} posts{listFilter !== "all" || usageFilter !== "all" ? ` · ${filtered.length} on page` : ""}</span>
