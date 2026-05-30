@@ -162,6 +162,9 @@ function ProfilesTab() {
   const [listFilter, setListFilter] = useState<string>("all"); // "all" | listName
   const [manageOpen, setManageOpen] = useState(false);
   const [newListInput, setNewListInput] = useState("");
+  const [listMenuOpen, setListMenuOpen] = useState(false);
+  const [listMenuQuery, setListMenuQuery] = useState("");
+  const { pinned: pinnedLists, toggle: togglePinList, isPinned: isListPinned } = usePinnedLists();
 
   const load = async () => { setLoading(true); setProfiles(await listSocialProfiles()); setLoading(false); };
   useEffect(() => { load(); }, []);
@@ -329,7 +332,7 @@ function ProfilesTab() {
         </div>
       </div>
 
-      {/* Favorites + Lists filter row */}
+      {/* Favorites + compact Lists menu + pinned list chips */}
       <div className="flex flex-wrap items-center gap-2">
         <Button
           variant={favOnly ? "default" : "outline"}
@@ -342,31 +345,105 @@ function ProfilesTab() {
           Favorites {favCount > 0 && <span className="opacity-70">({favCount})</span>}
         </Button>
         <div className="h-6 w-px bg-border" />
-        <button
-          type="button"
-          onClick={() => setListFilter("all")}
-          className={`h-8 px-2.5 rounded-md border text-xs inline-flex items-center gap-1.5 transition-colors ${
-            listFilter === "all" ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Folder className="w-3.5 h-3.5" /> All lists
-        </button>
-        {allLists.map((name) => (
+        <Popover open={listMenuOpen} onOpenChange={setListMenuOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant={listFilter !== "all" ? "default" : "outline"}
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              title="Filter by list"
+            >
+              <Folder className="w-3.5 h-3.5" />
+              {listFilter === "all" ? "Lists" : listFilter}
+              {listFilter === "all" && allLists.length > 0 && <span className="opacity-60">({allLists.length})</span>}
+              <ChevronDown className="w-3 h-3 opacity-60" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-72 p-0">
+            <div className="p-2 border-b border-border">
+              <div className="relative">
+                <SearchIcon className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={listMenuQuery}
+                  onChange={(e) => setListMenuQuery(e.target.value)}
+                  placeholder="Search lists…"
+                  className="h-8 pl-7 text-xs"
+                />
+              </div>
+            </div>
+            <div className="max-h-72 overflow-auto py-1">
+              <button
+                type="button"
+                onClick={() => { setListFilter("all"); setListMenuOpen(false); }}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted/50 ${listFilter === "all" ? "text-foreground font-medium" : "text-muted-foreground"}`}
+              >
+                <Folder className="w-3.5 h-3.5" />
+                <span className="flex-1 text-left">All lists</span>
+                <span className="opacity-60">{profiles.length}</span>
+              </button>
+              {allLists
+                .filter((n) => !listMenuQuery || n.toLowerCase().includes(listMenuQuery.toLowerCase()))
+                .map((name) => {
+                  const pinned = isListPinned(name);
+                  const active = listFilter === name;
+                  return (
+                    <div key={name} className={`group flex items-center gap-1 px-2 py-0.5 ${active ? "bg-primary/10" : ""}`}>
+                      <button
+                        type="button"
+                        onClick={() => { setListFilter(name); setListMenuOpen(false); }}
+                        className="flex-1 inline-flex items-center gap-2 px-1 py-1 rounded text-xs text-left hover:bg-muted/50"
+                      >
+                        <Tag className="w-3 h-3" />
+                        <span className="flex-1 truncate">{name}</span>
+                        <span className="opacity-60">{listCounts.get(name) ?? 0}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); togglePinList(name); }}
+                        title={pinned ? "Unpin from toolbar" : "Pin to toolbar"}
+                        className={`p-1.5 rounded hover:bg-muted/50 ${pinned ? "text-primary" : "text-muted-foreground opacity-0 group-hover:opacity-100"}`}
+                      >
+                        {pinned ? <Pin className="w-3 h-3 fill-current" /> : <Pin className="w-3 h-3" />}
+                      </button>
+                    </div>
+                  );
+                })}
+              {allLists.length === 0 && (
+                <div className="px-3 py-4 text-xs text-muted-foreground text-center">No lists yet</div>
+              )}
+            </div>
+            <div className="border-t border-border p-1">
+              <button
+                type="button"
+                onClick={() => { setListMenuOpen(false); setManageOpen(true); }}
+                className="w-full inline-flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-muted/50 text-muted-foreground"
+              >
+                <ListPlus className="w-3.5 h-3.5" /> {allLists.length ? "Manage lists" : "Create list"}
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
+        {/* Pinned lists shown inline for quick access */}
+        {pinnedLists.filter((n) => allLists.includes(n)).map((name) => (
           <button
             key={name}
             type="button"
-            onClick={() => setListFilter(name)}
+            onClick={() => setListFilter(listFilter === name ? "all" : name)}
             className={`h-8 px-2.5 rounded-md border text-xs inline-flex items-center gap-1.5 transition-colors ${
               listFilter === name ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:text-foreground"
             }`}
+            title="Click to filter · pinned"
           >
-            <Tag className="w-3 h-3" /> {name}
+            <Pin className="w-3 h-3 fill-current opacity-70" />
+            <span>{name}</span>
             <span className="opacity-60">{listCounts.get(name) ?? 0}</span>
           </button>
         ))}
-        <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground" onClick={() => setManageOpen(true)}>
-          <ListPlus className="w-3.5 h-3.5" /> {allLists.length ? "Manage lists" : "Create list"}
-        </Button>
+        {listFilter !== "all" && (
+          <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-muted-foreground" onClick={() => setListFilter("all")}>
+            <X className="w-3 h-3" /> Clear
+          </Button>
+        )}
       </div>
 
       {selectedIds.size > 0 && (
