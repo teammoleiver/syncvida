@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
@@ -1183,6 +1186,9 @@ function PostsTab() {
   const pageSize = 25;
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [scoringAll, setScoringAll] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleteIntent, setDeleteIntent] = useState<"relevant" | "irrelevant">("relevant");
+  const [staleFilter, setStaleFilter] = useState<"all" | "stale" | "fresh">("all");
 
   // Debounce search input → triggers server-side refetch
   useEffect(() => {
@@ -1217,6 +1223,37 @@ function PostsTab() {
     for (const p of profiles) for (const n of (p.lists ?? [])) if (n) s.add(String(n));
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   })();
+  // Age helpers — color-code rows + flag stale posts (declared before `filtered` so they're in scope)
+  const postAgeDays = (p: any): number | null => {
+    const raw = p.posted_at || p.created_at;
+    if (!raw) return null;
+    const t = new Date(raw).getTime();
+    if (!isFinite(t)) return null;
+    return Math.floor((Date.now() - t) / 86_400_000);
+  };
+  const ageBucket = (d: number | null): "fresh" | "recent" | "aging" | "stale" => {
+    if (d == null) return "recent";
+    if (d <= 7) return "fresh";
+    if (d <= 30) return "recent";
+    if (d <= 60) return "aging";
+    return "stale";
+  };
+  const ageRowTint = (b: "fresh" | "recent" | "aging" | "stale") =>
+    b === "stale" ? "bg-rose-500/5 hover:bg-rose-500/10"
+    : b === "aging" ? "bg-amber-500/5 hover:bg-amber-500/10"
+    : "";
+  const ageLabelClass = (b: "fresh" | "recent" | "aging" | "stale") =>
+    b === "stale" ? "text-rose-500 font-medium"
+    : b === "aging" ? "text-amber-600"
+    : b === "fresh" ? "text-emerald-600"
+    : "text-muted-foreground";
+  const humanAge = (d: number | null) => {
+    if (d == null) return "—";
+    if (d < 1) return "today";
+    if (d < 30) return `${d}d ago`;
+    if (d < 60) return `${Math.floor(d / 7)}w ago`;
+    return `${Math.floor(d / 30)}mo ago`;
+  };
   // Client-side filters that apply on top of the current page (list + usage)
   const filtered = posts.filter((p) => {
     if (listFilter !== "all") {
@@ -1226,6 +1263,9 @@ function PostsTab() {
     const used = !!usage[p.id];
     if (usageFilter === "used" && !used) return false;
     if (usageFilter === "unused" && used) return false;
+    const bucket = ageBucket(postAgeDays(p));
+    if (staleFilter === "stale" && bucket !== "stale") return false;
+    if (staleFilter === "fresh" && (bucket === "stale" || bucket === "aging")) return false;
     return true;
   });
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
@@ -1243,9 +1283,22 @@ function PostsTab() {
     finally { setBusy((b) => ({ ...b, [p.id]: false })); }
   };
   const handleDelete = async (p: any) => {
-    if (!confirm("Delete this post? This cannot be undone.")) return;
+    setDeleteIntent("relevant");
+    setDeleteTarget(p);
+  };
+  const confirmDelete = async () => {
+    const p = deleteTarget;
+    if (!p) return;
     setBusy((b) => ({ ...b, [p.id]: true }));
-    try { await deleteSocialPost(p.id); toast.success("Deleted"); load(); }
+    setDeleteTarget(null);
+    try {
+      if (deleteIntent === "irrelevant") {
+        try { await ignoreSocialPost(p.id, "Marked irrelevant on delete"); } catch {}
+      }
+      await deleteSocialPost(p.id);
+      toast.success(deleteIntent === "irrelevant" ? "Deleted — AI will deprioritize similar posts" : "Deleted");
+      load();
+    }
     catch (e: any) { toast.error(e?.message ?? "Failed"); }
     finally { setBusy((b) => ({ ...b, [p.id]: false })); }
   };
@@ -1299,6 +1352,16 @@ function PostsTab() {
               <SelectItem value="all">All (incl. ignored)</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={staleFilter} onValueChange={(v) => setStaleFilter(v as any)}>
+            <SelectTrigger className="w-[170px]" title="Filter by age">
+              <div className="inline-flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5" /><SelectValue /></div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All ages</SelectItem>
+              <SelectItem value="fresh">Fresh (≤ 30d)</SelectItem>
+              <SelectItem value="stale">Stale (&gt; 2 months)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">{total} posts{listFilter !== "all" || usageFilter !== "all" ? ` · ${filtered.length} on page` : ""}</span>
@@ -1327,8 +1390,12 @@ function PostsTab() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p) => (
-                <tr key={p.id} className={`border-t border-border cursor-pointer ${p.ignored_at ? "opacity-50" : ""} ${usage[p.id] ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/20"}`} onClick={() => setOpenPost(p)}>
+              {filtered.map((p) => {
+                const ageDays = postAgeDays(p);
+                const bucket = ageBucket(ageDays);
+                const tint = usage[p.id] ? "bg-primary/5 hover:bg-primary/10" : (ageRowTint(bucket) || "hover:bg-muted/20");
+                return (
+                <tr key={p.id} className={`border-t border-border cursor-pointer ${p.ignored_at ? "opacity-50" : ""} ${tint}`} onClick={() => setOpenPost(p)}>
                   <td className="px-3 py-2 font-medium">
                     <div className="flex items-center gap-2">
                       {usage[p.id] && <span title={`Generated ${usage[p.id].drafts} draft(s) · ${usage[p.id].plans} planner entry(ies)`} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary"><Sparkles className="w-3 h-3" /></span>}
@@ -1347,6 +1414,12 @@ function PostsTab() {
                       {p.ignored_at && (
                         <Badge variant="secondary" className="text-[10px] py-0 h-4 bg-rose-500/15 text-rose-500 border-rose-500/30">Ignored</Badge>
                       )}
+                      {bucket === "stale" && !p.ignored_at && (
+                        <Badge variant="secondary" className="text-[10px] py-0 h-4 bg-rose-500/15 text-rose-500 border-rose-500/30" title="Posted more than 2 months ago — consider deleting to keep your view clean">Stale · suggest delete</Badge>
+                      )}
+                      {bucket === "aging" && !p.ignored_at && (
+                        <Badge variant="secondary" className="text-[10px] py-0 h-4 bg-amber-500/15 text-amber-600 border-amber-500/30" title="Posted over a month ago">Aging</Badge>
+                      )}
                     </div>
                   </td>
                   <td className="px-3 py-2">
@@ -1358,7 +1431,10 @@ function PostsTab() {
                   </td>
                   <td className="px-3 py-2">{p.likes}</td>
                   <td className="px-3 py-2">{p.comments}</td>
-                  <td className="px-3 py-2 text-xs">{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"}</td>
+                  <td className={`px-3 py-2 text-xs ${ageLabelClass(bucket)}`} title={p.posted_at ? new Date(p.posted_at).toLocaleString() : ""}>
+                    <div>{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"}</div>
+                    <div className="text-[10px] opacity-80">{humanAge(ageDays)}</div>
+                  </td>
                   <td className="px-3 py-2 text-right">
                     <div className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" className="text-primary inline-flex p-1 hover:bg-muted rounded" title="Open on LinkedIn"><ArrowUpRight className="w-4 h-4" /></a>}
@@ -1371,13 +1447,14 @@ function PostsTab() {
                           <X className="w-3.5 h-3.5 text-amber-500" />
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" disabled={busy[p.id]} onClick={() => handleDelete(p)} title="Delete">
+                      <Button size="sm" variant={bucket === "stale" ? "outline" : "ghost"} disabled={busy[p.id]} onClick={() => handleDelete(p)} title={bucket === "stale" ? "Stale post — suggested to delete" : "Delete"} className={bucket === "stale" ? "border-rose-500/40 text-rose-500 hover:bg-rose-500/10 h-7 px-2" : ""}>
                         <Trash2 className="w-3.5 h-3.5 text-destructive" />
                       </Button>
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1397,6 +1474,37 @@ function PostsTab() {
       }
 
       {openPost && <PostInspectorDialog post={openPost} onClose={() => { setOpenPost(null); refreshUsage(); load(); }} onGenerated={refreshUsage} />}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Before we remove it from your view, tell us whether this post matches your tone & topics — that way the AI keeps learning even when you clean things up.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <RadioGroup value={deleteIntent} onValueChange={(v) => setDeleteIntent(v as any)} className="space-y-2 py-2">
+            <Label htmlFor="del-rel" className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-muted/40">
+              <RadioGroupItem id="del-rel" value="relevant" className="mt-0.5" />
+              <div>
+                <div className="text-sm font-medium">Yes — still relevant to me</div>
+                <div className="text-xs text-muted-foreground">Just delete to clean my view. Don't teach the AI to avoid posts like this.</div>
+              </div>
+            </Label>
+            <Label htmlFor="del-irr" className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-muted/40">
+              <RadioGroupItem id="del-irr" value="irrelevant" className="mt-0.5" />
+              <div>
+                <div className="text-sm font-medium">No — not relevant to me</div>
+                <div className="text-xs text-muted-foreground">Delete and remember this. The AI will deprioritize similar posts in the future.</div>
+              </div>
+            </Label>
+          </RadioGroup>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
