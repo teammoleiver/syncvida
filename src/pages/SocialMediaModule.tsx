@@ -36,6 +36,34 @@ import LinkedInAnalyticsTab from "@/components/social/LinkedInAnalyticsTab";
 
 type Tab = "profiles" | "posts" | "engagement" | "analytics" | "topics" | "planner" | "settings";
 
+// ─── Pinned lists (persisted per-user in localStorage) ───
+const PINNED_LISTS_KEY = "syncvida.social.pinnedLists";
+function readPinnedLists(): string[] {
+  try {
+    const raw = localStorage.getItem(PINNED_LISTS_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter((x) => typeof x === "string") : [];
+  } catch { return []; }
+}
+function usePinnedLists() {
+  const [pinned, setPinned] = useState<string[]>(() => readPinnedLists());
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => { if (e.key === PINNED_LISTS_KEY) setPinned(readPinnedLists()); };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+  const toggle = (name: string) => {
+    setPinned((prev) => {
+      const next = prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name];
+      try { localStorage.setItem(PINNED_LISTS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+  const isPinned = (name: string) => pinned.includes(name);
+  return { pinned, toggle, isPinned };
+}
+
 // Build a clean LinkedIn post URL. Stored URLs sometimes contain raw `urn:li:activity:...`
 // which Chrome can mangle (the colons are reserved). Rebuild from the activity id and
 // route through LinkedIn's canonical `/posts/` permalink which works without auth-context.
