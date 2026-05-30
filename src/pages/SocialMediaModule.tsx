@@ -586,6 +586,7 @@ function ProfilesTab() {
       />
       <ImportPreviewDialog
         preview={importPreview}
+        allLists={allLists}
         onClose={() => setImportPreview(null)}
         onConfirm={async (rowsToImport, mode) => {
           setImporting(true);
