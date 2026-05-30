@@ -1474,6 +1474,37 @@ function PostsTab() {
       }
 
       {openPost && <PostInspectorDialog post={openPost} onClose={() => { setOpenPost(null); refreshUsage(); load(); }} onGenerated={refreshUsage} />}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Before we remove it from your view, tell us whether this post matches your tone & topics — that way the AI keeps learning even when you clean things up.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <RadioGroup value={deleteIntent} onValueChange={(v) => setDeleteIntent(v as any)} className="space-y-2 py-2">
+            <Label htmlFor="del-rel" className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-muted/40">
+              <RadioGroupItem id="del-rel" value="relevant" className="mt-0.5" />
+              <div>
+                <div className="text-sm font-medium">Yes — still relevant to me</div>
+                <div className="text-xs text-muted-foreground">Just delete to clean my view. Don't teach the AI to avoid posts like this.</div>
+              </div>
+            </Label>
+            <Label htmlFor="del-irr" className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-muted/40">
+              <RadioGroupItem id="del-irr" value="irrelevant" className="mt-0.5" />
+              <div>
+                <div className="text-sm font-medium">No — not relevant to me</div>
+                <div className="text-xs text-muted-foreground">Delete and remember this. The AI will deprioritize similar posts in the future.</div>
+              </div>
+            </Label>
+          </RadioGroup>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
