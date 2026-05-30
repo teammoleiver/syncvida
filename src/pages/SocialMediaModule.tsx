@@ -2042,20 +2042,24 @@ function SettingsTab() {
   };
 
   return (
-    <section className="space-y-6 max-w-3xl">
+    <section className="space-y-6 max-w-5xl">
       <Card className="p-5 space-y-4">
         <div className="flex items-center gap-2"><Users className="w-5 h-5 text-primary" /><h2 className="font-medium">About Me & Voice</h2></div>
         <p className="text-xs text-muted-foreground">Teach the AI who you are. These fields are injected into every post the writer produces — so the more specific, the more it sounds like you.</p>
 
         <div>
           <label className="text-xs font-medium">About me (bio)</label>
-          <Textarea rows={3} value={s.about_me ?? ""} onChange={(e) => setS({ ...s, about_me: e.target.value })}
-            placeholder="2–3 sentences in first person. Who are you, what do you do, what's your edge." />
+          <Textarea value={s.about_me ?? ""} onChange={(e) => setS({ ...s, about_me: e.target.value })}
+            placeholder="2–3 sentences in first person. Who are you, what do you do, what's your edge."
+            className="min-h-[120px] resize-y"
+            style={{ fieldSizing: "content" } as React.CSSProperties} />
         </div>
         <div>
           <label className="text-xs font-medium">Career summary</label>
-          <Textarea rows={3} value={s.career_summary ?? ""} onChange={(e) => setS({ ...s, career_summary: e.target.value })}
-            placeholder="Roles, companies, achievements, years of experience." />
+          <Textarea value={s.career_summary ?? ""} onChange={(e) => setS({ ...s, career_summary: e.target.value })}
+            placeholder="Roles, companies, achievements, years of experience."
+            className="min-h-[120px] resize-y"
+            style={{ fieldSizing: "content" } as React.CSSProperties} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
@@ -2071,13 +2075,17 @@ function SettingsTab() {
         </div>
         <div>
           <label className="text-xs font-medium">Goals (what success looks like)</label>
-          <Textarea rows={2} value={s.goals ?? ""} onChange={(e) => setS({ ...s, goals: e.target.value })}
-            placeholder="e.g. Position myself as the go-to person for AI-driven cold outbound. Hit 10k followers in 12 months. Drive 3 inbound leads/week." />
+          <Textarea value={s.goals ?? ""} onChange={(e) => setS({ ...s, goals: e.target.value })}
+            placeholder="e.g. Position myself as the go-to person for AI-driven cold outbound. Hit 10k followers in 12 months. Drive 3 inbound leads/week."
+            className="min-h-[100px] resize-y"
+            style={{ fieldSizing: "content" } as React.CSSProperties} />
         </div>
         <div>
           <label className="text-xs font-medium">Writing samples (paste 1–3 of your best posts)</label>
-          <Textarea rows={5} value={s.writing_samples ?? ""} onChange={(e) => setS({ ...s, writing_samples: e.target.value })}
-            placeholder="The AI will mimic the rhythm, length, and structure of these samples." />
+          <Textarea value={s.writing_samples ?? ""} onChange={(e) => setS({ ...s, writing_samples: e.target.value })}
+            placeholder="The AI will mimic the rhythm, length, and structure of these samples."
+            className="min-h-[200px] resize-y"
+            style={{ fieldSizing: "content" } as React.CSSProperties} />
         </div>
 
         <div className="border-t border-border pt-4 space-y-3">
@@ -2121,8 +2129,10 @@ function SettingsTab() {
           <TabsContent value="sites" className="space-y-4 pt-3">
             <div>
               <label className="text-xs font-medium">Website URLs (one per line, or comma-separated)</label>
-              <Textarea rows={5} value={websitesInput} onChange={(e) => setWebsitesInput(e.target.value)}
-                placeholder={"https://competitor.com\nhttps://blog.thoughtleader.io\nhttps://industry-publication.com"} />
+              <Textarea value={websitesInput} onChange={(e) => setWebsitesInput(e.target.value)}
+                placeholder={"https://competitor.com\nhttps://blog.thoughtleader.io\nhttps://industry-publication.com"}
+                className="min-h-[140px] resize-y"
+                style={{ fieldSizing: "content" } as React.CSSProperties} />
               <p className="text-[11px] text-muted-foreground mt-1">Up to 100 sites. Each enrichment runs a web search per URL.</p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -2166,7 +2176,9 @@ function SettingsTab() {
         />
         <div>
           <label className="text-xs font-medium">Voice notes (appended to every prompt)</label>
-          <Textarea rows={3} value={s.voice_notes ?? ""} onChange={(e) => setS({ ...s, voice_notes: e.target.value })} placeholder="e.g. I run a 65-domain cold email infra and build n8n + Supabase dashboards." />
+          <Textarea value={s.voice_notes ?? ""} onChange={(e) => setS({ ...s, voice_notes: e.target.value })} placeholder="e.g. I run a 65-domain cold email infra and build n8n + Supabase dashboards."
+            className="min-h-[120px] resize-y"
+            style={{ fieldSizing: "content" } as React.CSSProperties} />
         </div>
         <div>
           <label className="text-xs font-medium">Banned words (comma separated)</label>
