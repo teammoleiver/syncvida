@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useDeferredValue } from "react";
-import { Loader2, MessageCircle, ThumbsUp, ExternalLink, Sparkles, Copy, Check, Send, Search, X, Heart, Link2, ShieldCheck, ShieldAlert, ChevronLeft, ChevronRight, Trash2, Wand2 } from "lucide-react";
+import { Loader2, MessageCircle, ThumbsUp, ExternalLink, Sparkles, Copy, Check, Send, Search, X, Heart, Link2, ShieldCheck, ShieldAlert, ChevronLeft, ChevronRight, Trash2, Wand2, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -53,6 +53,7 @@ export default function EngagementFeedTab() {
   const [posts, setPosts] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [profileFilter, setProfileFilter] = useState<string>("all");
+  const [listFilter, setListFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "todo" | "draft" | "posted" | "liked">("all");
   const [dateFilter, setDateFilter] = useState<"all" | "1" | "7" | "30" | "90">("all");
@@ -109,6 +110,13 @@ export default function EngagementFeedTab() {
 
   const noLinkCount = useMemo(() => posts.filter((p) => !linkByPost.get(p.id)).length, [posts, linkByPost]);
 
+  const profileById = useMemo(() => new Map(profiles.map((p: any) => [p.id, p])), [profiles]);
+  const allLists = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of profiles) for (const n of (p.lists ?? [])) if (n) s.add(String(n));
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [profiles]);
+
   const filtered = useMemo(() => {
     const q = deferredSearch.trim().toLowerCase();
     const cutoff = dateFilter === "all" ? null : Date.now() - parseInt(dateFilter, 10) * 86400000;
@@ -119,6 +127,10 @@ export default function EngagementFeedTab() {
         const t = p.posted_at ? new Date(p.posted_at).getTime() : NaN;
         if (!Number.isFinite(t) || t < cutoff) return false;
       }
+      if (listFilter !== "all") {
+        const prof: any = profileById.get(p.profile_id);
+        if (!prof || !Array.isArray(prof.lists) || !prof.lists.includes(listFilter)) return false;
+      }
       const e = engagement[p.id];
       if (statusFilter === "todo" && (e?.draft_text || e?.liked || e?.status === "posted")) return false;
       if (statusFilter === "draft" && e?.status !== "draft" && !e?.draft_text) return false;
@@ -126,10 +138,10 @@ export default function EngagementFeedTab() {
       if (statusFilter === "liked" && !e?.liked) return false;
       return true;
     });
-  }, [posts, engagement, deferredSearch, statusFilter, dateFilter, hideNoLink, linkByPost]);
+  }, [posts, engagement, deferredSearch, statusFilter, dateFilter, hideNoLink, linkByPost, listFilter, profileById]);
 
   // Reset to page 1 whenever filters change
-  useEffect(() => { setPage(1); }, [search, statusFilter, dateFilter, profileFilter, hideNoLink]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, dateFilter, profileFilter, listFilter, hideNoLink]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -261,6 +273,16 @@ export default function EngagementFeedTab() {
             <SelectContent>
               <SelectItem value="all">All profiles</SelectItem>
               {profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.display_name || p.full_name || p.username}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={listFilter} onValueChange={setListFilter}>
+            <SelectTrigger className="w-[180px]" title="Filter by profile list">
+              <div className="inline-flex items-center gap-1.5"><Folder className="w-3.5 h-3.5" /><SelectValue placeholder="All lists" /></div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All lists</SelectItem>
+              {allLists.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+              {allLists.length === 0 && <div className="px-2 py-1.5 text-xs text-muted-foreground">No lists yet</div>}
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
