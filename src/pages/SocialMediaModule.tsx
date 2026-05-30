@@ -1220,6 +1220,37 @@ function PostsTab() {
     for (const p of profiles) for (const n of (p.lists ?? [])) if (n) s.add(String(n));
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   })();
+  // Age helpers — color-code rows + flag stale posts (declared before `filtered` so they're in scope)
+  const postAgeDays = (p: any): number | null => {
+    const raw = p.posted_at || p.created_at;
+    if (!raw) return null;
+    const t = new Date(raw).getTime();
+    if (!isFinite(t)) return null;
+    return Math.floor((Date.now() - t) / 86_400_000);
+  };
+  const ageBucket = (d: number | null): "fresh" | "recent" | "aging" | "stale" => {
+    if (d == null) return "recent";
+    if (d <= 7) return "fresh";
+    if (d <= 30) return "recent";
+    if (d <= 60) return "aging";
+    return "stale";
+  };
+  const ageRowTint = (b: "fresh" | "recent" | "aging" | "stale") =>
+    b === "stale" ? "bg-rose-500/5 hover:bg-rose-500/10"
+    : b === "aging" ? "bg-amber-500/5 hover:bg-amber-500/10"
+    : "";
+  const ageLabelClass = (b: "fresh" | "recent" | "aging" | "stale") =>
+    b === "stale" ? "text-rose-500 font-medium"
+    : b === "aging" ? "text-amber-600"
+    : b === "fresh" ? "text-emerald-600"
+    : "text-muted-foreground";
+  const humanAge = (d: number | null) => {
+    if (d == null) return "—";
+    if (d < 1) return "today";
+    if (d < 30) return `${d}d ago`;
+    if (d < 60) return `${Math.floor(d / 7)}w ago`;
+    return `${Math.floor(d / 30)}mo ago`;
+  };
   // Client-side filters that apply on top of the current page (list + usage)
   const filtered = posts.filter((p) => {
     if (listFilter !== "all") {
@@ -1274,38 +1305,6 @@ function PostsTab() {
     if (s >= 75) return "bg-emerald-500/15 text-emerald-500 border-emerald-500/30";
     if (s >= 50) return "bg-amber-500/15 text-amber-600 border-amber-500/30";
     return "bg-rose-500/15 text-rose-500 border-rose-500/30";
-  };
-
-  // Age helpers — color-code rows + flag stale posts
-  const postAgeDays = (p: any): number | null => {
-    const raw = p.posted_at || p.created_at;
-    if (!raw) return null;
-    const t = new Date(raw).getTime();
-    if (!isFinite(t)) return null;
-    return Math.floor((Date.now() - t) / 86_400_000);
-  };
-  const ageBucket = (d: number | null): "fresh" | "recent" | "aging" | "stale" => {
-    if (d == null) return "recent";
-    if (d <= 7) return "fresh";
-    if (d <= 30) return "recent";
-    if (d <= 60) return "aging";
-    return "stale";
-  };
-  const ageRowTint = (b: "fresh" | "recent" | "aging" | "stale") =>
-    b === "stale" ? "bg-rose-500/5 hover:bg-rose-500/10"
-    : b === "aging" ? "bg-amber-500/5 hover:bg-amber-500/10"
-    : "";
-  const ageLabelClass = (b: "fresh" | "recent" | "aging" | "stale") =>
-    b === "stale" ? "text-rose-500 font-medium"
-    : b === "aging" ? "text-amber-600"
-    : b === "fresh" ? "text-emerald-600"
-    : "text-muted-foreground";
-  const humanAge = (d: number | null) => {
-    if (d == null) return "—";
-    if (d < 1) return "today";
-    if (d < 30) return `${d}d ago`;
-    if (d < 60) return `${Math.floor(d / 7)}w ago`;
-    return `${Math.floor(d / 30)}mo ago`;
   };
 
   return (
