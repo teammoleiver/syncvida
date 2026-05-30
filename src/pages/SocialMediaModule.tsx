@@ -716,8 +716,9 @@ function parseProfilesCsvWithHeaders(text: string): { rows: Array<Record<string,
   return { rows, headers, mapped };
 }
 
-function ImportPreviewDialog({ preview, onClose, onConfirm }: {
+function ImportPreviewDialog({ preview, allLists = [], onClose, onConfirm }: {
   preview: { rows: Array<Record<string, any>>; headers: string[]; mapped: Record<number, string> } | null;
+  allLists?: string[];
   onClose: () => void;
   onConfirm: (rows: Array<Record<string, any>>, mode: "create" | "merge") => void;
 }) {
@@ -725,9 +726,12 @@ function ImportPreviewDialog({ preview, onClose, onConfirm }: {
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
   const [ignoreDupes, setIgnoreDupes] = useState(true);
   const [mode, setMode] = useState<"create" | "merge">("create");
+  const [listChoice, setListChoice] = useState<string>("__none__");
+  const [newListName, setNewListName] = useState<string>("");
 
   useEffect(() => {
     setExcluded(new Set()); setExistingUrls(new Set());
+    setListChoice("__none__"); setNewListName("");
     if (!preview) return;
     const urls = preview.rows.map((r) => r.profile_url).filter(Boolean);
     listExistingProfileUrls(urls).then((u) => setExistingUrls(new Set(u)));
