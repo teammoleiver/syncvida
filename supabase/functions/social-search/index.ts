@@ -13,6 +13,41 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// Whitelist of secret names that providers are allowed to reference.
+// Prevents authenticated users from exfiltrating arbitrary server-side secrets
+// (e.g. SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY) by setting api_key_secret_name.
+const ALLOWED_SECRET_NAMES = new Set<string>([
+  "LINKUP_API_KEY",
+]);
+
+function isPrivateIp(ip: string): boolean {
+  if (ip.includes(":")) {
+    const lower = ip.toLowerCase();
+    if (lower === "::1" || lower.startsWith("fc") || lower.startsWith("fd") || lower.startsWith("fe80") || lower.startsWith("::ffff:")) return true;
+    return false;
+  }
+  const parts = ip.split(".").map(Number);
+  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) return false;
+  const [a, b] = parts;
+  if (a === 10 || a === 127 || a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a >= 224) return true;
+  return false;
+}
+async function assertPublicUrl(rawUrl: string): Promise<void> {
+  const u = new URL(rawUrl);
+  if (!/^https?:$/.test(u.protocol)) throw new Error("Only http(s) URLs allowed");
+  const host = u.hostname.toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal") || host.endsWith(".local")) {
+    throw new Error("URL host is not public");
+  }
+  const a4 = await Deno.resolveDns(host, "A").catch(() => [] as string[]);
+  const a6 = await Deno.resolveDns(host, "AAAA").catch(() => [] as string[]);
+  for (const ip of [...a4, ...a6]) if (isPrivateIp(ip)) throw new Error("URL resolves to a private address");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -62,8 +97,15 @@ Deno.serve(async (req) => {
     }
     if (!provider) return json({ error: "No search provider configured" }, 400);
 
-    const apiKey = Deno.env.get(provider.api_key_secret_name || "LINKUP_API_KEY");
-    if (!apiKey) return json({ error: `Missing secret ${provider.api_key_secret_name}. Add it in project settings.` }, 400);
+    const secretName = provider.api_key_secret_name || "LINKUP_API_KEY";
+    if (!ALLOWED_SECRET_NAMES.has(secretName)) {
+      return json({ error: `Secret name '${secretName}' is not allowed. Allowed: ${[...ALLOWED_SECRET_NAMES].join(", ")}` }, 400);
+    }
+    const apiKey = Deno.env.get(secretName);
+    if (!apiKey) return json({ error: `Missing secret ${secretName}. Add it in project settings.` }, 400);
+
+    try { await assertPublicUrl(provider.endpoint_url); }
+    catch (e) { return json({ error: `Invalid endpoint_url: ${(e as Error).message}` }, 400); }
 
     const outputType = body.outputType ?? provider.default_body?.outputType ?? "sourcedAnswer";
     const rawDepth = (body.depth ?? provider.default_body?.depth ?? "standard").toString().toLowerCase();
