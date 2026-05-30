@@ -2137,8 +2137,13 @@ function SettingsTab() {
             {s.reference_web_context && (
               <div>
                 <label className="text-xs font-medium">Distilled web context (appended to every prompt)</label>
-                <Textarea rows={8} value={s.reference_web_context ?? ""} onChange={(e) => setS({ ...s, reference_web_context: e.target.value })}
-                  placeholder="Auto-generated after you click 'Enrich from websites'." />
+                <Textarea
+                  value={s.reference_web_context ?? ""}
+                  onChange={(e) => setS({ ...s, reference_web_context: e.target.value })}
+                  placeholder="Auto-generated after you click 'Enrich from websites'."
+                  className="min-h-[200px] resize-y"
+                  style={{ fieldSizing: "content" } as React.CSSProperties}
+                />
                 <p className="text-[11px] text-muted-foreground mt-1">You can edit this manually. It is injected into the Writer system prompt and used when rewriting framework prompts.</p>
               </div>
             )}
@@ -2152,8 +2157,13 @@ function SettingsTab() {
       <Card className="p-5 space-y-4">
         <div className="flex items-center gap-2"><Wand2 className="w-5 h-5 text-primary" /><h2 className="font-medium">Writer system prompt</h2></div>
         <p className="text-xs text-muted-foreground">Sets the voice for ALL 7 framework writers. The frameworks define structure; this defines persona. Leave blank for the default B2B operator voice.</p>
-        <Textarea rows={8} value={s.custom_system_prompt ?? ""} onChange={(e) => setS({ ...s, custom_system_prompt: e.target.value })}
-          placeholder="ROLE: You are a B2B LinkedIn copywriter writing in the voice of a marketing automation practitioner. Short, punchy sentences. Zero corporate filler. You sound like a real operator sharing a real insight, not a content machine." />
+        <Textarea
+          value={s.custom_system_prompt ?? ""}
+          onChange={(e) => setS({ ...s, custom_system_prompt: e.target.value })}
+          placeholder="ROLE: You are a B2B LinkedIn copywriter writing in the voice of a marketing automation practitioner. Short, punchy sentences. Zero corporate filler. You sound like a real operator sharing a real insight, not a content machine."
+          className="min-h-[200px] resize-y"
+          style={{ fieldSizing: "content" } as React.CSSProperties}
+        />
         <div>
           <label className="text-xs font-medium">Voice notes (appended to every prompt)</label>
           <Textarea rows={3} value={s.voice_notes ?? ""} onChange={(e) => setS({ ...s, voice_notes: e.target.value })} placeholder="e.g. I run a 65-domain cold email infra and build n8n + Supabase dashboards." />
@@ -2174,10 +2184,11 @@ function SettingsTab() {
           Describe the visual style you want for AI-generated post images. This is auto-prepended to every image prompt when you click <strong>Generate image</strong> on a planned post (OpenAI <code>gpt-image-1</code>).
         </p>
         <Textarea
-          rows={6}
           value={s.image_style_prompt ?? ""}
           onChange={(e) => setS({ ...s, image_style_prompt: e.target.value })}
           placeholder={"e.g. Editorial flat illustration. Muted palette of deep green (#0F6E56), cream and charcoal. Soft geometric shapes, subtle grain, generous negative space. No text, no logos. Confident, modern, B2B-friendly."}
+          className="min-h-[150px] resize-y"
+          style={{ fieldSizing: "content" } as React.CSSProperties}
         />
       </Card>
 
