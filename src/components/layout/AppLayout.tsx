@@ -74,10 +74,10 @@ const allNavItems = navGroups.flatMap(g => g.items);
 
 // Mobile bottom nav: 4 key sections + More (opens full menu)
 const mobileNavItems: NavItem[] = [
-  allNavItems.find(i => i.path === "/")!,
-  allNavItems.find(i => i.path === "/nutrition")!,
-  allNavItems.find(i => i.path === "/health")!,
-  allNavItems.find(i => i.path === "/goals")!,
+  allNavItems.find(i => i.path === "/") ?? { path: "/", icon: LayoutDashboard, label: "Dashboard" },
+  allNavItems.find(i => i.path === "/nutrition") ?? { path: "/nutrition", icon: Utensils, label: "Nutrition" },
+  allNavItems.find(i => i.path === "/health") ?? { path: "/health", icon: HeartPulse, label: "Records" },
+  allNavItems.find(i => i.path === "/goals") ?? { path: "/goals", icon: Target, label: "Goals" },
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {

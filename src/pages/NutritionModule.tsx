@@ -183,8 +183,8 @@ export default function NutritionModule() {
           <motion.div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-blue-400 to-blue-500" initial={false} animate={{ width: `${Math.min((waterMl / GOAL_ML) * 100, 100)}%` }} transition={{ type: "spring", stiffness: 300, damping: 25 }} />
           {goalReached && <motion.div className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-white/30 to-blue-400/0" animate={{ x: ["-100%", "200%"] }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }} />}
         </div>
-        <div className="flex items-end gap-5">
-          <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5">
+          <div className="flex flex-col items-center gap-2 shrink-0">
             <p className="text-[10px] text-muted-foreground font-medium">VOSS 800ml</p>
             <motion.button onClick={handleDrink} whileTap={{ scale: 0.95 }} className="relative cursor-pointer group">
               <VossBottle fillLevel={currentBottleFill} size={180} interactive />
@@ -193,7 +193,7 @@ export default function NutritionModule() {
             </motion.button>
             <div className="text-center"><p className="text-xs font-bold text-blue-400">{currentBottleMl}ml</p><p className="text-[10px] text-muted-foreground">of 800ml</p></div>
           </div>
-          <div className="flex-1 space-y-3">
+          <div className="flex-1 space-y-3 w-full">
             <div>
               <p className="text-[10px] text-muted-foreground font-medium mb-2 uppercase tracking-wider">Bottles finished</p>
               <div className="flex items-end gap-1.5 flex-wrap min-h-[52px]">

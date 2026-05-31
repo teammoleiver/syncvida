@@ -201,8 +201,8 @@ export default function Dashboard() {
 
       {/* Health Score + Fasting */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="glass-card rounded-xl p-5 flex items-center gap-5">
-          <ProgressRing progress={healthScore} size={100} strokeWidth={10} color={healthScore < 50 ? "hsl(var(--destructive))" : healthScore < 70 ? "hsl(var(--warning))" : undefined}>
+        <div className="glass-card rounded-xl p-5 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-5 text-center sm:text-left">
+          <ProgressRing progress={healthScore} size={100} strokeWidth={10} color={healthScore < 50 ? "hsl(var(--destructive))" : healthScore < 70 ? "hsl(var(--warning))" : undefined} className="shrink-0">
             <div className="text-center">
               <div className="text-2xl font-display font-bold text-foreground">{healthScore}</div>
               <div className="text-[10px] text-muted-foreground">/ 100</div>
@@ -224,8 +224,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <Link to="/fasting" className="glass-card rounded-xl p-5 flex items-center gap-5 hover:border-primary/30 transition">
-          <ProgressRing progress={fasting.progressPct} size={100} strokeWidth={10} color={fasting.state === "fasting" ? "hsl(var(--warning))" : "hsl(var(--primary))"}>
+        <Link to="/fasting" className="glass-card rounded-xl p-5 flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-5 text-center sm:text-left hover:border-primary/30 transition">
+          <ProgressRing progress={fasting.progressPct} size={100} strokeWidth={10} color={fasting.state === "fasting" ? "hsl(var(--warning))" : "hsl(var(--primary))"} className="shrink-0">
             <div className="text-center">
               <Timer className="w-5 h-5 mx-auto text-foreground mb-0.5" />
               <div className="text-[10px] text-muted-foreground">{fasting.state === "fasting" ? "16:8" : "EAT"}</div>
@@ -343,12 +343,12 @@ export default function Dashboard() {
         </div>
         <div className="space-y-3">
           {trends.map((t) => (
-            <div key={t.marker} className="flex items-center justify-between">
-              <div className="flex items-center gap-3 min-w-0">
+            <div key={t.marker} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-2.5 last:border-0 last:pb-0">
+              <div className="flex items-center gap-3 min-w-0 self-start">
                 {t.direction === "up" && t.severity === "critical" ? <TrendingUp className="w-4 h-4 text-destructive shrink-0" /> : t.direction === "down" ? <TrendingDown className="w-4 h-4 text-success shrink-0" /> : <TrendingUp className="w-4 h-4 text-warning shrink-0" />}
-                <span className="text-sm text-foreground">{t.marker}</span>
+                <span className="text-sm text-foreground font-medium">{t.marker}</span>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 self-end sm:self-auto">
                 <span className="text-xs text-muted-foreground">{t.from} → {t.to} {t.unit}</span>
                 <StatusBadge status={t.severity === "critical" ? "critical" : t.severity === "improved" ? "improved" : "borderline"} />
                 <span className={`text-xs font-medium ${t.changePct > 0 && t.severity === "critical" ? "text-destructive" : t.changePct < 0 ? "text-success" : "text-warning"}`}>

@@ -241,20 +241,20 @@ export default function EngagementFeedTab() {
   return (
     <section className="space-y-4">
       {/* Policy notice */}
-      <Card className="p-3 bg-muted/40 border-dashed text-xs text-muted-foreground flex flex-wrap items-start gap-3 justify-between">
+      <Card className="p-3 bg-muted/40 border-dashed text-xs text-muted-foreground flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-2 min-w-0">
           <MessageCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <div>
             <span className="font-medium text-foreground">LinkedIn-safe by design.</span> Comments and likes are drafted here, then opened on LinkedIn where you publish them manually in one click. LinkedIn's API does not allow third-party apps to post comments or likes on other users' posts — doing so would risk your account.
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
           {linkedin ? (
-            <Badge variant="outline" className="gap-1 border-emerald-500/40 text-emerald-600 bg-emerald-500/10">
+            <Badge variant="outline" className="gap-1 border-emerald-500/40 text-emerald-600 bg-emerald-500/10 w-full sm:w-auto justify-center">
               <ShieldCheck className="w-3 h-3" /> LinkedIn connected{linkedin.display_name ? ` · ${linkedin.display_name}` : ""}
             </Badge>
           ) : (
-            <Button size="sm" variant="outline" onClick={connectLinkedIn} disabled={connecting} className="gap-1">
+            <Button size="sm" variant="outline" onClick={connectLinkedIn} disabled={connecting} className="gap-1 w-full sm:w-auto justify-center">
               <ShieldAlert className="w-3.5 h-3.5" /> {connecting ? "Connecting…" : "Connect LinkedIn"}
             </Button>
           )}
@@ -262,21 +262,21 @@ export default function EngagementFeedTab() {
       </Card>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex gap-2 flex-wrap items-center">
-          <div className="relative">
+      <div className="flex flex-col gap-4 justify-between w-full">
+        <div className="flex flex-col sm:flex-row gap-2 w-full items-stretch sm:items-center flex-wrap">
+          <div className="relative w-full sm:w-[240px]">
             <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-muted-foreground" />
-            <Input placeholder="Search posts or authors…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 w-full sm:w-72" />
+            <Input placeholder="Search posts or authors…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 w-full" />
           </div>
           <Select value={profileFilter} onValueChange={setProfileFilter}>
-            <SelectTrigger className="w-[200px]"><SelectValue placeholder="All profiles" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="All profiles" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All profiles</SelectItem>
               {profiles.map((p) => <SelectItem key={p.id} value={p.id}>{p.display_name || p.full_name || p.username}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={listFilter} onValueChange={setListFilter}>
-            <SelectTrigger className="w-[180px]" title="Filter by profile list">
+            <SelectTrigger className="w-full sm:w-[140px]" title="Filter by profile list">
               <div className="inline-flex items-center gap-1.5"><Folder className="w-3.5 h-3.5" /><SelectValue placeholder="All lists" /></div>
             </SelectTrigger>
             <SelectContent>
@@ -286,7 +286,7 @@ export default function EngagementFeedTab() {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[130px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All status</SelectItem>
               <SelectItem value="todo">To engage</SelectItem>
@@ -296,7 +296,7 @@ export default function EngagementFeedTab() {
             </SelectContent>
           </Select>
           <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as any)}>
-            <SelectTrigger className="w-[160px]" title="Filter by post date"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[130px]" title="Filter by post date"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Any date</SelectItem>
               <SelectItem value="1">Last 24 hours</SelectItem>
@@ -305,12 +305,12 @@ export default function EngagementFeedTab() {
               <SelectItem value="90">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
-          <label className="flex items-center gap-2 text-xs text-muted-foreground border border-border rounded-md px-2.5 h-9" title="Hide posts that don't have a public LinkedIn URL — you can't open them to paste a comment anyway.">
+          <label className="flex items-center justify-between sm:justify-start gap-2 text-xs text-muted-foreground border border-border rounded-md px-2.5 h-9 w-full sm:w-auto" title="Hide posts that don't have a public LinkedIn URL">
             <Switch checked={hideNoLink} onCheckedChange={setHideNoLink} />
             <span>Only with link {noLinkCount > 0 && <span className="opacity-60">({noLinkCount} hidden)</span>}</span>
           </label>
         </div>
-        <div className="flex gap-1.5 text-[11px]">
+        <div className="flex flex-wrap gap-1.5 text-[11px] w-full justify-start sm:justify-end">
           <Pill label="Posts" value={stats.total} />
           <Pill label="Drafts" value={stats.drafts} tone="amber" />
           <Pill label="Commented" value={stats.posted} tone="emerald" />

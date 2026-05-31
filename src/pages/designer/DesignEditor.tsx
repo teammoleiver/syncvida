@@ -4,7 +4,7 @@ import {
   ArrowLeft, Save, Plus, Type, Image as ImageIcon, Square as SquareIcon, Circle as CircleIcon,
   Triangle as TriangleIcon, Trash2, Copy, ArrowUp, ArrowDown, Wand2, Download, Loader2, Sparkles,
   Undo2, Redo2, ZoomIn, ZoomOut, Maximize, Minus as LineIcon, Smile, BookmarkPlus, Layers as LayersIcon,
-  MessageSquare, Upload as UploadIcon, ChevronDown, Hash, Move, Link2,
+  MessageSquare, Upload as UploadIcon, ChevronDown, Hash, Move, Link2, Pencil, Eye,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -82,6 +82,7 @@ export default function DesignEditor() {
     return () => ro.disconnect();
   }, [design?.width, design?.height, autoFit, activeIdx]);
 
+  const [mobileTab, setMobileTab] = useState<"edit" | "preview" | "style">("edit");
   const slide = design?.slides[activeIdx];
   const selectedFirst = slide?.elements.find((e) => selectedIds.has(e.id)) ?? null;
 
@@ -335,7 +336,7 @@ export default function DesignEditor() {
     try {
       for (let i = 0; i < design.slides.length; i++) {
         setActiveIdx(i);
-        await new Promise((r) => setTimeout(r, 80));
+        await new Promise((r) => setTimeout(r, 300));
         const node = document.getElementById("design-canvas-export");
         if (!node) throw new Error("Canvas not ready");
         const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 1, skipAutoScale: true });
@@ -354,7 +355,7 @@ export default function DesignEditor() {
       const pdf = new jsPDF({ orientation: design.height >= design.width ? "p" : "l", unit: "px", format: [design.width, design.height] });
       for (let i = 0; i < design.slides.length; i++) {
         setActiveIdx(i);
-        await new Promise((r) => setTimeout(r, 100));
+        await new Promise((r) => setTimeout(r, 300));
         const node = document.getElementById("design-canvas-export");
         if (!node) throw new Error("Canvas not ready");
         const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 1, skipAutoScale: true });
@@ -372,18 +373,18 @@ export default function DesignEditor() {
   return (
     <section className="h-[calc(100vh-4rem)] flex flex-col">
       {/* Top bar */}
-      <header className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border flex-wrap">
-        <div className="flex items-center gap-2 min-w-0">
-          <Button asChild variant="ghost" size="sm"><Link to="/designer"><ArrowLeft className="w-4 h-4" /></Link></Button>
+      <header className="flex items-center justify-between gap-1.5 px-3 py-2 border-b border-border flex-wrap">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Button asChild variant="ghost" size="sm" className="h-8 w-8 p-0"><Link to="/designer"><ArrowLeft className="w-4 h-4" /></Link></Button>
           <Input value={design.title}
             onChange={(e) => setLive((d) => ({ ...d, title: e.target.value }))}
             onBlur={() => commitNow()}
-            className="max-w-xs h-8" />
+            className="w-[130px] xs:w-[170px] sm:w-auto sm:max-w-xs h-8 text-xs sm:text-sm" />
           <span className="text-xs text-muted-foreground hidden sm:inline">
             {design.width}×{design.height} · {design.platform}
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="hidden sm:flex items-center gap-1">
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={undo} title="Undo (⌘Z)"><Undo2 className="w-4 h-4" /></Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={redo} title="Redo (⌘⇧Z)"><Redo2 className="w-4 h-4" /></Button>
           <div className="w-px h-5 bg-border mx-1" />
@@ -392,10 +393,10 @@ export default function DesignEditor() {
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { setAutoFit(false); setZoom((z) => Math.min(4, z * 1.15)); }}><ZoomIn className="w-4 h-4" /></Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setAutoFit(true)} title="Fit"><Maximize className="w-4 h-4" /></Button>
         </div>
-        <div className="flex gap-1.5 flex-wrap items-center">
+        <div className="flex gap-1.5 items-center ml-auto shrink-0">
           {design.type === "carousel" && (
-            <Button variant={design.showPageNumbers ? "default" : "outline"} size="sm" onClick={togglePageNumbers} title="Auto page numbers">
-              <Hash className="w-4 h-4 mr-1" /> Page #
+            <Button variant={design.showPageNumbers ? "default" : "outline"} size="sm" onClick={togglePageNumbers} title="Auto page numbers" className="h-8 text-xs px-2 sm:px-3">
+              <Hash className="w-3.5 h-3.5 mr-1" /> <span className="hidden xs:inline">Page #</span>
             </Button>
           )}
           {(design as any).planner_entry_id && (
@@ -403,27 +404,110 @@ export default function DesignEditor() {
               href="/content-planner"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-2 py-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+              className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-2 py-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 animate-pulse"
               title="This design is linked to a planner post — saving auto-syncs to its image_url"
             >
-              <Link2 className="w-3 h-3" /> Linked to post
+              <Link2 className="w-3 h-3" /> <span className="hidden sm:inline">Linked to post</span>
             </a>
           )}
-          <Button variant="outline" size="sm" onClick={() => setResizeOpen(true)}><Move className="w-4 h-4 mr-1" /> Magic Resize</Button>
-          <Button variant="outline" size="sm" onClick={() => setTplOpen(true)}><BookmarkPlus className="w-4 h-4 mr-1" /> Save as template</Button>
-          <Button variant="outline" size="sm" onClick={exportPng} disabled={exporting}><Download className="w-4 h-4 mr-1" /> PNG</Button>
-          {design.type === "carousel" && <Button variant="outline" size="sm" onClick={exportPdf} disabled={exporting}><Download className="w-4 h-4 mr-1" /> PDF</Button>}
-          <Button size="sm" onClick={save} disabled={saving}>
-            {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
-            {(design as any).planner_entry_id ? "Save & sync" : "Save"}
-          </Button>
+
+          {/* Desktop Actions Row */}
+          <div className="hidden sm:flex items-center gap-1.5">
+            <Button variant="outline" size="sm" onClick={() => setResizeOpen(true)}><Move className="w-4 h-4 mr-1" /> Magic Resize</Button>
+            <Button variant="outline" size="sm" onClick={() => setTplOpen(true)}><BookmarkPlus className="w-4 h-4 mr-1" /> Save as template</Button>
+            <Button variant="outline" size="sm" onClick={exportPng} disabled={exporting}><Download className="w-4 h-4 mr-1" /> PNG</Button>
+            {design.type === "carousel" && <Button variant="outline" size="sm" onClick={exportPdf} disabled={exporting}><Download className="w-4 h-4 mr-1" /> PDF</Button>}
+            <Button size="sm" onClick={save} disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+              {(design as any).planner_entry_id ? "Save & sync" : "Save"}
+            </Button>
+          </div>
+
+          {/* Mobile Actions Dropdown */}
+          <div className="flex sm:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="bg-primary text-primary-foreground font-semibold flex items-center gap-1 h-8">
+                  {(exporting || saving) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                  <span>Actions</span>
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52 bg-background border border-border">
+                <DropdownMenuItem onClick={save} disabled={saving} className="flex items-center gap-2 cursor-pointer text-xs p-2">
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" /> : <Save className="w-3.5 h-3.5 shrink-0" />}
+                  <span>{(design as any).planner_entry_id ? "Save & sync" : "Save design"}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportPng} disabled={exporting} className="flex items-center gap-2 cursor-pointer text-xs p-2">
+                  <Download className="w-3.5 h-3.5 shrink-0" />
+                  <span>Export PNG</span>
+                </DropdownMenuItem>
+                {design.type === "carousel" && (
+                  <DropdownMenuItem onClick={exportPdf} disabled={exporting} className="flex items-center gap-2 cursor-pointer text-xs p-2 text-emerald-400 font-semibold focus:text-emerald-300">
+                    <Download className="w-3.5 h-3.5 shrink-0" />
+                    <span>Export PDF</span>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => setResizeOpen(true)} className="flex items-center gap-2 cursor-pointer text-xs p-2">
+                  <Move className="w-3.5 h-3.5 shrink-0" />
+                  <span>Magic Resize</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTplOpen(true)} className="flex items-center gap-2 cursor-pointer text-xs p-2">
+                  <BookmarkPlus className="w-3.5 h-3.5 shrink-0" />
+                  <span>Save as template</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
 
+      {/* Mobile view tabs switcher */}
+      <div className="flex lg:hidden border-b border-border bg-background p-1 gap-1 shrink-0 justify-around">
+        <button
+          type="button"
+          onClick={() => setMobileTab("edit")}
+          className={`flex-1 py-2 text-xs font-semibold rounded-md flex items-center justify-center gap-1.5 transition-all ${
+            mobileTab === "edit"
+              ? "bg-primary/10 text-primary border border-primary/20"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Wand2 className="w-3.5 h-3.5" />
+          Inspect & Layers
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("preview")}
+          className={`flex-1 py-2 text-xs font-semibold rounded-md flex items-center justify-center gap-1.5 transition-all ${
+            mobileTab === "preview"
+              ? "bg-primary/10 text-primary border border-primary/20"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Eye className="w-3.5 h-3.5" />
+          Visual Canvas
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("style")}
+          className={`flex-1 py-2 text-xs font-semibold rounded-md flex items-center justify-center gap-1.5 transition-all ${
+            mobileTab === "style"
+              ? "bg-primary/10 text-primary border border-primary/20"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Add Elements
+        </button>
+      </div>
+
       {/* Main grid — stacks on mobile so the canvas isn't squeezed by side rails. */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[60px_1fr_340px] min-h-0">
+      <div className="flex-1 flex flex-col min-h-0 lg:grid lg:grid-cols-[60px_1fr_340px]">
         {/* Left toolbar — horizontal strip on mobile, vertical rail on lg+ */}
-        <div className="border-b lg:border-b-0 lg:border-r border-border p-2 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-y-auto shrink-0">
+        <div className={`border-b lg:border-b-0 lg:border-r border-border p-2 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-y-auto shrink-0 ${
+          mobileTab === "style" ? "flex" : "hidden lg:flex"
+        }`}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="aspect-square rounded-md hover:bg-muted flex flex-col items-center justify-center text-[10px] gap-1 text-muted-foreground hover:text-foreground">
@@ -451,7 +535,9 @@ export default function DesignEditor() {
         </div>
 
         {/* Stage */}
-        <div ref={stageRef} className="overflow-auto bg-muted/30 p-2 sm:p-4 flex flex-col items-center gap-3 min-w-0 min-h-[45vh] lg:min-h-0 relative">
+        <div ref={stageRef} className={`overflow-auto bg-muted/30 p-2 sm:p-4 flex flex-col items-center gap-3 min-w-0 flex-1 min-h-0 lg:min-h-0 relative ${
+          mobileTab === "preview" ? "flex" : "hidden lg:flex"
+        }`}>
           <AlignToolbar slide={slide} selectedIds={[...selectedIds]}
             onApply={(s) => patchSlide(() => s)} />
           <div className="flex-1 flex items-center justify-center min-h-0">
@@ -491,7 +577,9 @@ export default function DesignEditor() {
         </div>
 
         {/* Right tabs — bottom drawer on mobile, side panel on lg+ */}
-        <div className="border-t lg:border-t-0 lg:border-l border-border flex flex-col min-h-0 max-h-[55vh] lg:max-h-none">
+        <div className={`border-t lg:border-t-0 lg:border-l border-border flex flex-col flex-1 min-h-0 lg:max-h-none ${
+          mobileTab === "edit" ? "flex" : "hidden lg:flex"
+        }`}>
           <Tabs value={rightTab} onValueChange={(v) => setRightTab(v as any)} className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid grid-cols-3 m-2">
               <TabsTrigger value="inspect"><Wand2 className="w-3.5 h-3.5 mr-1" />Inspect</TabsTrigger>

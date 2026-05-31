@@ -216,39 +216,39 @@ export default function BodyMetrics() {
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Body Metrics</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {realEntries.length > 0 && bodyView === "main" && (
-            <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground flex items-center gap-1">
+            <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground flex items-center gap-1 w-full sm:w-auto justify-center sm:justify-start">
               <Calendar className="w-3 h-3" /> Last: {realEntries[realEntries.length - 1].date}
             </span>
           )}
           {bodyView !== "main" ? (
             <button
               onClick={() => setBodyView("main")}
-              className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground font-medium transition"
+              className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground font-medium transition w-full sm:w-auto"
             >
               Back
             </button>
           ) : (
-            <>
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               <button
                 onClick={() => setBodyView("history")}
-                className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground font-medium transition"
+                className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground font-medium transition flex-1 sm:flex-none text-center justify-center"
               >
                 Weigh-ins
               </button>
               <button
                 onClick={() => setBodyView("profile")}
-                className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground font-medium transition flex items-center gap-1"
+                className="text-xs px-3 py-1.5 rounded-lg bg-secondary text-muted-foreground hover:text-foreground font-medium transition flex items-center justify-center gap-1 flex-1 sm:flex-none"
               >
                 <Edit3 className="w-3 h-3" /> Edit Goals
               </button>
-              <button onClick={() => setModalOpen(true)} className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary-dark transition flex items-center gap-1">
+              <button onClick={() => setModalOpen(true)} className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary-dark transition flex items-center justify-center gap-1 w-full sm:w-auto">
                 <Scale className="w-3.5 h-3.5" /> Log Weight
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -521,7 +521,7 @@ export default function BodyMetrics() {
       {/* Body Composition */}
       <div className="glass-card rounded-xl p-5">
         <h3 className="font-display font-semibold text-foreground mb-3">Body Composition (EGYM Jan 2026)</h3>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {bodyCompData.map((item) => (
             <div key={item.label} className="p-3 bg-secondary/50 rounded-lg">
               <div className="text-xs text-muted-foreground">{item.label}</div>

@@ -42,11 +42,11 @@ export default function FastingModule() {
       if (schedule) {
         const days: number[] = [];
         if (schedule.fast_day_1) {
-          const d = new Date(schedule.fast_day_1);
+          const d = new Date(schedule.fast_day_1 + "T12:00:00");
           days.push(d.getDay() === 0 ? 6 : d.getDay() - 1);
         }
         if (schedule.fast_day_2) {
-          const d = new Date(schedule.fast_day_2);
+          const d = new Date(schedule.fast_day_2 + "T12:00:00");
           days.push(d.getDay() === 0 ? 6 : d.getDay() - 1);
         }
         setFastDays(days);
@@ -81,9 +81,13 @@ export default function FastingModule() {
     // Persist
     const weekStart = getWeekStartDate();
     const getDate = (idx: number) => {
-      const ws = new Date(weekStart);
+      const [y, m, d] = weekStart.split("-").map(Number);
+      const ws = new Date(y, m - 1, d);
       ws.setDate(ws.getDate() + idx);
-      return ws.toISOString().split("T")[0];
+      const year = ws.getFullYear();
+      const month = String(ws.getMonth() + 1).padStart(2, "0");
+      const date = String(ws.getDate()).padStart(2, "0");
+      return `${year}-${month}-${date}`;
     };
     await upsertFasting52Schedule({
       week_start_date: weekStart,
@@ -179,7 +183,8 @@ export default function FastingModule() {
                   return (
                     <button key={day} onClick={() => toggleDay(i)} disabled={isBlocked && fastDays.length < 2}
                       className={`p-2 rounded-lg text-center text-xs font-medium transition ${selected ? "bg-fast-day text-fast-day-foreground" : isBlocked ? "bg-muted/50 text-muted-foreground/40 cursor-not-allowed" : "bg-secondary text-foreground hover:bg-accent"}`}>
-                      {day}
+                      <span className="block sm:hidden text-[10px]">{day[0]}</span>
+                      <span className="hidden sm:block">{day}</span>
                       {selected && <Check className="w-3 h-3 mx-auto mt-0.5" />}
                     </button>
                   );

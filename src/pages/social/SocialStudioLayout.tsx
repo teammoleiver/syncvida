@@ -21,14 +21,14 @@ export default function SocialStudioLayout() {
         </div>
       </header>
 
-      <nav className="border-b border-border flex flex-wrap gap-1">
+      <nav className="border-b border-border flex gap-1 overflow-x-auto whitespace-nowrap scrollbar-none pb-0.5">
         {tabs.map((t) => (
           <NavLink
             key={t.to}
             to={t.to}
             end={t.end}
             className={({ isActive }) =>
-              `flex items-center gap-2 px-3 py-2 text-sm border-b-2 transition-colors -mb-px ${
+              `flex items-center gap-2 px-3 py-2 text-sm border-b-2 transition-colors -mb-px whitespace-nowrap shrink-0 ${
                 isActive ? "border-primary text-foreground font-medium" : "border-transparent text-muted-foreground hover:text-foreground"
               }`
             }

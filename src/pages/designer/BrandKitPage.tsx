@@ -85,9 +85,9 @@ export default function BrandKitPage() {
         <div><Label>Brand name</Label><Input value={kit.brand_name ?? ""} onChange={(e) => setKit({ ...kit, brand_name: e.target.value })} /></div>
         <div className="space-y-2">
           <Label>Website</Label>
-          <div className="flex gap-2">
-            <Input value={kit.website_url ?? ""} placeholder="https://yoursite.com" onChange={(e) => setKit({ ...kit, website_url: e.target.value })} />
-            <Button onClick={extract} disabled={extracting} variant="outline">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input value={kit.website_url ?? ""} placeholder="https://yoursite.com" onChange={(e) => setKit({ ...kit, website_url: e.target.value })} className="flex-1" />
+            <Button onClick={extract} disabled={extracting} variant="outline" className="w-full sm:w-auto shrink-0">
               {extracting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
               Match my website
             </Button>
@@ -133,7 +133,7 @@ export default function BrandKitPage() {
 
       <Card className="p-5 space-y-3">
         <Label>Logos & avatar</Label>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {([
             ["logo_light", "Logo (light bg)"],
             ["logo_dark", "Logo (dark bg)"],

@@ -94,7 +94,8 @@ function FeedsTab() {
 
       {loading ? <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div> :
         feeds.length === 0 ? <Card className="p-8 text-center text-muted-foreground">No feeds yet. Add an RSS feed URL to start pulling news.</Card> :
-        <div className="border border-border rounded-lg overflow-x-auto">
+        <>
+        <div className="border border-border rounded-lg overflow-x-auto hidden md:block">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase">
               <tr>
@@ -141,6 +142,35 @@ function FeedsTab() {
             </tbody>
           </table>
         </div>
+        <div className="grid grid-cols-1 gap-3 md:hidden">
+          {feeds.map((f) => (
+            <Card key={f.id} className="p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-foreground text-sm">{f.label || "—"}</span>
+                <Switch checked={f.active} onCheckedChange={async (v) => { await updateRssFeed(f.id, { active: v }); load(); }} />
+              </div>
+              <div className="text-xs text-muted-foreground break-all">
+                URL: <a href={f.feed_url} target="_blank" rel="noreferrer" className="text-primary underline inline-flex items-center gap-1">{f.feed_url} <ArrowUpRight className="w-3 h-3" /></a>
+              </div>
+              <div className="flex justify-between items-center text-xs text-muted-foreground pt-1">
+                <span>Cadence: <span className="font-medium">{f.cadence}</span></span>
+                <span>Articles: <span className="font-medium">{f.articles_count ?? 0}</span></span>
+              </div>
+              <div className="flex justify-between items-center border-t border-border/50 pt-2 mt-2">
+                <span className="text-[10px] text-muted-foreground">Last: {f.last_fetched_at ? new Date(f.last_fetched_at).toLocaleDateString() : "—"}</span>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" onClick={() => fetchOne(f.id)} disabled={busyId === f.id}>
+                    {busyId === f.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={async () => { if (confirm("Delete feed and its articles?")) { await deleteRssFeed(f.id); load(); } }}>
+                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+        </>
       }
     </section>
   );

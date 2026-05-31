@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, Download, Plus, Trash2, ChevronLeft as PrevIcon, ChevronRight as NextIcon, Loader2, Link2, Image as ImageIcon, Sparkles, Check, LayoutGrid, Layers, Square as SquareIcon, Palette } from "lucide-react";
+import { ChevronLeft, Download, Plus, Trash2, ChevronLeft as PrevIcon, ChevronRight as NextIcon, Loader2, Link2, Image as ImageIcon, Sparkles, Check, LayoutGrid, Layers, Square as SquareIcon, Palette, Pencil, Eye } from "lucide-react";
 import EditorActions from "@/components/designer/EditorActions";
 import { toast } from "sonner";
 import {
@@ -55,6 +55,7 @@ export default function LinkedInTemplatesPage() {
   const [title, setTitle] = useState<string>("");
   const [designId, setDesignId] = useState<string | null>(designIdFromUrl);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [mobileTab, setMobileTab] = useState<"edit" | "preview" | "style">("edit");
   const [exporting, setExporting] = useState(false);
   const [savingToAssets, setSavingToAssets] = useState(false);
   const [planMeta, setPlanMeta] = useState<{ id: string; hook?: string; body?: string } | null>(null);
@@ -459,30 +460,30 @@ export default function LinkedInTemplatesPage() {
   return (
     <section className="h-[calc(100vh-4rem)] flex flex-col">
       {/* Top header — same shell as the canvas DesignEditor */}
-      <header className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border flex-wrap">
-        <div className="flex items-center gap-2 min-w-0">
-          <Button asChild variant="ghost" size="sm">
+      <header className="flex items-center justify-between gap-1.5 px-3 py-2 border-b border-border flex-wrap">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Button asChild variant="ghost" size="sm" className="h-8 w-8 p-0">
             <Link to="/designer"><ChevronLeft className="w-4 h-4" /></Link>
           </Button>
           <Input
             value={title}
             onChange={(e) => editTitle(e.target.value)}
             placeholder={designId ? "Untitled template" : "New LinkedIn template"}
-            className="max-w-xs h-8"
+            className="w-[130px] xs:w-[170px] sm:w-auto sm:max-w-xs h-8 text-xs sm:text-sm"
           />
           <span className="text-xs text-muted-foreground hidden sm:inline">
             {dims.w}×{dims.h} · linkedin
           </span>
           <SaveStatusBadge status={saveStatus} />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="hidden sm:flex items-center gap-1">
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setZoom((z) => Math.max(0.1, z * 0.85))} title="Zoom out">−</Button>
           <span className="text-xs w-12 text-center">{Math.round(zoom * 100)}%</span>
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setZoom((z) => Math.min(2, z * 1.15))} title="Zoom in">+</Button>
         </div>
-        <div className="flex gap-1.5 flex-wrap items-center">
-          <Button size="sm" variant="outline" onClick={() => setStylePickerOpen(true)} className="h-8">
-            <Palette className="w-3.5 h-3.5 mr-1" /> Style
+        <div className="flex gap-1.5 items-center ml-auto shrink-0">
+          <Button size="sm" variant="outline" onClick={() => setStylePickerOpen(true)} className="h-8 text-xs px-2">
+            <Palette className="w-3.5 h-3.5 mr-1" /> <span className="hidden xs:inline">Style</span>
           </Button>
           {planMeta && (
             <a
@@ -492,7 +493,7 @@ export default function LinkedInTemplatesPage() {
               className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-medium px-2 py-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
               title={`Linked to: ${planMeta.hook}`}
             >
-              <Link2 className="w-3 h-3" /> Linked to post
+              <Link2 className="w-3 h-3" /> <span className="hidden sm:inline">Linked to post</span>
             </a>
           )}
           <EditorActions
@@ -552,67 +553,125 @@ export default function LinkedInTemplatesPage() {
         </div>
       )}
 
-      {/* Main grid: left preset sidebar | center preview | right form panel.
-          On <lg the right form panel stacks under the preview as a bottom
-          drawer so the editor doesn't collide with the side nav on mobile. */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[64px_1fr_360px] min-h-0">
+      {/* Mobile view tabs switcher */}
+      <div className="flex lg:hidden border-b border-border bg-background p-1 gap-1 shrink-0 justify-around">
+        <button
+          type="button"
+          onClick={() => setMobileTab("edit")}
+          className={`flex-1 py-2 text-xs font-semibold rounded-md flex items-center justify-center gap-1.5 transition-all ${
+            mobileTab === "edit"
+              ? "bg-primary/10 text-primary border border-primary/20"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          Edit Content
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("preview")}
+          className={`flex-1 py-2 text-xs font-semibold rounded-md flex items-center justify-center gap-1.5 transition-all ${
+            mobileTab === "preview"
+              ? "bg-primary/10 text-primary border border-primary/20"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Eye className="w-3.5 h-3.5" />
+          Live Canvas
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("style")}
+          className={`flex-1 py-2 text-xs font-semibold rounded-md flex items-center justify-center gap-1.5 transition-all ${
+            mobileTab === "style"
+              ? "bg-primary/10 text-primary border border-primary/20"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Palette className="w-3.5 h-3.5" />
+          Style & Layers
+        </button>
+      </div>
+
+      {/* Main grid: left preset sidebar | center preview | right form panel */}
+      <div className="flex-1 flex flex-col min-h-0 lg:grid lg:grid-cols-[64px_1fr_360px]">
         {/* Left: preset selector — horizontal on mobile, vertical on lg */}
-        <div className="border-b lg:border-b-0 lg:border-r border-border p-2 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-y-auto">
+        <div className={`border-b lg:border-b-0 lg:border-r border-border p-2 flex lg:flex-col gap-1 overflow-x-auto lg:overflow-y-auto shrink-0 ${
+          mobileTab === "edit" ? "flex" : "hidden lg:flex"
+        }`}>
           <PresetTile active={active === "cheatsheet"} onClick={() => editActive("cheatsheet")} icon={<LayoutGrid className="w-4 h-4" />} label="Sheet" />
           <PresetTile active={active === "carousel"} onClick={() => editActive("carousel")} icon={<Layers className="w-4 h-4" />} label="Slides" />
           <PresetTile active={active === "square"} onClick={() => editActive("square")} icon={<SquareIcon className="w-4 h-4" />} label="Square" />
         </div>
 
         {/* Center: live preview */}
-        <div className="overflow-auto bg-muted/30 flex items-start justify-center p-4 sm:p-6 lg:p-8 min-h-[40vh]">
-          <div style={{ transform: `scale(${zoom})`, transformOrigin: "top center" }}>
-            {active === "cheatsheet" && (
-              <CheatSheetCanvas
-                data={cheatData}
-                editableOverlays
-                selectedOverlayId={selectedOverlayId}
-                onSelectOverlay={setSelectedOverlayId}
-                onChangeOverlays={(next) => editCheatData({ ...cheatData, overlays: next })}
-                zoom={zoom}
-              />
-            )}
-            {active === "carousel" && (
-              <CarouselCanvas
-                data={carouselData}
-                slideIndex={slideIdx}
-                editableOverlays
-                selectedOverlayId={selectedOverlayId}
-                onSelectOverlay={setSelectedOverlayId}
-                onChangeOverlays={(next) => editCarouselData({ ...carouselData, overlays: { ...(carouselData.overlays ?? {}), [slideIdx]: next } })}
-                zoom={zoom}
-              />
-            )}
-            {active === "square" && (
-              <SquareCanvas
-                data={squareData}
-                editableOverlays
-                selectedOverlayId={selectedOverlayId}
-                onSelectOverlay={setSelectedOverlayId}
-                onChangeOverlays={(next) => editSquareData({ ...squareData, overlays: next })}
-                zoom={zoom}
-              />
-            )}
+        <div className={`overflow-auto bg-muted/30 flex items-start justify-center p-4 sm:p-6 lg:p-8 flex-1 min-h-0 ${
+          mobileTab === "preview" ? "flex" : "hidden lg:flex"
+        }`}>
+          <div style={{ width: dims.w * zoom, height: dims.h * zoom, position: "relative" }} className="shrink-0">
+            <div style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: "top left",
+              width: dims.w,
+              height: dims.h,
+              position: "absolute",
+              top: 0,
+              left: 0
+            }}>
+              {active === "cheatsheet" && (
+                <CheatSheetCanvas
+                  data={cheatData}
+                  editableOverlays
+                  selectedOverlayId={selectedOverlayId}
+                  onSelectOverlay={setSelectedOverlayId}
+                  onChangeOverlays={(next) => editCheatData({ ...cheatData, overlays: next })}
+                  zoom={zoom}
+                />
+              )}
+              {active === "carousel" && (
+                <CarouselCanvas
+                  data={carouselData}
+                  slideIndex={slideIdx}
+                  editableOverlays
+                  selectedOverlayId={selectedOverlayId}
+                  onSelectOverlay={setSelectedOverlayId}
+                  onChangeOverlays={(next) => editCarouselData({ ...carouselData, overlays: { ...(carouselData.overlays ?? {}), [slideIdx]: next } })}
+                  zoom={zoom}
+                />
+              )}
+              {active === "square" && (
+                <SquareCanvas
+                  data={squareData}
+                  editableOverlays
+                  selectedOverlayId={selectedOverlayId}
+                  onSelectOverlay={setSelectedOverlayId}
+                  onChangeOverlays={(next) => editSquareData({ ...squareData, overlays: next })}
+                  zoom={zoom}
+                />
+              )}
+            </div>
           </div>
         </div>
 
         {/* Right: form fields + elements layer for the active preset */}
-        <div className="border-t lg:border-t-0 lg:border-l border-border overflow-auto p-3 sm:p-4 space-y-3 max-h-[60vh] lg:max-h-none">
-          <ElementsPanel
-            overlays={getOverlays()}
-            selectedId={selectedOverlayId}
-            onSelect={setSelectedOverlayId}
-            onAddImage={() => setAssetPickerOpen(true)}
-            onAddText={addTextOverlay}
-            onAddShape={addShapeOverlay}
-            onUpdate={updateSelectedOverlay}
-            onDelete={deleteSelectedOverlay}
-          />
-          <div className="border-t border-border pt-3">
+        <div className={`border-t lg:border-t-0 lg:border-l border-border overflow-auto p-3 sm:p-4 space-y-3 flex-1 min-h-0 lg:max-h-none ${
+          mobileTab === "edit" || mobileTab === "style" ? "block" : "hidden lg:block"
+        }`}>
+          <div className={mobileTab === "style" ? "block" : "hidden lg:block"}>
+            <ElementsPanel
+              overlays={getOverlays()}
+              selectedId={selectedOverlayId}
+              onSelect={setSelectedOverlayId}
+              onAddImage={() => setAssetPickerOpen(true)}
+              onAddText={addTextOverlay}
+              onAddShape={addShapeOverlay}
+              onUpdate={updateSelectedOverlay}
+              onDelete={deleteSelectedOverlay}
+            />
+          </div>
+          <div className={`border-t border-border pt-3 ${
+            mobileTab === "edit" ? "block" : "hidden lg:block"
+          }`}>
             {active === "cheatsheet" && (
               <>
                 {(planMeta?.hook || planMeta?.body || params.get("hook") || params.get("body")) && (

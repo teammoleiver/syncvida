@@ -3,7 +3,14 @@ import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { emitSync } from "./sync-events";
 
 // ── Helpers ──
-const today = () => new Date().toISOString().split("T")[0];
+const today = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const date = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${date}`;
+};
+
 
 const startOfMonth = () => {
   const d = new Date();

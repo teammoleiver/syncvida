@@ -341,7 +341,7 @@ export default function SleepModule() {
   // Countdown timer – updates every 30s
   // -----------------------------------------------------------------------
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30000);
+    const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -623,7 +623,7 @@ export default function SleepModule() {
         </div>
 
         {sleepView === "main" && (
-          <div className="flex items-center gap-8 mt-6">
+          <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 mt-6">
             <ProgressRing progress={sleepScore} size={140} strokeWidth={10} color={scoreColor}>
               <div className="text-center">
                 <span className="text-3xl font-bold text-foreground">{sleepScore}</span>
@@ -631,7 +631,7 @@ export default function SleepModule() {
               </div>
             </ProgressRing>
 
-            <div className="flex-1 grid grid-cols-3 gap-4">
+            <div className="flex-1 grid grid-cols-3 gap-2 sm:gap-4 w-full">
               <div className="text-center">
                 <p className="text-2xl font-bold text-foreground">{avgHours}h</p>
                 <p className="text-xs text-muted-foreground">Avg Hours</p>
@@ -971,7 +971,7 @@ export default function SleepModule() {
         animate="visible"
       >
         <h2 className="text-lg font-semibold text-foreground mb-4">Key Sleep Facts</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {WALKER_FACTS.map((fact, idx) => (
             <div key={idx} className="glass-card p-4">
               <p className="text-3xl font-bold text-primary mb-1">{fact.stat}</p>
@@ -1133,7 +1133,7 @@ export default function SleepModule() {
                 </div>
 
                 {/* Checkboxes */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
                     { label: "Late eating", value: formLateEating, setter: setFormLateEating },
                     { label: "Screen before bed", value: formScreen, setter: setFormScreen },

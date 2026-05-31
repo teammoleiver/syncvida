@@ -147,27 +147,27 @@ export default function SearchPage() {
           />
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">Output type</Label>
-            <div className="grid grid-cols-3 gap-2 mt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
               {OUTPUT_TYPES.map((o) => (
                 <button key={o.id} type="button" onClick={() => setOutputType(o.id)}
-                  className={`text-left rounded-lg border p-2 text-xs transition-colors ${outputType === o.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
-                  <div className="font-medium">{o.label}</div>
-                  <div className="text-muted-foreground">{o.desc}</div>
+                  className={`text-left rounded-lg border p-2.5 text-xs transition-colors ${outputType === o.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
+                  <div className="font-medium text-foreground">{o.label}</div>
+                  <div className="text-muted-foreground text-[10px] mt-0.5">{o.desc}</div>
                 </button>
               ))}
             </div>
           </div>
           <div>
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">Search depth</Label>
-            <div className="grid grid-cols-3 gap-2 mt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
               {DEPTHS.map((o) => (
                 <button key={o.id} type="button" onClick={() => setDepth(o.id)}
-                  className={`text-left rounded-lg border p-2 text-xs transition-colors ${depth === o.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
-                  <div className="font-medium">{o.label}</div>
-                  <div className="text-muted-foreground">{o.desc}</div>
+                  className={`text-left rounded-lg border p-2.5 text-xs transition-colors ${depth === o.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"}`}>
+                  <div className="font-medium text-foreground">{o.label}</div>
+                  <div className="text-muted-foreground text-[10px] mt-0.5">{o.desc}</div>
                 </button>
               ))}
             </div>
@@ -189,14 +189,14 @@ export default function SearchPage() {
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 justify-between">
-          <div className="text-xs text-muted-foreground">⌘ + Enter to search</div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={runOptimize} disabled={optimizing || !query.trim()}>
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between pt-1">
+          <div className="text-xs text-muted-foreground text-center sm:text-left order-2 sm:order-1">⌘ + Enter to search</div>
+          <div className="flex gap-2 w-full sm:w-auto order-1 sm:order-2">
+            <Button variant="outline" onClick={runOptimize} disabled={optimizing || !query.trim()} className="flex-1 sm:flex-initial">
               {optimizing ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Sparkles className="w-4 h-4 mr-1" />}
               Optimize prompt
             </Button>
-            <Button onClick={() => runSearch()} disabled={running || !query.trim()}>
+            <Button onClick={() => runSearch()} disabled={running || !query.trim()} className="flex-1 sm:flex-initial">
               {running ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
               Search
             </Button>

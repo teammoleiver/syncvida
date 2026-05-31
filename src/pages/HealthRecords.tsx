@@ -111,20 +111,22 @@ function TestDateCard({ test, allTests, isExpanded, onToggle }: {
 
   return (
     <div className="glass-card rounded-xl overflow-hidden">
-      <button onClick={onToggle} className="w-full p-4 flex items-center justify-between hover:bg-accent/50 transition">
-        <div className="flex items-center gap-3">
-          <Calendar className="w-5 h-5 text-primary" />
-          <div className="text-left">
-            <p className="font-display font-semibold text-foreground">
+      <button onClick={onToggle} className="w-full p-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between hover:bg-accent/50 transition">
+        <div className="flex items-center gap-3 text-left">
+          <Calendar className="w-5 h-5 text-primary shrink-0" />
+          <div>
+            <p className="font-display font-semibold text-foreground text-sm sm:text-base">
               {new Date(test.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
             </p>
             <p className="text-xs text-muted-foreground">{test.source}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {alertCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">{alertCount} alert{alertCount > 1 ? "s" : ""}</span>}
-          {test.bmi ? <span className="text-xs text-muted-foreground">BMI {test.bmi} · {test.weightKg}kg</span> : null}
-          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto border-t border-border/40 pt-3 sm:pt-0 sm:border-t-0">
+          <div className="flex items-center gap-2">
+            {alertCount > 0 && <span className="text-[10px] sm:text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">{alertCount} alert{alertCount > 1 ? "s" : ""}</span>}
+            {test.bmi ? <span className="text-xs text-muted-foreground">BMI {test.bmi} · {test.weightKg}kg</span> : null}
+          </div>
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`} />
         </div>
       </button>
       {isExpanded && (
@@ -149,7 +151,7 @@ function TestDateCard({ test, allTests, isExpanded, onToggle }: {
                       <span className="text-xs text-muted-foreground">{marker.unit}</span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-xs text-muted-foreground">
                     <span>Ref: {marker.referenceMin ?? "—"} – {marker.referenceMax ?? "—"} {marker.unit}</span>
                     {delta && (
                       <span className={`flex items-center gap-1 font-medium ${delta.pct > 20 ? "text-destructive" : delta.pct < -10 ? "text-success" : "text-muted-foreground"}`}>
@@ -193,12 +195,12 @@ function ReportCard({ record, onApply, onDecline, onDelete, onViewDetails, isExp
       className={`glass-card rounded-xl overflow-hidden ${record.applied ? "border-l-4 border-l-primary" : "border-l-4 border-l-warning"}`}
     >
       {/* Header */}
-      <button onClick={onToggle} className="w-full p-4 flex items-center justify-between hover:bg-accent/50 transition">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${record.applied ? "bg-primary/10" : "bg-warning/10"}`}>
+      <button onClick={onToggle} className="w-full p-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between hover:bg-accent/50 transition">
+        <div className="flex items-center gap-3 text-left">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${record.applied ? "bg-primary/10" : "bg-warning/10"}`}>
             <Brain className={`w-5 h-5 ${record.applied ? "text-primary" : "text-warning"}`} />
           </div>
-          <div className="text-left">
+          <div>
             <p className="font-display font-semibold text-foreground text-sm">
               {new Date(record.test_date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
             </p>
@@ -208,18 +210,20 @@ function ReportCard({ record, onApply, onDecline, onDelete, onViewDetails, isExp
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {record.applied ? (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center gap-1">
-              <Check className="w-3 h-3" /> Applied
-            </span>
-          ) : (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/20 flex items-center gap-1">
-              <Clock className="w-3 h-3" /> Pending
-            </span>
-          )}
-          <span className="text-xs text-muted-foreground">{markers.length} markers</span>
-          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto border-t border-border/40 pt-3 sm:pt-0 sm:border-t-0">
+          <div className="flex items-center gap-2">
+            {record.applied ? (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center gap-1">
+                <Check className="w-3 h-3" /> Applied
+              </span>
+            ) : (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/20 flex items-center gap-1">
+                <Clock className="w-3 h-3" /> Pending
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground">{markers.length} markers</span>
+          </div>
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`} />
         </div>
       </button>
 
@@ -302,18 +306,18 @@ function ReportCard({ record, onApply, onDecline, onDelete, onViewDetails, isExp
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-2 pt-2 border-t border-border">
+              <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
                 {!record.applied ? (
                   <>
                     <button
                       onClick={onApply}
-                      className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition flex items-center justify-center gap-2"
+                      className="w-full sm:flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition flex items-center justify-center gap-2"
                     >
                       <Check className="w-4 h-4" /> Apply to System
                     </button>
                     <button
                       onClick={onDelete}
-                      className="py-2 px-4 rounded-lg bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 transition flex items-center justify-center gap-2"
+                      className="w-full sm:w-auto py-2 px-4 rounded-lg bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 transition flex items-center justify-center gap-2"
                     >
                       <Trash2 className="w-4 h-4" /> Discard
                     </button>
@@ -322,13 +326,13 @@ function ReportCard({ record, onApply, onDecline, onDelete, onViewDetails, isExp
                   <>
                     <button
                       onClick={onDecline}
-                      className="flex-1 py-2 rounded-lg bg-warning/10 text-warning text-sm font-medium hover:bg-warning/20 transition flex items-center justify-center gap-2"
+                      className="w-full sm:flex-1 py-2 rounded-lg bg-warning/10 text-warning text-sm font-medium hover:bg-warning/20 transition flex items-center justify-center gap-2"
                     >
                       <XCircle className="w-4 h-4" /> Remove from System
                     </button>
                     <button
                       onClick={onDelete}
-                      className="py-2 px-4 rounded-lg bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 transition flex items-center justify-center gap-2"
+                      className="w-full sm:w-auto py-2 px-4 rounded-lg bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 transition flex items-center justify-center gap-2"
                     >
                       <Trash2 className="w-4 h-4" /> Delete
                     </button>
@@ -475,9 +479,9 @@ export default function HealthRecords() {
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Health Records</h1>
-        <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition">
+        <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition w-full sm:w-auto">
           <FileText className="w-4 h-4" /> Upload PDF
         </button>
         <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleFileSelect} />

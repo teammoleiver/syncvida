@@ -292,14 +292,15 @@ export default function YouTubePage() {
       {/* Add channel */}
       <Card className="p-4">
         <label className="text-xs font-medium text-muted-foreground">Add a YouTube channel</label>
-        <div className="flex gap-2 mt-2">
+        <div className="flex flex-col sm:flex-row gap-2 mt-2">
           <Input
             value={newUrl}
             onChange={(e) => setNewUrl(e.target.value)}
             placeholder="https://www.youtube.com/@ericnowoslawski   or   @handle   or   UC… channel id"
             onKeyDown={(e) => { if (e.key === "Enter") void add(); }}
+            className="flex-1"
           />
-          <Button onClick={add} disabled={adding || !newUrl.trim()}>
+          <Button onClick={add} disabled={adding || !newUrl.trim()} className="w-full sm:w-auto shrink-0 shadow-sm">
             {adding ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
             Add
           </Button>

@@ -244,7 +244,7 @@ export default function ContentStudioPage() {
       </Card>
 
       {/* Category chips */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex gap-2 overflow-x-auto whitespace-nowrap scrollbar-none pb-1.5 md:pb-0 md:flex-wrap md:overflow-x-visible">
         <CatChip label={`All (${items.length})`} active={!activeCat} onClick={() => setActiveCat(null)} />
         {cats.map((c) => (
           <CatChip key={c.id} label={`${c.name} (${items.filter((i) => i.category_id === c.id).length})`} active={activeCat === c.id} onClick={() => setActiveCat(c.id)} />
@@ -290,9 +290,9 @@ export default function ContentStudioPage() {
         )}
       </div>
 
-      {/* Table */}
+      {/* Table / Cards */}
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -348,6 +348,108 @@ export default function ContentStudioPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="block md:hidden p-4 space-y-4">
+          {loading && <div className="p-6 text-center text-muted-foreground">Loading…</div>}
+          {!loading && pageItems.length === 0 && (
+            <div className="p-8 text-center text-muted-foreground">
+              {items.length === 0 ? "Empty library — click 'Seed starter library' to import 557 lessons from your catalog." : "No items match these filters."}
+            </div>
+          )}
+          {pageItems.map((it) => (
+            <div key={it.id} className="p-4 rounded-xl border border-border bg-card/60 hover:bg-card transition-colors space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(it.id)}
+                    onChange={() => toggleSelect(it.id)}
+                    className="mt-1 shrink-0 cursor-pointer"
+                  />
+                  <div className="min-w-0">
+                    <h4 className="font-semibold text-foreground leading-snug break-words">
+                      {it.title}
+                    </h4>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {it.origin === "ai" && <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-primary/10 text-primary hover:bg-primary/20 border-transparent">brainstorm</Badge>}
+                      {it.origin === "web_search" && <Badge variant="secondary" className="text-[9px] px-1 py-0">web</Badge>}
+                      {it.level && <Badge variant="outline" className="text-[9px] px-1 py-0">{it.level}</Badge>}
+                      {it.duration && <Badge variant="outline" className="text-[9px] px-1 py-0">{it.duration}</Badge>}
+                    </div>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-xs shrink-0 select-none bg-muted/40">{it.status}</Badge>
+              </div>
+
+              {it.key_topics && (
+                <p className="text-xs text-muted-foreground line-clamp-3 bg-muted/20 p-2 rounded">
+                  {it.key_topics}
+                </p>
+              )}
+
+              {it.creator && (
+                <div className="text-xs text-muted-foreground">
+                  by <span className="font-medium text-foreground">{it.creator}</span>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60 text-xs">
+                <div className="text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                  {it.category_name && (
+                    <span className="font-medium text-foreground bg-primary/5 px-2 py-0.5 rounded text-[11px]">
+                      {it.category_name}
+                    </span>
+                  )}
+                  {it.target_platforms && it.target_platforms.length > 0 && (
+                    <span className="text-[11px]">
+                      on {it.target_platforms.join(", ")}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1">
+                  {it.source_url && (
+                    <a
+                      href={it.source_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="p-1.5 hover:text-primary rounded-md hover:bg-muted"
+                      title="Open"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )}
+                  <button
+                    className="p-1.5 hover:text-primary rounded-md hover:bg-muted"
+                    onClick={() => setPlanning(it)}
+                    title="Send to Content Planner"
+                  >
+                    <Calendar className="w-4 h-4" />
+                  </button>
+                  <button
+                    className="p-1.5 hover:text-primary rounded-md hover:bg-muted"
+                    onClick={() => setEditing(it)}
+                    title="Edit"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    className="p-1.5 hover:text-destructive rounded-md hover:bg-muted"
+                    onClick={async () => {
+                      if (confirm("Delete this item?")) {
+                        await deleteContentItem(it.id);
+                        refresh();
+                      }
+                    }}
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
         {filtered.length > 0 && (
           <div className="flex items-center justify-between gap-2 p-3 border-t border-border bg-muted/20 text-xs">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon, Share2, CalendarClock } from "lucide-react";
+import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, ChevronDown, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon, Share2, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Clock, Check } from "lucide-react";
@@ -185,8 +186,8 @@ export default function ContentPlannerPage() {
       </div>
 
       {loading ? <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div> :
-        view === "month" ? <MonthView cursor={cursor} grouped={grouped} onPick={(d) => setCreatingFor(d)} onOpen={(e) => setEditing(e)} />
-        : view === "week" ? <WeekView cursor={cursor} grouped={grouped} onPick={(d) => setCreatingFor(d)} onOpen={(e) => setEditing(e)} />
+        view === "month" ? <MonthView cursor={cursor} grouped={grouped} onPick={(d) => setCreatingFor(d)} onOpen={(e) => setEditing(e)} onSelectDay={setCursor} />
+        : view === "week" ? <WeekView cursor={cursor} grouped={grouped} onPick={(d) => setCreatingFor(d)} onOpen={(e) => setEditing(e)} onSelectDay={setCursor} />
         : view === "day" ? <DayView cursor={cursor} grouped={grouped} onPick={(d) => setCreatingFor(d)} onOpen={(e) => setEditing(e)} />
         : <ListView entries={entries} onOpen={(e) => setEditing(e)} onDeleted={load} />}
 
@@ -236,60 +237,223 @@ function EntryChip({ e, onClick }: { e: any; onClick: () => void }) {
   );
 }
 
-function MonthView({ cursor, grouped, onPick, onOpen }: { cursor: Date; grouped: Record<string, any[]>; onPick: (d: string) => void; onOpen: (e: any) => void }) {
+function MonthView({ cursor, grouped, onPick, onOpen, onSelectDay }: { cursor: Date; grouped: Record<string, any[]>; onPick: (d: string) => void; onOpen: (e: any) => void; onSelectDay?: (d: Date) => void }) {
   const first = startOfMonth(cursor);
   const start = startOfWeek(first);
   const today = ymd(new Date());
   const days: Date[] = Array.from({ length: 42 }, (_, i) => addDays(start, i));
   return (
-    <Card className="overflow-hidden">
-      <div className="grid grid-cols-7 bg-muted/40 text-[11px] uppercase text-muted-foreground">
-        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => <div key={d} className="p-2 text-center">{d}</div>)}
-      </div>
-      <div className="grid grid-cols-7 auto-rows-[minmax(110px,1fr)]">
-        {days.map((d) => {
-          const k = ymd(d);
-          const inMonth = d.getMonth() === cursor.getMonth();
-          const items = grouped[k] ?? [];
-          const hasReview = items.some(isReviewSourced);
-          return (
-            <div key={k} className={`border-t border-r border-border p-1.5 flex flex-col gap-1 ${inMonth ? "" : "bg-muted/20 text-muted-foreground"} ${hasReview ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""}`}>
-              <div className="flex items-center justify-between">
-                <span className={`text-[11px] ${k === today ? "bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center font-bold" : hasReview ? "text-primary font-semibold" : ""}`}>{d.getDate()}</span>
-                <button onClick={() => onPick(k)} className="opacity-0 hover:opacity-100 group-hover:opacity-100 text-muted-foreground hover:text-primary"><Plus className="w-3 h-3" /></button>
+    <div className="space-y-4">
+      {/* Desktop Calendar View */}
+      <Card className="overflow-hidden hidden md:block">
+        <div className="grid grid-cols-7 bg-muted/40 text-[11px] uppercase text-muted-foreground">
+          {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => <div key={d} className="p-2 text-center">{d}</div>)}
+        </div>
+        <div className="grid grid-cols-7 auto-rows-[minmax(110px,1fr)]">
+          {days.map((d) => {
+            const k = ymd(d);
+            const inMonth = d.getMonth() === cursor.getMonth();
+            const items = grouped[k] ?? [];
+            const hasReview = items.some(isReviewSourced);
+            return (
+              <div key={k} className={`border-t border-r border-border p-1.5 flex flex-col gap-1 ${inMonth ? "" : "bg-muted/20 text-muted-foreground"} ${hasReview ? "bg-primary/5 ring-1 ring-inset ring-primary/20" : ""}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[11px] ${k === today ? "bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center font-bold" : hasReview ? "text-primary font-semibold" : ""}`}>{d.getDate()}</span>
+                  <button onClick={() => onPick(k)} className="opacity-0 hover:opacity-100 group-hover:opacity-100 text-muted-foreground hover:text-primary"><Plus className="w-3 h-3" /></button>
+                </div>
+                <div className="space-y-1 overflow-hidden">
+                  {items.slice(0, 3).map((e) => <EntryChip key={e.id} e={e} onClick={() => onOpen(e)} />)}
+                  {items.length > 3 && <div className="text-[10px] text-muted-foreground">+{items.length - 3} more</div>}
+                </div>
               </div>
-              <div className="space-y-1 overflow-hidden">
-                {items.slice(0, 3).map((e) => <EntryChip key={e.id} e={e} onClick={() => onOpen(e)} />)}
-                {items.length > 3 && <div className="text-[10px] text-muted-foreground">+{items.length - 3} more</div>}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* Mobile Interactive Calendar View ("the Google Calendar way") */}
+      <div className="block md:hidden space-y-4">
+        <Card className="p-3 bg-card border border-border rounded-xl">
+          {/* Calendar Grid Header */}
+          <div className="grid grid-cols-7 text-center text-xs font-semibold text-muted-foreground mb-1">
+            {["S", "M", "T", "W", "T", "F", "S"].map((d, idx) => (
+              <div key={idx} className="p-1">{d}</div>
+            ))}
+          </div>
+          {/* Calendar Grid Body */}
+          <div className="grid grid-cols-7 gap-1">
+            {days.map((d) => {
+              const k = ymd(d);
+              const isToday = k === today;
+              const isSelected = k === ymd(cursor);
+              const inMonth = d.getMonth() === cursor.getMonth();
+              const items = grouped[k] ?? [];
+              const hasItems = items.length > 0;
+              return (
+                <button
+                  type="button"
+                  key={k}
+                  onClick={() => {
+                    onSelectDay?.(d);
+                  }}
+                  className={`aspect-square flex flex-col items-center justify-center rounded-lg relative text-xs transition-all ${
+                    !inMonth ? "text-muted-foreground/30" : "text-foreground"
+                  } ${
+                    isSelected
+                      ? "bg-primary text-primary-foreground font-bold"
+                      : isToday
+                      ? "bg-primary/10 text-primary border border-primary/20"
+                      : "hover:bg-muted/40"
+                  }`}
+                >
+                  <span>{d.getDate()}</span>
+                  {hasItems && !isSelected && (
+                    <span className={`w-1 h-1 rounded-full absolute bottom-1.5 ${isToday ? "bg-primary" : "bg-primary/80"}`} />
+                  )}
+                  {hasItems && isSelected && (
+                    <span className="w-1 h-1 rounded-full absolute bottom-1.5 bg-primary-foreground" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Selected Day Agenda Header */}
+        <div className="flex items-center justify-between px-1">
+          <h3 className="font-semibold text-sm text-foreground">
+            {cursor.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+          </h3>
+          <Button size="sm" variant="ghost" onClick={() => onPick(ymd(cursor))} className="h-7 text-xs text-primary font-medium px-2">
+            <Plus className="w-3.5 h-3.5 mr-1" /> New Post
+          </Button>
+        </div>
+
+        {/* Selected Day Agenda Items */}
+        <div className="space-y-2">
+          {(() => {
+            const k = ymd(cursor);
+            const items = grouped[k] ?? [];
+            if (items.length === 0) {
+              return (
+                <Card className="p-6 text-center text-xs text-muted-foreground bg-muted/10 border-dashed">
+                  No posts scheduled for this day.
+                </Card>
+              );
+            }
+            return items.map((e) => {
+              const posted = e?.status === "posted";
+              return (
+                <Card key={e.id} onClick={() => onOpen(e)} className={`p-3 hover:border-primary/40 transition-colors cursor-pointer ${posted ? "opacity-60 bg-muted/20" : ""}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1 flex-wrap">
+                        <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${statusColor(e.status)}`}>{e.status}</Badge>
+                        {e.scheduled_date && <span>📅 {e.scheduled_date}{e.scheduled_time ? ` · ${e.scheduled_time.slice(0,5)}` : ""}</span>}
+                        {(e.platforms ?? []).map((p: string) => {
+                          const Ic = PLATFORM_ICONS[p];
+                          return Ic ? <Ic key={p} className="w-3 h-3" /> : null;
+                        })}
+                      </div>
+                      <div className={`font-semibold text-xs text-foreground truncate ${posted ? "line-through" : ""}`}>{e.hook}</div>
+                      {e.body && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1 truncate">{e.body}</p>}
+                    </div>
+                    {e.image_url && <img src={e.image_url} alt="" className="w-10 h-10 object-cover rounded shrink-0 bg-muted" />}
+                  </div>
+                </Card>
+              );
+            });
+          })()}
+        </div>
       </div>
-    </Card>
+    </div>
   );
 }
 
-function WeekView({ cursor, grouped, onPick, onOpen }: any) {
+function WeekView({ cursor, grouped, onPick, onOpen, onSelectDay }: any) {
   const start = startOfWeek(cursor);
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const today = ymd(new Date());
   return (
-    <div className="grid grid-cols-7 gap-2">
-      {days.map((d) => {
-        const k = ymd(d);
-        const items = grouped[k] ?? [];
-        return (
-          <Card key={k} className="p-2 min-h-[200px]">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-medium">{d.toLocaleDateString(undefined, { weekday: "short", day: "numeric" })}</div>
-              <button onClick={() => onPick(k)} className="text-muted-foreground hover:text-primary"><Plus className="w-3 h-3" /></button>
-            </div>
-            <div className="space-y-1">
-              {items.map((e: any) => <EntryChip key={e.id} e={e} onClick={() => onOpen(e)} />)}
-            </div>
-          </Card>
-        );
-      })}
+    <div className="space-y-3">
+      {/* Desktop Weekly Grid */}
+      <div className="hidden md:grid grid-cols-7 gap-2">
+        {days.map((d) => {
+          const k = ymd(d);
+          const items = grouped[k] ?? [];
+          return (
+            <Card key={k} className="p-2 min-h-[200px]">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs font-medium">{d.toLocaleDateString(undefined, { weekday: "short", day: "numeric" })}</div>
+                <button onClick={() => onPick(k)} className="text-muted-foreground hover:text-primary"><Plus className="w-3 h-3" /></button>
+              </div>
+              <div className="space-y-1">
+                {items.map((e: any) => <EntryChip key={e.id} e={e} onClick={() => onOpen(e)} />)}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Mobile Weekly Stacks ("the Google Calendar way") */}
+      <div className="block md:hidden space-y-3">
+        {days.map((d) => {
+          const k = ymd(d);
+          const items = grouped[k] ?? [];
+          const isToday = k === today;
+          const isSelected = k === ymd(cursor);
+          return (
+            <Card key={k} className={`p-3 transition-colors ${isSelected ? "border-primary bg-primary/5" : ""}`}>
+              <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-border/40">
+                <button
+                  type="button"
+                  onClick={() => onSelectDay?.(d)}
+                  className="flex items-center gap-2 text-left"
+                >
+                  <span className={`text-xs font-semibold ${isToday ? "text-primary" : "text-foreground"}`}>
+                    {d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}
+                  </span>
+                  {isToday && <Badge className="text-[9px] px-1 py-0 bg-primary/10 text-primary border-transparent">Today</Badge>}
+                </button>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onPick(k)}>
+                  <Plus className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+
+              {items.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground italic pl-1">No posts planned</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {items.map((e: any) => {
+                    const posted = e?.status === "posted";
+                    return (
+                      <button
+                        key={e.id}
+                        onClick={() => onOpen(e)}
+                        className={`w-full text-left p-2 rounded-lg border text-xs ${statusColor(e.status)} hover:opacity-90 ${posted ? "opacity-60" : ""} transition-all`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-medium shrink-0">{e.scheduled_time?.slice(0, 5) ?? "no time"}</span>
+                            <span className="opacity-40 shrink-0">|</span>
+                            <span className={`truncate font-semibold ${posted ? "line-through" : ""}`}>{e.hook}</span>
+                          </div>
+                          <div className="flex gap-1 items-center shrink-0">
+                            {(e.platforms ?? []).slice(0, 2).map((p: string) => {
+                              const Ic = PLATFORM_ICONS[p];
+                              return Ic ? <Ic key={p} className="w-3 h-3 text-muted-foreground/80" /> : null;
+                            })}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -718,7 +882,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="p-0 flex flex-col gap-0 w-screen max-w-none h-[100dvh] max-h-[100dvh] rounded-none border-0 sm:w-[95vw] sm:max-w-6xl sm:h-auto sm:max-h-[92vh] sm:rounded-lg sm:border overflow-hidden">
+      <DialogContent className="p-0 flex flex-col gap-0 w-screen max-w-none h-[100dvh] max-h-[100dvh] rounded-none border-0 sm:w-[95vw] sm:max-w-6xl sm:h-auto sm:max-h-[92vh] sm:rounded-lg sm:border overflow-y-auto">
         <DialogHeader className="px-4 sm:px-6 pt-5 pb-3 border-b border-border shrink-0">
           <DialogTitle>{isNew ? "New post" : "Edit post"}</DialogTitle>
         </DialogHeader>
@@ -892,55 +1056,51 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
           />
         </aside>
         </div>
-        <DialogFooter className="flex-wrap gap-2 px-4 sm:px-6 py-3 border-t border-border bg-background shrink-0">
-          {!isNew && <Button variant="ghost" onClick={remove} className="text-destructive"><Trash2 className="w-4 h-4 mr-1" /> Delete</Button>}
+        <DialogFooter className="flex-wrap gap-2 px-4 sm:px-6 py-3 border-t border-border bg-background shrink-0 flex items-center justify-between sm:justify-end">
+          {!isNew && <Button variant="ghost" onClick={remove} className="text-destructive"><Trash2 className="w-4 h-4 sm:mr-1" /> <span className="hidden sm:inline">Delete</span></Button>}
           <div className="flex-1" />
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          {!isNew && <Button variant="outline" onClick={sendNow} disabled={busy}>
-            <Send className="w-4 h-4 mr-1" /> Webhook send
-          </Button>}
-          {!isNew && linkedinConn && (form.platforms ?? []).includes("linkedin") && (
-            <Button
-              onClick={postToLinkedInNow}
-              disabled={postingToLinkedIn || busy}
-              style={{ background: "#1877F2", color: "#fff" }}
-              title={`Post directly to LinkedIn as ${linkedinConn.display_name ?? "you"}`}>
-              {postingToLinkedIn
-                ? <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                : <Linkedin className="w-4 h-4 mr-1" />}
-              Post to LinkedIn
-            </Button>
-          )}
-          {!isNew && metaConn && (form.platforms ?? []).includes("facebook") && (
-            <Button
-              onClick={postToFacebookNow}
-              disabled={postingToFacebook || busy}
-              style={{ background: "#1877F2", color: "#fff" }}
-              title="Post directly to your Facebook Page">
-              {postingToFacebook
-                ? <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                : <Facebook className="w-4 h-4 mr-1" />}
-              Post to Facebook
-            </Button>
-          )}
-          {!isNew && metaConn && (form.platforms ?? []).includes("instagram") && (
-            <Button
-              onClick={postToInstagramNow}
-              disabled={postingToInstagram || busy || !form.image_url}
-              style={{ background: "#d62976", color: "#fff" }}
-              title={form.image_url ? "Post directly to your Instagram Business account" : "Add an image first — Instagram requires it"}>
-              {postingToInstagram
-                ? <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                : <Instagram className="w-4 h-4 mr-1" />}
-              Post to Instagram
-            </Button>
-          )}
-          <Button variant="outline" onClick={scheduleNow} disabled={busy}
-            className="border-blue-500/40 text-blue-300 hover:bg-blue-500/10"
-            title="Save and queue this post to fire at the chosen date/time">
-            <CalendarClock className="w-4 h-4 mr-1" /> Schedule
-          </Button>
-          <Button onClick={() => save()} disabled={busy}>{busy && <Loader2 className="w-4 h-4 mr-1 animate-spin" />} Save</Button>
+          <div className="flex flex-wrap gap-1.5 items-center justify-end">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            
+            {!isNew && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">Publishing Actions <ChevronDown className="w-4 h-4 ml-1" /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={sendNow} disabled={busy} className="gap-2 cursor-pointer">
+                    <Send className="w-4 h-4" /> Webhook send
+                  </DropdownMenuItem>
+                  {linkedinConn && (form.platforms ?? []).includes("linkedin") && (
+                    <DropdownMenuItem onClick={postToLinkedInNow} disabled={postingToLinkedIn || busy} className="gap-2 cursor-pointer">
+                      <Linkedin className="w-4 h-4" /> Post to LinkedIn
+                    </DropdownMenuItem>
+                  )}
+                  {metaConn && (form.platforms ?? []).includes("facebook") && (
+                    <DropdownMenuItem onClick={postToFacebookNow} disabled={postingToFacebook || busy} className="gap-2 cursor-pointer">
+                      <Facebook className="w-4 h-4" /> Post to Facebook
+                    </DropdownMenuItem>
+                  )}
+                  {metaConn && (form.platforms ?? []).includes("instagram") && (
+                    <DropdownMenuItem onClick={postToInstagramNow} disabled={postingToInstagram || busy || !form.image_url} className="gap-2 cursor-pointer">
+                      <Instagram className="w-4 h-4" /> Post to Instagram
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={scheduleNow} disabled={busy} className="gap-2 cursor-pointer">
+                    <CalendarClock className="w-4 h-4" /> Schedule
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            
+            {isNew && (
+              <Button variant="outline" onClick={scheduleNow} disabled={busy} className="border-blue-500/40 text-blue-300">
+                <CalendarClock className="w-4 h-4 mr-1" /> Schedule
+              </Button>
+            )}
+
+            <Button onClick={() => save()} disabled={busy}>{busy && <Loader2 className="w-4 h-4 mr-1 animate-spin" />} Save</Button>
+          </div>
         </DialogFooter>
 
         {canvaConn && entry?.id && (
