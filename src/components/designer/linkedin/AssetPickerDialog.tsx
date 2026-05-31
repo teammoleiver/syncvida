@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Image as ImageIcon, Search, X, Check, ArrowLeft, Pencil, RefreshCw, Layers } from "lucide-react";
+import { Loader2, Image as ImageIcon, Search, X, Check, ArrowLeft, Pencil, RefreshCw, Layers, User } from "lucide-react";
 import { toast } from "sonner";
-import { listAssets, uploadAssetWithProgress, type DesignAsset } from "@/lib/designer-queries";
+import { listAssets, uploadAssetWithProgress, renameAsset, type DesignAsset } from "@/lib/designer-queries";
 import { BUILTIN_ASSETS } from "@/lib/builtin-assets";
 import { removeWhiteBackground } from "@/lib/designer-utils";
 
@@ -234,11 +234,15 @@ function LogoDetailPanel({
 }
 
 export default function AssetPickerDialog({
-  open, onClose, onPick, defaultAspect = "1:1", canvasSize,
+  open, onClose, onPick, onUsePhoto, photoMode = false, defaultAspect = "1:1", canvasSize,
 }: {
   open: boolean;
   onClose: () => void;
   onPick: (a: DesignAsset & { _idealW?: number; _idealH?: number; removeBg?: boolean; originalSrc?: string }) => void;
+  /** When provided, My Uploads tiles offer "Use as photo" (sets the design's face). */
+  onUsePhoto?: (a: DesignAsset) => void;
+  /** When true, the dialog opened to choose a face photo — picking sets the photo. */
+  photoMode?: boolean;
   defaultAspect?: AspectKey;
   canvasSize?: CanvasSize;
 }) {
@@ -250,7 +254,22 @@ export default function AssetPickerDialog({
   const [sectorLogos, setSectorLogos] = useState<any[]>([]);
   const [loadingLogos, setLoadingLogos] = useState(false);
   const [selectedLogo, setSelectedLogo] = useState<any | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  async function saveRename(a: DesignAsset) {
+    const name = editName.trim();
+    setEditingId(null);
+    if (!name || name === a.name) return;
+    try {
+      await renameAsset(a.id, name);
+      setAssets((prev) => prev.map((x) => (x.id === a.id ? { ...x, name } : x)));
+      toast.success("Renamed");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Rename failed");
+    }
+  }
 
   // Upload flow state
   const [stage, setStage] = useState<Stage>("browse");
@@ -397,7 +416,7 @@ export default function AssetPickerDialog({
               <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => setStage("browse")}><ArrowLeft className="w-4 h-4" /></Button>
             )}
             <h3 className="font-semibold truncate">
-              {stage === "browse" && "Pick an asset"}
+              {stage === "browse" && (photoMode ? "Choose your profile photo" : "Pick an asset")}
               {stage === "crop" && "Crop photo"}
               {stage === "caption" && "Add a caption"}
               {stage === "uploading" && "Uploading…"}
@@ -425,6 +444,14 @@ export default function AssetPickerDialog({
                 {t === "charts" && "Data & Charts"}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Photo-mode hint */}
+        {stage === "browse" && photoMode && (
+          <div className="px-3 sm:px-4 py-2 bg-primary/5 border-b border-border text-[11px] text-muted-foreground flex items-center gap-1.5">
+            <User className="w-3.5 h-3.5 text-primary shrink-0" />
+            Pick a photo to use as your <strong className="text-foreground">cover &amp; footer headshot</strong>. Upload a new one if you don't see it.
           </div>
         )}
 
@@ -481,15 +508,57 @@ export default function AssetPickerDialog({
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                     {filtered.map((a) => (
-                      <button key={a.id} onClick={() => pickUpload(a)} className="group text-left rounded-md border border-border overflow-hidden hover:border-primary transition">
-                        <div className="aspect-square bg-muted/30">
-                          <img src={a.public_url} alt={a.name ?? ""} className="w-full h-full object-cover" loading="lazy" />
-                        </div>
+                      <div key={a.id} className="group relative text-left rounded-md border border-border overflow-hidden hover:border-primary transition">
+                        <button
+                          onClick={() => (photoMode && onUsePhoto ? onUsePhoto(a) : pickUpload(a))}
+                          className="block w-full"
+                          title={photoMode ? "Use as profile photo" : "Add to slide"}
+                        >
+                          <div className="aspect-square bg-muted/30">
+                            <img src={a.public_url} alt={a.name ?? ""} className="w-full h-full object-cover" loading="lazy" />
+                          </div>
+                        </button>
+                        {onUsePhoto && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onUsePhoto(a); }}
+                            title="Use as cover / profile photo"
+                            className="absolute top-1 right-1 h-6 px-2 rounded-full bg-black/70 hover:bg-black/85 text-white text-[10px] font-medium flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"
+                          >
+                            <User className="w-3 h-3" /> Use as photo
+                          </button>
+                        )}
                         <div className="p-1.5">
-                          <div className="text-xs font-medium truncate">{a.name || a.storage_path.split("/").pop()}</div>
+                          {editingId === a.id ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                autoFocus
+                                className="h-6 text-xs"
+                                onKeyDown={(e) => { if (e.key === "Enter") saveRename(a); if (e.key === "Escape") setEditingId(null); }}
+                                onBlur={() => saveRename(a)}
+                              />
+                              <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onMouseDown={(e) => e.preventDefault()} onClick={() => saveRename(a)}>
+                                <Check className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs font-medium truncate flex-1">{a.name || a.storage_path.split("/").pop()}</span>
+                              <button
+                                type="button"
+                                title="Rename"
+                                onClick={(e) => { e.stopPropagation(); setEditingId(a.id); setEditName(a.name ?? ""); }}
+                                className="opacity-0 group-hover:opacity-100 transition shrink-0"
+                              >
+                                <Pencil className="w-3 h-3 text-muted-foreground" />
+                              </button>
+                            </div>
+                          )}
                           <div className="text-[10px] text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</div>
                         </div>
-                      </button>
+                      </div>
                     ))}
                   </div>
                 )

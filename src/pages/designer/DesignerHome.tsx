@@ -30,7 +30,6 @@ export default function DesignerHome() {
           <p className="text-sm text-muted-foreground">Generate, edit and export branded social posts and carousels.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button asChild><Link to="/designer/linkedin-templates"><Sparkles className="w-4 h-4 mr-1" /> LinkedIn Templates</Link></Button>
           <Button asChild variant="outline"><Link to="/designer/brand"><PaletteIcon className="w-4 h-4 mr-1" /> Brand kit</Link></Button>
           <Button asChild variant="outline"><Link to="/designer/assets"><ImageIcon className="w-4 h-4 mr-1" /> Assets</Link></Button>
         </div>

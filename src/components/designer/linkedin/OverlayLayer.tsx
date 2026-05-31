@@ -65,13 +65,10 @@ export default function OverlayLayer({
   }
 
   return (
-    <div
-      style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: editable ? "auto" : "none" }}
-      onMouseDown={(e) => {
-        if (!editable) return;
-        if (e.target === e.currentTarget) onSelect?.(null);
-      }}
-    >
+    // The root never captures pointer events — only the individual overlay
+    // items do. This lets clicks fall through empty space to underlying canvas
+    // content (e.g. the face-photo avatar, which opens the asset picker).
+    <div style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: "none" }}>
       {safeOverlays.map((o) => {
         const selected = o.id === selectedId;
         const baseStyle: React.CSSProperties = {
@@ -84,6 +81,7 @@ export default function OverlayLayer({
           outline: selected ? "2px solid #4FA8E8" : "none",
           outlineOffset: 2,
           userSelect: "none",
+          pointerEvents: editable ? "auto" : "none",
         };
         const inner = renderOverlayBody(o);
         return (

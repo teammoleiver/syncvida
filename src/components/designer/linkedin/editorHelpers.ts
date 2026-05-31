@@ -1,6 +1,142 @@
 import { toPng } from "html-to-image";
 import type { CheatSheetData, CarouselData, SquareData, CarouselSlide, SheetSection, AccentKey } from "./LinkedInCanvas";
 import { supabase } from "@/integrations/supabase/client";
+import { LINKEDIN_DESIGN_SYSTEM, countWords, slideWordCount, sanitizeCarouselFilename } from "@/lib/linkedin-design-system";
+
+/** Closing-slide bell CTA — required alongside the follow CTA (AB-tested). */
+const BELL_CTA = "🔔 Turn on the bell so you never miss a post";
+
+/**
+ * Strip slide-reference markers a writer may leave in the copy — "[S2]",
+ * "[Slide 3]", "(slide 4)", "P2:" — so they don't become garbage slide titles.
+ */
+function stripSlideMarkers(s: string): string {
+  return (s || "")
+    .replace(/\[\s*(?:s|slide|p|page)\s*\d+\s*\]/gi, " ")
+    .replace(/\(\s*(?:slide|page)\s*\d+\s*\)/gi, " ")
+    .replace(/^\s*(?:slide|page)\s*\d+\s*[:.\-—]\s*/gim, " ")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+/** Count words that are actual content (letters/digits), ignoring punctuation. */
+function contentWordCount(s: string): number {
+  return (s || "").replace(/[^a-z0-9]+/gi, " ").trim().split(/\s+/).filter(Boolean).length;
+}
+
+/** Clamp text to a maximum word count, adding an ellipsis when trimmed. */
+function clampWords(text: string | undefined, max: number): string {
+  const words = (text || "").trim().split(/\s+/).filter(Boolean);
+  if (words.length <= max) return (text || "").trim();
+  return words.slice(0, Math.max(0, max)).join(" ").replace(/[\s,;:.\-—]+$/, "") + "…";
+}
+
+/**
+ * Enforce the ≤50-words-per-slide rule [ALGORITHM] by trimming a slide's
+ * content fields in priority order (body → bullets → comparison items →
+ * title) until it fits. Mutates the slide in place.
+ */
+function trimSlideToWordLimit(s: CarouselSlide, max = LINKEDIN_DESIGN_SYSTEM.carousel.maxWordsPerSlide): void {
+  if (s.body && slideWordCount(s) > max) {
+    const others = slideWordCount({ ...s, body: "" });
+    s.body = clampWords(s.body, Math.max(0, max - others));
+  }
+  if (s.bullets?.length) {
+    s.bullets = s.bullets.slice(0, 4).map((b) => clampWords(b, 9));
+    while (s.bullets.length > 2 && slideWordCount(s) > max) s.bullets.pop();
+  }
+  if (s.leftItems?.length || s.rightItems?.length) {
+    s.leftItems = (s.leftItems ?? []).slice(0, 3).map((x) => clampWords(x, 7));
+    s.rightItems = (s.rightItems ?? []).slice(0, 3).map((x) => clampWords(x, 7));
+  }
+  if (slideWordCount(s) > max && s.title) {
+    const others = slideWordCount(s) - countWords(s.title);
+    s.title = clampWords(s.title, Math.max(6, max - others));
+  }
+}
+
+/** Split one dense slide into two (bullets in half, or sentences in half). */
+function splitSlide(s: CarouselSlide): [CarouselSlide, CarouselSlide] | null {
+  if ((s.layout || "text") === "bullets" && (s.bullets?.length ?? 0) >= 4) {
+    const mid = Math.ceil(s.bullets!.length / 2);
+    return [
+      { ...s, bullets: s.bullets!.slice(0, mid) },
+      { ...s, title: `${s.title} — continued`.slice(0, 70), bullets: s.bullets!.slice(mid) },
+    ];
+  }
+  const sents = `${s.title ?? ""}. ${s.body ?? ""}`
+    .split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
+  if (sents.length < 2) return null;
+  const mid = Math.ceil(sents.length / 2);
+  const a = sents.slice(0, mid), b = sents.slice(mid);
+  return [
+    { ...s, layout: "text", bullets: undefined, title: clampWords(a[0], 12), body: a.slice(1).join(" ") },
+    { ...s, layout: "text", bullets: undefined, title: clampWords(b[0], 12), body: b.slice(1).join(" ") },
+  ];
+}
+
+/**
+ * Deterministically fix the design-system [REQUIRED] failures on a carousel:
+ * ensure a cover first, a closing CTA last with both follow + bell CTAs, trim
+ * any >50-word slide, and top up to the 8-slide minimum by splitting dense
+ * slides. Returns the repaired deck plus a human list of what changed.
+ */
+export function autoFixCarousel(data: CarouselData): { data: CarouselData; fixes: string[] } {
+  const fixes: string[] = [];
+  const slides: CarouselSlide[] = (data.slides ?? []).map((s) => ({ ...s }));
+  const author = data.author || "me";
+
+  // 1. Cover must be first.
+  if (slides[0] && slides[0].layout !== "cover") {
+    slides[0] = { ...slides[0], layout: "cover" };
+    fixes.push("Set slide 1 as the cover");
+  }
+
+  // 2. Closing CTA last, with both follow + bell.
+  const last = slides[slides.length - 1];
+  if (!last || last.layout !== "cta") {
+    slides.push({
+      layout: "cta", eyebrow: "Let's talk", title: "What would you add?",
+      ctaPrompt: "What would you add?", ctaAction: `Follow ${author} for more\n${BELL_CTA}`,
+      quoteAuthor: author, closer: "Follow + connect", accent: "indigo",
+    });
+    fixes.push("Added a closing CTA slide");
+  } else {
+    const t = `${last.ctaAction ?? ""}`.toLowerCase();
+    if (!/follow/.test(t) || !/bell|notif/.test(t)) {
+      const follow = /follow/.test(t) ? last.ctaAction!.split("\n")[0] : `Follow ${author} for more`;
+      slides[slides.length - 1] = { ...last, ctaAction: `${follow}\n${BELL_CTA}` };
+      fixes.push("Added the ‘Turn on the bell’ CTA");
+    }
+  }
+
+  // 3. Trim any over-length body slide.
+  let trimmed = 0;
+  slides.forEach((s, i) => {
+    if (i === 0 || s.layout === "cta") return;
+    if (slideWordCount(s) > LINKEDIN_DESIGN_SYSTEM.carousel.maxWordsPerSlide) { trimSlideToWordLimit(s); trimmed++; }
+  });
+  if (trimmed) fixes.push(`Trimmed ${trimmed} slide${trimmed === 1 ? "" : "s"} to ≤ 50 words`);
+
+  // 4. Top up to the minimum slide count by splitting the wordiest body slide.
+  const min = LINKEDIN_DESIGN_SYSTEM.carousel.minSlides;
+  let added = 0, guard = 0;
+  while (slides.length < min && guard++ < 24) {
+    const candidates = slides
+      .map((s, i) => ({ s, i }))
+      .filter(({ s, i }) => i !== 0 && s.layout !== "cta")
+      .sort((a, b) => slideWordCount(b.s) - slideWordCount(a.s));
+    const target = candidates[0];
+    if (!target) break;
+    const split = splitSlide(target.s);
+    if (!split) break;
+    slides.splice(target.i, 1, split[0], split[1]);
+    added++;
+  }
+  if (added) fixes.push(`Split ${added} dense slide${added === 1 ? "" : "s"} to reach the ${min}-slide minimum`);
+
+  return { data: { ...data, slides: slides.slice(0, LINKEDIN_DESIGN_SYSTEM.carousel.maxSlides) }, fixes };
+}
 
 /**
  * Render the live #canvas-export node as PNG and trigger a download.
@@ -130,8 +266,11 @@ export async function saveCarouselAsPdf(
   const blob = pdf.output("blob");
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
-  const filename = `${baseName.replace(/[^a-z0-9-]/gi, "-")}-${Date.now()}.pdf`;
-  const storage_path = `${user.id}/${filename}`;
+  // Public-facing name is clean & descriptive (no timestamp / v# / "final" /
+  // "draft") — it's visible to every LinkedIn viewer. The storage path stays
+  // unique internally so uploads never collide.
+  const filename = sanitizeCarouselFilename(baseName);
+  const storage_path = `${user.id}/${filename.replace(/\.pdf$/i, "")}-${Date.now()}.pdf`;
   const { error: upErr } = await supabase.storage
     .from("design-assets")
     .upload(storage_path, blob, { contentType: "application/pdf", upsert: false });
@@ -348,8 +487,8 @@ export function buildCarouselFromPost(
   base: Partial<CarouselData> = {},
 ): CarouselData {
   const ACCENTS: AccentKey[] = ["coral", "teal", "amber", "sky", "indigo", "lime"];
-  const cleanHook = (hook || "").trim();
-  const cleanBody = (body || "").trim();
+  const cleanHook = stripSlideMarkers((hook || "").trim());
+  const cleanBody = stripSlideMarkers((body || "").trim());
 
   // The cover hook must be a SHORT scroll-stopper — not the full post body.
   // Take the first sentence and clamp to ~110 chars / 14 words max.
@@ -368,23 +507,32 @@ export function buildCarouselFromPost(
     .map((p) => p.trim())
     .filter(Boolean);
 
-  // Fall back to sentence chunks if the post has no paragraph breaks.
+  // The design system targets ~12 slides (cover + ~10 body + closing). When the
+  // post has fewer paragraphs than that, split it into finer one-idea chunks by
+  // grouping sentences so the deck reaches a healthy, swipe-worthy slide count.
+  const TARGET_BODY = LINKEDIN_DESIGN_SYSTEM.carousel.targetSlides - 2; // ≈ 10
   let chunks = paragraphs;
-  if (chunks.length < 2 && cleanBody) {
+  if (chunks.length < TARGET_BODY && cleanBody) {
     const sents = cleanBody.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
-    chunks = [];
-    for (let i = 0; i < sents.length; i += 2) {
-      chunks.push(sents.slice(i, i + 2).join(" "));
+    if (sents.length > chunks.length) {
+      const groupSize = Math.max(1, Math.ceil(sents.length / TARGET_BODY));
+      chunks = [];
+      for (let i = 0; i < sents.length; i += groupSize) {
+        chunks.push(sents.slice(i, i + groupSize).join(" "));
+      }
     }
   }
-  // Cap to 6 body chunks → max 8 slides total.
-  chunks = chunks.slice(0, 6);
+  // Drop near-empty fragments (stray markers, lone punctuation) so we never
+  // emit a blank/abnormal slide — every slide must carry a real idea.
+  chunks = chunks.map((c) => stripSlideMarkers(c)).filter((c) => contentWordCount(c) >= 3);
+  // Cap body chunks so the total stays within the 16-slide maximum.
+  chunks = chunks.slice(0, LINKEDIN_DESIGN_SYSTEM.carousel.maxSlides - 2);
 
   const slides: CarouselSlide[] = [];
 
   // 1) Cover — title is the hook; subtitle is a SHORT promise of what's
   // inside the deck, never the same words as a body slide.
-  const expectedSlideCount = Math.min(chunks.length + 2, 8);
+  const expectedSlideCount = Math.min(chunks.length + 2, LINKEDIN_DESIGN_SYSTEM.carousel.maxSlides);
   const coverSub = (() => {
     if (chunks.length === 0) return "A quick read.";
     return `${expectedSlideCount} slides. Save the ones that hit.`;
@@ -517,16 +665,21 @@ export function buildCarouselFromPost(
     if (q) return q.trim();
     return ctaPrompts[Math.floor(Math.random() * ctaPrompts.length)];
   })();
+  // Closing slide — both CTAs (follow + bell) are required and AB-tested.
   slides.push({
     layout: "cta",
     eyebrow: "Let's talk",
     title: prompt,
     ctaPrompt: prompt,
-    ctaAction: `Follow ${base.author ?? "me"} for more`,
+    ctaAction: `Follow ${base.author ?? "me"} for more\n${BELL_CTA}`,
     quoteAuthor: base.author ?? "",
     closer: "Follow + connect",
     accent: ACCENTS[(slides.length) % ACCENTS.length],
   });
+
+  // Enforce the ≤50-words-per-slide rule on body slides (cover hook + closing
+  // CTA are exempt — they're chrome, not body copy).
+  slides.forEach((s, i) => { if (i !== 0 && s.layout !== "cta") trimSlideToWordLimit(s); });
 
   return {
     author: base.author ?? SEED_CAROUSEL.author,
@@ -535,7 +688,7 @@ export function buildCarouselFromPost(
     photoKey: base.photoKey,
     typeLabel: base.typeLabel ?? "Carousel",
     attribution: base.attribution ?? `${(base.author ?? SEED_CAROUSEL.author).toLowerCase()} // ${new Date().getFullYear()}`,
-    slides: slides.slice(0, 8),
+    slides: slides.slice(0, LINKEDIN_DESIGN_SYSTEM.carousel.maxSlides),
     overlays: {},
     themeKey: base.themeKey,
   };
@@ -887,18 +1040,20 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
       closer: "Swipe →",
       accent: "teal",
     },
-    // 08 — CTA
+    // 08 — CTA (both follow + bell CTAs are required, AB-tested)
     {
       layout: "cta",
       eyebrow: "FOLLOW FOR MORE SYSTEMS",
       title: question,
       ctaPrompt: question,
-      ctaAction: `Follow @${handle} for more practical systems`,
+      ctaAction: `Follow @${handle} for more practical systems\n${BELL_CTA}`,
       quoteAuthor: author,
       closer: "DROP A COMMENT · FOLLOW + CONNECT",
       accent: "teal",
     },
   ];
+
+  slides.forEach((s, i) => { if (i !== 0 && s.layout !== "cta") trimSlideToWordLimit(s); });
 
   return {
     ...current,

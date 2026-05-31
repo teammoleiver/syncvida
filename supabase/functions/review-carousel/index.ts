@@ -1,0 +1,106 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+/**
+ * AI review of a LinkedIn carousel. Judges the deck as a viral-content expert
+ * against the LinkedIn visual design system and returns structured, per-slide
+ * feedback WITH ready-to-apply fixes. Honors the user's learned "memory" rules
+ * so it doesn't re-flag patterns they've already accepted.
+ */
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) return json({ error: "Unauthorized" }, 401);
+    const { data: { user } } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (!user) return json({ error: "Unauthorized" }, 401);
+
+    const { slides, hook, body, author, memory } = await req.json();
+    if (!Array.isArray(slides) || slides.length === 0) return json({ error: "No slides provided" }, 400);
+
+    const slideSummaries = slides.map((s: any, i: number) => ({
+      n: i + 1,
+      layout: s.layout || "text",
+      eyebrow: s.eyebrow || "",
+      title: s.title || "",
+      body: s.body || "",
+      bullets: s.bullets || [],
+      stat: s.statValue || "",
+      quote: s.quote || "",
+    }));
+
+    const memoryRules: string[] = Array.isArray(memory) ? memory.filter((m) => typeof m === "string" && m.trim()) : [];
+    const memoryBlock = memoryRules.length
+      ? `\n\nThe user has ALREADY accepted these preferences/rules from past reviews — apply them and DO NOT flag anything that already complies:\n- ${memoryRules.join("\n- ")}`
+      : "";
+
+    const systemPrompt = `You are a senior LinkedIn content strategist reviewing a carousel for a B2B / GTM founder. Judge it like a viral-content expert against these rules: a strong scroll-stopping cover hook; ONE clear idea per slide (<=50 words); a logical flow (cover -> build-up -> payoff -> CTA); a closing slide that explicitly asks to FOLLOW and TURN ON THE BELL; consistent voice; no filler or near-empty slides.${memoryBlock}
+
+Return ONLY valid JSON (no markdown) matching EXACTLY this schema:
+{
+  "score": <integer 0-100>,
+  "verdict": "<one punchy sentence: is this ready to post or not?>",
+  "flow": "<2-3 sentences on whether the slides connect and build a narrative, and where it breaks>",
+  "slideNotes": [
+    {
+      "n": <slide number>,
+      "severity": "high|medium|low",
+      "issue": "<what is weak, in plain words>",
+      "reason": "<why this hurts the post — the principle behind it (e.g. 'vague titles kill the scroll-stop')>",
+      "suggestion": "<one specific, rewrite-ready fix>",
+      "fix": {
+        "action": "rewrite | remove | merge",
+        "title": "<rewritten slide title (for rewrite/merge), or omit>",
+        "body": "<rewritten slide body (for rewrite/merge), or omit>"
+      }
+    }
+  ],
+  "improvements": [ "<3-6 concrete, high-leverage improvements ordered by impact>" ]
+}
+Rules for "fix":
+- PREFER "rewrite" — give concrete replacement title/body in the SAME voice, <=50 words for body. This is the default and should be used whenever the slide can be salvaged.
+- Use "remove" ONLY for a slide that is truly redundant/empty and adds no value (its content lives elsewhere).
+- Use "merge" when a slide should fold into the slide directly above it — provide the combined title/body.
+Every slideNote MUST include a "fix" with an "action" so the user can apply it in one click. Only include slideNotes for slides that genuinely need work. Be specific; never generic. No emojis in JSON values.`;
+
+    const userPrompt = JSON.stringify({ hook: hook || "", body: body || "", author: author || "", slides: slideSummaries });
+
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("OPENAI_API_KEY")}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        response_format: { type: "json_object" },
+        temperature: 0.2,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      }),
+    });
+    if (!res.ok) return json({ error: `AI error: ${await res.text()}` }, 500);
+    const data = await res.json();
+    const review = JSON.parse(data.choices[0].message.content);
+    return json({ review }, 200);
+  } catch (e) {
+    return json({ error: String((e as any)?.message || e) }, 500);
+  }
+});
+
+function json(obj: any, status = 200) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, ChevronDown, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon, Share2, CalendarClock } from "lucide-react";
+import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, ChevronDown, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon, Share2, CalendarClock, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +17,7 @@ import { Clock, Check } from "lucide-react";
 import { toast } from "sonner";
 import { listContentPlan, createPlannerPost, updatePlanEntry, deletePlanEntry, pushSinglePost, PLANNER_PLATFORMS, generatePostImage, getWriterSettings } from "@/lib/social-queries";
 import { generateDesignFromPrompt } from "@/lib/designer-queries";
+import { LINKEDIN_DESIGN_SYSTEM, validatePostText, hasCuriosityTease, suggestCuriosityTease } from "@/lib/linkedin-design-system";
 import { getMyLinkedInConnection, postToLinkedIn, getMyCanvaConnection, exportCanvaDesign, getMyMetaConnection, postToFacebook, postToInstagram, type SocialConnectionMeta } from "@/lib/social-connections";
 import { CanvaDesignPicker } from "@/components/CanvaDesignPicker";
 import GenerateWithAIDialog from "@/components/GenerateWithAIDialog";
@@ -824,6 +825,22 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
     } finally { setDesignBusy(false); }
   }
 
+  /**
+   * Open the LinkedIn Template editor (carousel / cheat sheet / square) seeded
+   * with this post's hook + body. Opens in a new tab so the editor's
+   * "Back to post" flow can return here; passing `planId` (when the post is
+   * saved) lets the editor link the exported PDF/image straight back to it.
+   */
+  function openLinkedInTemplate() {
+    if (!form.hook?.trim()) { toast.error("Add a hook first"); return; }
+    const qs = new URLSearchParams();
+    if (entry?.id) qs.set("planId", entry.id);
+    qs.set("preset", "carousel");
+    qs.set("hook", form.hook ?? "");
+    qs.set("body", form.body ?? "");
+    window.open(`/designer/linkedin-templates?${qs.toString()}`, "_blank");
+  }
+
   function buildFigmaBrief() {
     const author = me?.name || "(your name)";
     const linkedin = me?.linkedin_url || "(your LinkedIn URL)";
@@ -890,6 +907,36 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
         <div className="space-y-3 overflow-y-auto px-4 sm:px-6 py-4 lg:border-r border-border">
           <div><Label>Hook / headline</Label><Input value={form.hook ?? ""} onChange={(e) => setForm({ ...form, hook: e.target.value })} /></div>
           <div><Label>Body</Label><Textarea rows={6} value={form.body ?? ""} onChange={(e) => setForm({ ...form, body: e.target.value })} /></div>
+          {(form.platforms ?? []).includes("linkedin") && (() => {
+            const full = `${form.hook ?? ""}\n${form.body ?? ""}`.trim();
+            const issues = validatePostText(form.hook ?? "", form.body ?? "");
+            const over = full.length > LINKEDIN_DESIGN_SYSTEM.postText.maxCharsAboveCarousel;
+            const needsTease = !hasCuriosityTease(full);
+            return (
+              <div className="rounded-md border border-border bg-muted/20 p-2 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-medium text-muted-foreground">LinkedIn post text rules</span>
+                  <span className={`text-[10px] tabular-nums ${over ? "text-destructive font-semibold" : "text-muted-foreground/70"}`}>
+                    {full.length} / {LINKEDIN_DESIGN_SYSTEM.postText.maxCharsAboveCarousel} above a carousel
+                  </span>
+                </div>
+                {issues.length > 0 && (
+                  <ul className="text-[11px] space-y-0.5 text-amber-600 dark:text-amber-500">
+                    {issues.map((it, i) => <li key={i} className="flex gap-1.5"><span className="shrink-0">•</span><span>{it.message}</span></li>)}
+                  </ul>
+                )}
+                {needsTease && (
+                  <Button type="button" size="sm" variant="ghost" className="h-6 text-[11px] px-2"
+                    onClick={() => {
+                      const tease = suggestCuriosityTease(LINKEDIN_DESIGN_SYSTEM.carousel.targetSlides);
+                      setForm({ ...form, body: `${(form.body ?? "").trimEnd()}\n\n${tease}`.trim() });
+                    }}>
+                    <Sparkles className="w-3 h-3 mr-1" /> Insert curiosity tease
+                  </Button>
+                )}
+              </div>
+            );
+          })()}
           <div className="space-y-2">
             <Label>Visual</Label>
             <Input placeholder="Image URL — paste, or use the buttons below" value={form.image_url ?? ""} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
@@ -908,6 +955,10 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
               <Button type="button" size="sm" variant="secondary" onClick={designInStudio} disabled={designBusy}>
                 {designBusy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Palette className="w-4 h-4 mr-1" />}
                 Design in Studio
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={openLinkedInTemplate}
+                className="border-emerald-500/40 text-emerald-300">
+                <Layers className="w-4 h-4 mr-1" /> LinkedIn Template
               </Button>
               {linkedDesign?.thumbnail_url && (
                 <Button type="button" size="sm" variant="outline" onClick={useDesignAsImage}
@@ -947,6 +998,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
               "Generate with AI" → OpenAI <code>gpt-image-1</code> with your style prompt (Social Studio → Settings).
               "Design in Figma" → full prompt with your name + LinkedIn, ready to paste into Figma AI.
               "Design in Studio" → opens the in-app editor; saving there auto-updates this image.
+              "LinkedIn Template" → builds a carousel / cheat-sheet from this post (auto-places matching logos), and links the exported PDF back here.
             </p>
             {linkedDesign && (
               <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">

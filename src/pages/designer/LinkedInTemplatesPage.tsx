@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, Download, Plus, Trash2, ChevronLeft as PrevIcon, ChevronRight as NextIcon, Loader2, Link2, Image as ImageIcon, Sparkles, Check, LayoutGrid, Layers, Square as SquareIcon, Palette, Pencil, Eye } from "lucide-react";
+import { ChevronLeft, Download, Plus, Trash2, ChevronLeft as PrevIcon, ChevronRight as NextIcon, Loader2, Link2, Image as ImageIcon, Sparkles, Check, LayoutGrid, Layers, Square as SquareIcon, Palette, Pencil, Eye, User } from "lucide-react";
 import EditorActions from "@/components/designer/EditorActions";
 import { toast } from "sonner";
 import {
@@ -23,10 +23,15 @@ import {
   saveCanvasAsAsset, linkAssetToPlan, getPlanEntry,
   saveCarouselAsPdf, linkPdfToPlan, renderNodeToDataUrl,
   buildCarouselFromPost, buildCheatSheetFromPost, buildSquareFromPost,
-  buildSalehFigmaCarousel,
+  buildSalehFigmaCarousel, autoFixCarousel,
 } from "@/components/designer/linkedin/editorHelpers";
-import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, type DesignAsset } from "@/lib/designer-queries";
+import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, getBrandKit, type DesignAsset } from "@/lib/designer-queries";
 import { detectMentionedLogos, type DetectedLogo } from "@/components/designer/linkedin/detectLogos";
+import { autoPlaceSlideAssets, mergeAutoOverlays, countDecoratedSlides } from "@/components/designer/linkedin/autoDecorate";
+import { LINKEDIN_DESIGN_SYSTEM, validateCarousel, sanitizeCarouselFilename, type ValidationResult } from "@/lib/linkedin-design-system";
+import { getProfile } from "@/lib/supabase-queries";
+import { supabase } from "@/integrations/supabase/client";
+import { getAiReview, saveAiReview, getActiveMemoryRules, addDesignMemory } from "@/lib/linkedin-ai-review";
 import { Switch } from "@/components/ui/switch";
 import { removeWhiteBackground } from "@/lib/designer-utils";
 
@@ -40,9 +45,20 @@ const KIND_BY_TEMPLATE: Record<TemplateKey, "linkedin_cheatsheet" | "linkedin_ca
 
 const DIMENSIONS: Record<TemplateKey, { w: number; h: number }> = {
   cheatsheet: { w: 1280, h: 1820 },
-  carousel: { w: 1080, h: 1350 },
+  // Carousel size per the LinkedIn design system (Section 4.1).
+  carousel: { w: LINKEDIN_DESIGN_SYSTEM.carousel.width, h: LINKEDIN_DESIGN_SYSTEM.carousel.height },
   square: { w: 1200, h: 1200 },
 };
+
+/** Resolve true only if the image URL actually loads (avoids broken avatars). */
+function imageLoads(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+}
 
 export default function LinkedInTemplatesPage() {
   const [params, setParams] = useSearchParams();
@@ -99,9 +115,64 @@ export default function LinkedInTemplatesPage() {
     }
   };
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
+  // True when the asset picker was opened by clicking the face photo — in this
+  // mode picking an upload sets it as the photo (instead of adding an overlay).
+  const [photoPickMode, setPhotoPickMode] = useState(false);
+  const openPhotoPicker = () => { setPhotoPickMode(true); setAssetPickerOpen(true); };
+  const closeAssetPicker = () => { setAssetPickerOpen(false); setPhotoPickMode(false); };
   // Style/theme picker — opens automatically on first generation (when the
   // editor is opened with hook/body params and no existing design id).
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
+  // True while the auto art-director is fetching/placing logos + icons.
+  const [autoPlacing, setAutoPlacing] = useState(false);
+  // AI review (LLM) of the whole deck.
+  const [aiReviewing, setAiReviewing] = useState(false);
+  const [aiReview, setAiReview] = useState<any | null>(null);
+  const [aiReviewOpen, setAiReviewOpen] = useState(false);
+  // Indices (as strings) of slide-notes the user has accepted (shown green).
+  const [appliedNotes, setAppliedNotes] = useState<string[]>([]);
+  // The slide-note currently open in the correction popup + its editable fix.
+  const [correction, setCorrection] = useState<{ idx: number; note: any; action: string; title: string; body: string } | null>(null);
+  // The user's real headshot — the design system makes a face photo MANDATORY
+  // on the carousel cover (a logo does not stop the scroll).
+  const [profileAvatar, setProfileAvatar] = useState<string | undefined>(undefined);
+
+  /**
+   * Auto art-director: read each carousel slide and drop the brand logo(s) it
+   * mentions + one contextual icon onto the matching slide. Runs on generation
+   * (markDirty=false so it doesn't create a seed design before the user edits)
+   * and from the manual "Auto-place" button (markDirty + merge so it keeps
+   * hand-placed overlays and triggers autosave).
+   */
+  async function runAutoPlace(
+    source: CarouselData,
+    { markDirty = true, merge = false, toastResult = false }: { markDirty?: boolean; merge?: boolean; toastResult?: boolean } = {},
+  ) {
+    setAutoPlacing(true);
+    try {
+      const auto = await autoPlaceSlideAssets(source, DIMENSIONS.carousel);
+      const apply = (d: CarouselData): CarouselData => {
+        // The decorator is async — if the deck was rebuilt while it ran (e.g.
+        // the user switched to the Figma template), don't overwrite the newer
+        // slides/overlays with a stale result.
+        if ((d.slides ?? []).length !== (source.slides ?? []).length) return d;
+        return {
+          ...d,
+          overlays: merge ? mergeAutoOverlays(d.overlays, auto, (d.slides ?? []).length) : auto,
+        };
+      };
+      if (markDirty) editCarouselData(apply);
+      else setCarouselData(apply);
+      if (toastResult) {
+        const n = countDecoratedSlides(auto);
+        toast.success(n > 0 ? `Placed logos & icons on ${n} slide${n === 1 ? "" : "s"}` : "No matching logos found in the slides");
+      }
+    } catch (e: any) {
+      if (toastResult) toast.error(e?.message ?? "Auto-place failed");
+    } finally {
+      setAutoPlacing(false);
+    }
+  }
 
   // Wrapped setters that flip the dirty flag — used everywhere a user can
   // mutate the template (forms, overlay layer, title, preset switcher).
@@ -156,6 +227,35 @@ export default function LinkedInTemplatesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [designIdFromUrl]);
 
+  // Load the user's real headshot once (brand kit avatar → profile avatar), but
+  // only use one that actually loads — a broken URL would render an empty box.
+  useEffect(() => {
+    void (async () => {
+      const [kit, prof] = await Promise.all([
+        getBrandKit().catch(() => null),
+        getProfile().catch(() => null),
+      ]);
+      const candidates = [(kit as any)?.avatar_url, (prof as any)?.avatar_url].filter(Boolean) as string[];
+      for (const url of candidates) {
+        if (await imageLoads(url)) { setProfileAvatar(url); return; }
+      }
+    })();
+  }, []);
+  useEffect(() => {
+    if (!profileAvatar || loadingExisting) return;
+    setCarouselData((d) => (d.avatarUrl ? d : { ...d, avatarUrl: profileAvatar }));
+    setCheatData((d) => (d.avatarUrl ? d : { ...d, avatarUrl: profileAvatar }));
+    setSquareData((d) => (d.avatarUrl ? d : { ...d, avatarUrl: profileAvatar }));
+  }, [profileAvatar, loadingExisting]);
+
+  // Load any cached AI review for this design so it isn't re-run on every open.
+  useEffect(() => {
+    if (!designId) { setAiReview(null); setAppliedNotes([]); return; }
+    void getAiReview(designId).then((r) => {
+      if (r) { setAiReview(r.review); setAppliedNotes(r.applied ?? []); }
+    }).catch(() => { /* */ });
+  }, [designId]);
+
   // Seed from query params (?hook=&body=) on first mount — only when not loading an existing design.
   useEffect(() => {
     if (designIdFromUrl) return;
@@ -173,9 +273,14 @@ export default function LinkedInTemplatesPage() {
       // Generate the entire carousel dynamically from the post — number of
       // slides, layouts, and content all come from `hook` + `body`, so
       // every post produces a different deck instead of the static template.
-      setCarouselData((d) => buildCarouselFromPost(hook, body, {
-        author: d.author, handleShort: d.handleShort, avatarUrl: d.avatarUrl, photoKey: d.photoKey,
-      }));
+      const builtCarousel = buildCarouselFromPost(hook, body, {
+        author: carouselData.author, handleShort: carouselData.handleShort,
+        avatarUrl: carouselData.avatarUrl, photoKey: carouselData.photoKey,
+      });
+      setCarouselData(builtCarousel);
+      // Auto art-director: drop the right logo + icon onto each slide based on
+      // what that slide is about (e.g. a Clay slide gets the Clay logo).
+      void runAutoPlace(builtCarousel, { markDirty: false });
       // First-time generation — prompt for a visual style.
       setStylePickerOpen(true);
     }
@@ -191,9 +296,12 @@ export default function LinkedInTemplatesPage() {
           setSquareData((d) => buildSquareFromPost(p.hook ?? "", p.body ?? "", {
             author: d.author, handleShort: d.handleShort, avatarUrl: d.avatarUrl, photoKey: d.photoKey,
           }));
-          setCarouselData((d) => buildCarouselFromPost(p.hook ?? "", p.body ?? "", {
-            author: d.author, handleShort: d.handleShort, avatarUrl: d.avatarUrl, photoKey: d.photoKey,
-          }));
+          const builtFromPlan = buildCarouselFromPost(p.hook ?? "", p.body ?? "", {
+            author: carouselData.author, handleShort: carouselData.handleShort,
+            avatarUrl: carouselData.avatarUrl, photoKey: carouselData.photoKey,
+          });
+          setCarouselData(builtFromPlan);
+          void runAutoPlace(builtFromPlan, { markDirty: false });
         }
       });
     }
@@ -433,6 +541,20 @@ export default function LinkedInTemplatesPage() {
     setAssetPickerOpen(false);
   }
 
+  /**
+   * Set a user-uploaded image as the design's face photo — used on the cover
+   * (mandatory) and the footer signature across all three presets.
+   */
+  function useAssetAsPhoto(asset: DesignAsset) {
+    const url = asset.public_url;
+    editCarouselData((d) => ({ ...d, avatarUrl: url }));
+    editCheatData((d) => ({ ...d, avatarUrl: url }));
+    editSquareData((d) => ({ ...d, avatarUrl: url }));
+    setProfileAvatar(url);
+    closeAssetPicker();
+    toast.success("Cover & footer photo updated");
+  }
+
   function addTextOverlay() {
     addOverlay({ id: crypto.randomUUID(), type: "text", x: 100, y: 100, w: 480, h: 80, text: "New text", fontSize: 36, fontWeight: 700, color: "#F5F1E8", align: "left" });
   }
@@ -453,7 +575,122 @@ export default function LinkedInTemplatesPage() {
   }
 
   /** Carousel-only: render every slide → PDF → upload → link to plan as document. */
+  // The public-facing carousel name (used for the PDF + validation).
+  const carouselTitle = title || carouselData.slides?.[0]?.title || "LinkedIn Carousel";
+
+  // Live design-system validation (Section 4.6 + Section 11). `errors` hard-gate
+  // the PDF export; `warnings` are advisory.
+  const carouselValidation = useMemo<ValidationResult | null>(() => {
+    if (active !== "carousel") return null;
+    return validateCarousel(carouselData, { filename: sanitizeCarouselFilename(carouselTitle) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, carouselData, carouselTitle]);
+
+  /** Jump the editor to a specific slide (used by clickable validation errors). */
+  function goToSlide(i?: number) {
+    if (i == null) return;
+    setSlideIdx(Math.max(0, Math.min((carouselData.slides?.length ?? 1) - 1, i)));
+    if (window.innerWidth < 1024) setMobileTab("preview");
+  }
+
+  /** Deterministically repair the design-system [REQUIRED] failures. */
+  function fixIssues() {
+    const { data, fixes } = autoFixCarousel(carouselData);
+    if (!fixes.length) { toast.success("Nothing to fix — all required checks pass"); return; }
+    editCarouselData(data);
+    setSlideIdx(0);
+    void runAutoPlace(data, { markDirty: true, merge: true });
+    toast.success(`Fixed ${fixes.length}: ${fixes.join(" · ")}`);
+  }
+
+  /**
+   * AI review. If a cached review already exists and we're not forcing a
+   * re-run, just reopen it (no new LLM call, no lost feedback). Otherwise call
+   * the LLM (passing the user's learned memory rules) and persist the result.
+   */
+  async function runAiReview(force = false) {
+    if (!force && aiReview) { setAiReviewOpen(true); return; }
+    setAiReviewing(true);
+    try {
+      const hook = planMeta?.hook ?? params.get("hook") ?? carouselData.slides?.[0]?.title ?? "";
+      const body = planMeta?.body ?? params.get("body") ?? "";
+      const memory = await getActiveMemoryRules().catch(() => [] as string[]);
+      const { data, error } = await supabase.functions.invoke("review-carousel", {
+        body: { slides: carouselData.slides, hook, body, author: carouselData.author, memory },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const review = (data as any).review;
+      setAiReview(review);
+      setAppliedNotes([]);
+      setAiReviewOpen(true);
+      const id = designId ?? (await persist());
+      if (id) await saveAiReview(id, review, []);
+    } catch (e: any) {
+      toast.error(e?.message ?? "AI review failed");
+    } finally { setAiReviewing(false); }
+  }
+
+  /** Open the per-slide correction popup, prefilled with the AI's fix + action. */
+  function openCorrection(idx: number, note: any) {
+    const slide = carouselData.slides?.[(note?.n ?? 1) - 1];
+    setCorrection({
+      idx, note,
+      action: note?.fix?.action ?? "rewrite",
+      title: note?.fix?.title ?? slide?.title ?? "",
+      body: note?.fix?.body ?? slide?.body ?? "",
+    });
+  }
+
+  /**
+   * Apply the (possibly edited) correction to its slide and mark it done.
+   * Honors the AI's action: rewrite (title/body), remove (delete the slide), or
+   * merge (fold it into the slide above). Structural actions actually change the
+   * deck, so re-running the review reflects the improvement.
+   */
+  async function applyCorrection() {
+    if (!correction) return;
+    const { idx, note, action, title, body } = correction;
+    const sIdx = (note?.n ?? 1) - 1;
+    const slideCount = carouselData.slides?.length ?? 1;
+
+    editCarouselData((d) => {
+      const slides = [...(d.slides ?? [])];
+      if (action === "remove") {
+        if (slides.length > 1 && sIdx >= 0 && sIdx < slides.length) slides.splice(sIdx, 1);
+      } else if (action === "merge" && sIdx > 0 && slides[sIdx]) {
+        const prev = slides[sIdx - 1];
+        const merged = [prev.body, body.trim() || slides[sIdx].body].filter(Boolean).join(" ").trim().slice(0, 300);
+        slides[sIdx - 1] = { ...prev, title: title.trim() || prev.title, body: merged };
+        slides.splice(sIdx, 1);
+      } else if (slides[sIdx]) {
+        slides[sIdx] = { ...slides[sIdx], ...(title.trim() ? { title: title.trim() } : {}), ...(body.trim() ? { body: body.trim() } : {}) };
+      }
+      return { ...d, slides };
+    });
+
+    const nextApplied = Array.from(new Set([...appliedNotes, String(idx)]));
+    setAppliedNotes(nextApplied);
+    setCorrection(null);
+    setSlideIdx(Math.max(0, Math.min(sIdx, slideCount - 2)));
+    const id = designId ?? (await persist());
+    if (id) await saveAiReview(id, aiReview, nextApplied);
+    if (note?.reason) void addDesignMemory(note.reason, "ai_review");
+    if (action === "remove" || action === "merge") {
+      toast.success(`Slide ${note?.n} ${action === "remove" ? "removed" : "merged up"} — slide numbers shifted, Re-run for a fresh check`);
+    } else {
+      toast.success(`Slide ${note?.n} corrected`);
+    }
+  }
+
   async function saveCarouselPdfAndLink() {
+    // Hard gate: a carousel that fails any REQUIRED rule must not be exported.
+    const v = validateCarousel(carouselData, { filename: sanitizeCarouselFilename(carouselTitle) });
+    if (!v.passed) {
+      toast.error(`Fix ${v.errors.length} required issue${v.errors.length === 1 ? "" : "s"} before exporting — see the checklist above.`);
+      if (window.innerWidth < 1024) setMobileTab("edit");
+      return;
+    }
     setSavingPdf(true);
     try {
       const renderSlide = async (i: number): Promise<string> => {
@@ -461,7 +698,7 @@ export default function LinkedInTemplatesPage() {
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r as any)));
         return renderNodeToDataUrl("canvas-export");
       };
-      const pdf = await saveCarouselAsPdf(carouselData.slides.length, renderSlide, "linkedin-carousel");
+      const pdf = await saveCarouselAsPdf(carouselData.slides.length, renderSlide, carouselTitle);
       setSlideIdx(0);
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r as any)));
       const cover = await saveCanvasAsAsset("LinkedIn carousel cover");
@@ -492,20 +729,21 @@ export default function LinkedInTemplatesPage() {
   /** Apply a visual theme to all three preset data shapes. */
   function applyTheme(k: ThemeKey) {
     editCheatData((d) => ({ ...d, themeKey: k }));
-    editCarouselData((d) => {
+    editSquareData((d) => ({ ...d, themeKey: k }));
+    if (k === "figma-template") {
       // "Figma Template" isn't just a recolor — it's Saleh's full 8-slide
       // template library (Cover · Big Number · Content · Numbered List ·
       // Code · Quote · Comparison · CTA). Rebuild the deck so the user
       // actually sees those distinctive middle slides, not just a re-skin.
-      if (k === "figma-template") return buildSalehFigmaCarousel({ ...d, themeKey: k });
-      return { ...d, themeKey: k };
-    });
-    editSquareData((d) => ({ ...d, themeKey: k }));
-    if (k === "figma-template") {
+      const rebuilt = buildSalehFigmaCarousel({ ...carouselData, themeKey: k });
+      editCarouselData(rebuilt);
       setActive("carousel");
       setSlideIdx(0);
       toast.success("Saleh's 8-slide template loaded");
+      // The rebuild resets overlays — re-run the auto art-director.
+      void runAutoPlace(rebuilt, { markDirty: true });
     } else {
+      editCarouselData((d) => ({ ...d, themeKey: k }));
       toast.success("Style applied");
     }
   }
@@ -567,8 +805,54 @@ export default function LinkedInTemplatesPage() {
       </header>
 
       {/* Optional banners stack — non-overlapping, above the main editor */}
-      {(detected.length > 0 || lastSaved) && (
-        <div className="px-3 py-2 border-b border-border space-y-2 max-h-44 overflow-auto">
+      {(detected.length > 0 || lastSaved || (active === "carousel" && carouselValidation)) && (
+        <div className="px-3 py-2 border-b border-border space-y-2 max-h-60 overflow-auto">
+          {active === "carousel" && carouselValidation && (
+            <Card className={`p-2.5 ${carouselValidation.passed ? "border-amber-500/40 bg-amber-500/5" : "border-destructive/50 bg-destructive/5"}`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                {carouselValidation.passed
+                  ? <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  : <span className="w-4 h-4 rounded-full bg-destructive/20 text-destructive text-[10px] font-bold flex items-center justify-center shrink-0">!</span>}
+                <span className="text-xs font-semibold">
+                  {carouselValidation.passed
+                    ? "Design system — passes ✓ (optional tips below)"
+                    : `Design system — ${carouselValidation.errors.length} to fix before you can export`}
+                </span>
+                <div className="ml-auto flex items-center gap-1">
+                  {!carouselValidation.passed && (
+                    <Button size="sm" className="h-6 text-[11px] px-2 bg-destructive/90 hover:bg-destructive text-white" onClick={fixIssues}>
+                      <Sparkles className="w-3 h-3 mr-1" /> Fix issues
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" className="h-6 text-[11px] px-2" disabled={aiReviewing} onClick={() => runAiReview()}>
+                    {aiReviewing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                    {aiReview ? "AI review ✓" : "AI review"}
+                  </Button>
+                </div>
+              </div>
+              <ul className="text-[11px] space-y-0.5 pl-0.5">
+                {carouselValidation.errors.map((e, i) => (
+                  <li key={`e${i}`}>
+                    <button
+                      type="button"
+                      onClick={() => goToSlide(e.slide)}
+                      className={`text-destructive flex gap-1.5 text-left w-full ${e.slide != null ? "hover:underline" : "cursor-default"}`}
+                      title={e.slide != null ? `Go to slide ${e.slide + 1}` : undefined}
+                    >
+                      <span className="shrink-0">✕</span>
+                      <span>{e.message}</span>
+                    </button>
+                  </li>
+                ))}
+                {carouselValidation.warnings.map((w, i) => (
+                  <li key={`w${i}`} className="text-amber-600 dark:text-amber-500 flex gap-1.5">
+                    <span className="shrink-0">•</span>
+                    <span>{w.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
           {lastSaved && (
             <Card className="p-3 border-emerald-500/60 bg-emerald-500/10 flex items-start gap-3">
               <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
@@ -625,9 +909,23 @@ export default function LinkedInTemplatesPage() {
                   );
                 })}
               </div>
-              <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => injectToolsIntoCheatSheet(detected.map((d) => d.name))}>
-                <Plus className="w-3 h-3 mr-1" /> Add to sheet
-              </Button>
+              {active === "carousel" ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-[11px]"
+                  disabled={autoPlacing}
+                  onClick={() => void runAutoPlace(carouselData, { markDirty: true, merge: true, toastResult: true })}
+                  title="Place the matching logo + a contextual icon onto every slide automatically"
+                >
+                  {autoPlacing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                  Auto-place on slides
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => injectToolsIntoCheatSheet(detected.map((d) => d.name))}>
+                  <Plus className="w-3 h-3 mr-1" /> Add to sheet
+                </Button>
+              )}
             </Card>
           )}
         </div>
@@ -706,6 +1004,7 @@ export default function LinkedInTemplatesPage() {
                   onSelectOverlay={handleSelectOverlay}
                   onChangeOverlays={(next) => editCheatData({ ...cheatData, overlays: next })}
                   zoom={zoom}
+                  onPhotoClick={openPhotoPicker}
                 />
               )}
               {active === "carousel" && (
@@ -717,6 +1016,7 @@ export default function LinkedInTemplatesPage() {
                   onSelectOverlay={handleSelectOverlay}
                   onChangeOverlays={(next) => editCarouselData({ ...carouselData, overlays: { ...(carouselData.overlays ?? {}), [slideIdx]: next } })}
                   zoom={zoom}
+                  onPhotoClick={openPhotoPicker}
                 />
               )}
               {active === "square" && (
@@ -727,6 +1027,7 @@ export default function LinkedInTemplatesPage() {
                   onSelectOverlay={handleSelectOverlay}
                   onChangeOverlays={(next) => editSquareData({ ...squareData, overlays: next })}
                   zoom={zoom}
+                  onPhotoClick={openPhotoPicker}
                 />
               )}
             </div>
@@ -743,6 +1044,7 @@ export default function LinkedInTemplatesPage() {
               selectedId={selectedOverlayId}
               onSelect={setSelectedOverlayId}
               onAddImage={() => setAssetPickerOpen(true)}
+              onSetPhoto={openPhotoPicker}
               onAddText={addTextOverlay}
               onAddShape={addShapeOverlay}
               onUpdate={updateSelectedOverlay}
@@ -780,14 +1082,16 @@ export default function LinkedInTemplatesPage() {
                     onClick={() => {
                       const hook = planMeta?.hook ?? params.get("hook") ?? "";
                       const body = planMeta?.body ?? params.get("body") ?? "";
-                      editCarouselData((d) => {
-                        const regenerated = buildCarouselFromPost(hook, body, {
-                          author: d.author, handleShort: d.handleShort, avatarUrl: d.avatarUrl, photoKey: d.photoKey, themeKey: d.themeKey,
-                        });
-                        return d.themeKey === "figma-template" ? buildSalehFigmaCarousel(regenerated) : regenerated;
+                      const regenerated = buildCarouselFromPost(hook, body, {
+                        author: carouselData.author, handleShort: carouselData.handleShort,
+                        avatarUrl: carouselData.avatarUrl, photoKey: carouselData.photoKey, themeKey: carouselData.themeKey,
                       });
+                      const next = carouselData.themeKey === "figma-template" ? buildSalehFigmaCarousel(regenerated) : regenerated;
+                      editCarouselData(next);
                       setSlideIdx(0);
                       toast.success("Slides regenerated from post");
+                      // Re-decorate the fresh slides with matching logos + icons.
+                      void runAutoPlace(next, { markDirty: true });
                     }}
                   >
                     <Sparkles className="w-3.5 h-3.5 mr-1" /> Regenerate slides from post
@@ -822,8 +1126,10 @@ export default function LinkedInTemplatesPage() {
 
       <AssetPickerDialog
         open={assetPickerOpen}
-        onClose={() => setAssetPickerOpen(false)}
-        onPick={(a) => { addImageFromAsset(a as any); setAssetPickerOpen(false); }}
+        onClose={closeAssetPicker}
+        onPick={(a) => { addImageFromAsset(a as any); closeAssetPicker(); }}
+        onUsePhoto={useAssetAsPhoto}
+        photoMode={photoPickMode}
         defaultAspect={active === "square" ? "1:1" : "4:5"}
         canvasSize={DIMENSIONS[active]}
       />
@@ -833,6 +1139,150 @@ export default function LinkedInTemplatesPage() {
         onPick={applyTheme}
         onClose={() => setStylePickerOpen(false)}
       />
+
+      {aiReviewOpen && aiReview && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setAiReviewOpen(false)}>
+          <div className="bg-background rounded-lg border border-border w-full max-w-lg max-h-[88vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <h3 className="font-semibold">AI review</h3>
+                {typeof aiReview.score === "number" && (
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                    aiReview.score >= 75 ? "bg-emerald-500/15 text-emerald-500"
+                    : aiReview.score >= 50 ? "bg-amber-500/15 text-amber-600"
+                    : "bg-destructive/15 text-destructive"}`}>
+                    {aiReview.score}/100
+                  </span>
+                )}
+              </div>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setAiReviewOpen(false)}>×</Button>
+            </div>
+            <div className="overflow-auto p-4 space-y-4 text-sm">
+              {aiReview.verdict && <p className="font-medium">{aiReview.verdict}</p>}
+              {aiReview.flow && (
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Narrative flow</div>
+                  <p className="text-muted-foreground text-[13px] leading-relaxed">{aiReview.flow}</p>
+                </div>
+              )}
+              {Array.isArray(aiReview.slideNotes) && aiReview.slideNotes.length > 0 && (
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Per-slide notes</div>
+                  <div className="space-y-1.5">
+                    {aiReview.slideNotes.map((n: any, i: number) => {
+                      const done = appliedNotes.includes(String(i));
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => openCorrection(i, n)}
+                          className={`w-full text-left rounded-md border p-2 transition flex gap-2 ${
+                            done ? "border-emerald-500/50 bg-emerald-500/5" : "border-border hover:border-primary"}`}
+                          title="Review the fix and accept or edit it"
+                        >
+                          <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded h-fit ${
+                            done ? "bg-emerald-500/15 text-emerald-500"
+                            : n.severity === "high" ? "bg-destructive/15 text-destructive"
+                            : n.severity === "medium" ? "bg-amber-500/15 text-amber-600"
+                            : "bg-muted text-muted-foreground"}`}>
+                            {done ? "✓ " : ""}Slide {n.n}
+                          </span>
+                          <span className="text-[12px] flex-1">
+                            <span className={done ? "text-emerald-600 dark:text-emerald-500 line-through/0" : "text-foreground"}>{n.issue}</span>
+                            {n.suggestion && <span className="text-muted-foreground"> → {n.suggestion}</span>}
+                            <span className="block text-[10px] text-primary mt-0.5">{done ? "Applied · tap to revisit" : "Tap to fix →"}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {Array.isArray(aiReview.improvements) && aiReview.improvements.length > 0 && (
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Top improvements</div>
+                  <ul className="space-y-1">
+                    {aiReview.improvements.map((s: string, i: number) => (
+                      <li key={i} className="flex gap-2 text-[13px]"><span className="text-primary shrink-0">{i + 1}.</span><span>{s}</span></li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+            <div className="p-3 border-t border-border flex justify-between items-center gap-2">
+              <span className="text-[10px] text-muted-foreground">Saved — accepted fixes train future reviews.</span>
+              <div className="flex gap-2">
+                <Button size="sm" variant="ghost" disabled={aiReviewing} onClick={() => runAiReview(true)}>
+                  {aiReviewing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null} Re-run
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setAiReviewOpen(false)}>Close</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {correction && (
+        <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4" onClick={() => setCorrection(null)}>
+          <div className="bg-background rounded-lg border border-border w-full max-w-md max-h-[88vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-semibold text-sm">Fix slide {correction.note?.n}</h3>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setCorrection(null)}>×</Button>
+            </div>
+            <div className="overflow-auto p-4 space-y-3 text-sm">
+              <div className="rounded-md bg-destructive/5 border border-destructive/30 p-2.5">
+                <div className="text-[11px] font-semibold text-destructive mb-0.5">The issue</div>
+                <p className="text-[12px]">{correction.note?.issue}</p>
+              </div>
+              {correction.note?.reason && (
+                <div className="rounded-md bg-muted/40 p-2.5">
+                  <div className="text-[11px] font-semibold text-muted-foreground mb-0.5">Why it matters</div>
+                  <p className="text-[12px] text-muted-foreground">{correction.note.reason}</p>
+                </div>
+              )}
+              {correction.action === "remove" ? (
+                <div className="rounded-md bg-amber-500/10 border border-amber-500/40 p-2.5 text-[12px]">
+                  This slide is redundant. Accepting will <strong>remove slide {correction.note?.n}</strong> from the deck.
+                </div>
+              ) : (
+                <>
+                  {correction.action === "merge" && (
+                    <div className="rounded-md bg-sky-500/10 border border-sky-500/40 p-2.5 text-[12px]">
+                      Slide {correction.note?.n} will be <strong>merged into slide {(correction.note?.n ?? 2) - 1}</strong> using the combined copy below.
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-muted-foreground">{correction.action === "merge" ? "Merged title (editable)" : "Corrected title (editable)"}</label>
+                    <Input value={correction.title} onChange={(e) => setCorrection({ ...correction, title: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-muted-foreground">{correction.action === "merge" ? "Merged body (editable)" : "Corrected body (editable)"}</label>
+                    <textarea
+                      rows={4}
+                      value={correction.body}
+                      onChange={(e) => setCorrection({ ...correction, body: e.target.value })}
+                      className="w-full text-sm p-2 rounded-md border border-border bg-background"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="p-3 border-t border-border flex justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={() => setCorrection(null)}>Cancel</Button>
+              <Button
+                size="sm"
+                className={correction.action === "remove" ? "bg-destructive hover:bg-destructive/90 text-white" : "bg-emerald-600 hover:bg-emerald-700 text-white"}
+                onClick={applyCorrection}
+              >
+                {correction.action === "remove" ? <><Trash2 className="w-3.5 h-3.5 mr-1" /> Remove slide</>
+                  : correction.action === "merge" ? <><Check className="w-3.5 h-3.5 mr-1" /> Merge &amp; apply</>
+                  : <><Check className="w-3.5 h-3.5 mr-1" /> Accept &amp; apply</>}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -1227,13 +1677,14 @@ function SaveStatusBadge({ status }: { status: "idle" | "saving" | "saved" | "er
 
 function ElementsPanel({
   overlays, selectedId, onSelect,
-  onAddImage, onAddText, onAddShape,
+  onAddImage, onSetPhoto, onAddText, onAddShape,
   onUpdate, onDelete,
 }: {
   overlays: Overlay[];
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onAddImage: () => void;
+  onSetPhoto: () => void;
   onAddText: () => void;
   onAddShape: (s: "rect" | "circle") => void;
   onUpdate: (patch: Partial<Overlay>) => void;
@@ -1253,6 +1704,10 @@ function ElementsPanel({
         <Button size="sm" variant="outline" onClick={() => onAddShape("rect")}>Rect</Button>
         <Button size="sm" variant="outline" onClick={() => onAddShape("circle")}>Circle</Button>
       </div>
+      <Button size="sm" variant="outline" className="w-full border-primary/40 text-primary hover:bg-primary/10" onClick={onSetPhoto}>
+        <User className="w-3.5 h-3.5 mr-1" /> Profile picture
+      </Button>
+      <p className="text-[10px] text-muted-foreground">Sets the headshot used on the cover &amp; footer — pick from your uploads. You can also click the photo directly on the slide.</p>
 
       {overlays.length > 0 && (
         <div className="border-t border-border pt-2 space-y-1.5">

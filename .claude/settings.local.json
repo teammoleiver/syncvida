@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(node -e \"const r=require\\('./public/logos-registry.json'\\); console.log\\('count',r.length\\); console.log\\(JSON.stringify\\(r.slice\\(0,4\\),null,1\\)\\); const clay=r.filter\\(x=>/clay/i.test\\(x.name\\)\\).slice\\(0,3\\); console.log\\('clay-ish:',JSON.stringify\\(clay\\)\\);\")",
+      "mcp__claude_ai_Supabase__get_advisors"
     ]
   }
 }

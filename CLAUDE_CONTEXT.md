@@ -88,10 +88,31 @@ Both editors now use ~15% of canvas width as the target logo size:
 
 ## Current Issues / Next Steps
 
-### A. Auto-inject logos from post context
-When a post in `ContentPlannerPage` mentions "Clay" or "Zapier", the `detectLogos.ts` function already returns `DetectedLogo[]`. The next step is to:
-- Show a banner/chip strip below the post textarea listing detected logos
-- Allow click-to-inject → opens the logo detail panel and inserts onto the active slide
+### A. Auto-inject logos from post context ✅ DONE (May 2026)
+The carousel now **auto art-directs itself**. On generation/regeneration from a
+post (and via an "Auto-place on slides" button in the Detected bar), each slide
+is read and decorated with:
+- The **brand logo(s)** literally named on that slide (e.g. a "Clay" slide gets
+  the Clay logo), matched **case-sensitively** so "Clay" the tool hits but
+  "clay" the material / "Ready" / "make" don't.
+- **One contextual icon/chart** per slide by intent: stat→growth arrow,
+  comparison→quadrant matrix, quote→quote mark, bullets→verified check,
+  data→line graph, idea→bulb, viral/fast→lightning.
+
+Implementation: `src/components/designer/linkedin/autoDecorate.ts`
+- `autoPlaceSlideAssets(carousel, {w,h}, opts)` → `Record<slideIdx, Overlay[]>`
+- Placement = top-LEFT "masthead" strip aligned to the canvas's 64px padding
+  (mirrors the type pill pinned top-right; the body is vertically centered so
+  this band is always empty). Logos sized ~12% canvas width; white backgrounds
+  auto-stripped via `removeWhiteBackground()` (cached, falls back on failure).
+- `mergeAutoOverlays()` keeps hand-placed overlays on a re-run (auto overlays
+  carry an `auto: true` flag; user overlays render on top).
+- CTA / closing slide is left undecorated (author photo is the hero).
+- Tuning: `AMBIGUOUS_NAMES` stoplist in `autoDecorate.ts` filters common-word
+  brand names out of automatic placement.
+
+Wired in `LinkedInTemplatesPage.tsx` via `runAutoPlace()` (first-gen effect,
+plan seed, "Regenerate slides", Figma-template theme, manual button).
 
 ### B. Carousel template variety
 The `buildCarouselFromPost` in `editorHelpers.ts` always generates similar layouts.
@@ -110,6 +131,63 @@ All social hub pages use a `mobileTab` state (`"edit" | "preview" | "style"`) wi
 DVH (`100dvh`) fixes the mobile keyboard layout squeeze.
 
 ---
+
+## LinkedIn Visual Design System (compliance layer) — May 2026
+
+Source of truth: `src/lib/linkedin-design-system.ts` (encodes
+`linkedin_visual_design_system.md`). Holds the FIXED rules + `validateCarousel()`
++ `validatePostText()` + filename helpers. Brand *values* (colors, fonts, face
+photo, name) resolve at runtime from the Brand Kit + profile.
+
+Implemented:
+- **Carousel size = 1080×1280** (`DIMENSIONS.carousel` + `canvas.css`).
+- **Cover face mandatory** — real profile `avatar_url` is loaded in
+  `LinkedInTemplatesPage` and rendered as `.carousel-cover-face`. Stock photos
+  are only a fallback.
+- **Closing slide = follow + bell CTAs** — baked into both builders
+  (`buildCarouselFromPost`, `buildSalehFigmaCarousel`) as a two-line `ctaAction`
+  (`BELL_CTA` constant); rendered as two CTA buttons.
+- **Target 12 slides (8–16)** — builder splits the post into ~10 body chunks;
+  caps at 16.
+- **≤50 words/body slide** — `trimSlideToWordLimit()` enforces it in the builder;
+  `validateCarousel` flags any violation.
+- **Clean PDF filenames** — `sanitizeCarouselFilename()` → `Title-Case.pdf`, no
+  timestamp/v#/final/draft (storage path stays uniquely timestamped internally).
+- **Hard export gate** — `saveCarouselPdfAndLink` blocks if `validateCarousel`
+  returns errors; a live checklist panel sits in the editor banner stack.
+- **Planner post-text rules** — `validatePostText` hints under the Body field
+  (≤500 chars, hook length, generic-opener, curiosity tease) + "Insert curiosity
+  tease" button (`suggestCuriosityTease`).
+
+NOT yet done (follow-ups): cover background = brand `primary_color` (the canvas
+theme system owns the bg; brand colors aren't wired into canvas CSS vars yet) ·
+scheduling rules (Tue/Thu 09:00/13:30, ≤2 carousels/wk) · banner/video/profile
+rules · 24pt min-font validation (can't measure rendered px reliably).
+
+## AI Review + Learning Memory (carousel) — May 2026
+
+- **Edge function** `supabase/functions/review-carousel` (OpenAI `gpt-4o-mini`,
+  JSON mode). Input `{ slides, hook, body, author, memory[] }` → returns
+  `{ score, verdict, flow, slideNotes:[{n, severity, issue, reason, suggestion,
+  fix:{title?, body?}}], improvements[] }`. Honors learned `memory` rules so it
+  stops re-flagging accepted patterns.
+- **Tables** (RLS on, `auth.uid() = user_id`):
+  - `linkedin_ai_reviews` — one cached review per design (`design_id` unique per
+    user) + `applied` array of accepted note indices. So the review is NOT
+    re-run on every open; the "AI review" button reopens the cache, with a
+    Re-run inside the dialog.
+  - `linkedin_design_memory` — learned rules (`rule`, `source`, `active`).
+- **Queries:** `src/lib/linkedin-ai-review.ts` (getAiReview / saveAiReview /
+  listDesignMemory / getActiveMemoryRules / add / update / deleteDesignMemory).
+- **Editor flow** (`LinkedInTemplatesPage`): AI review dialog → click a slide
+  note → correction popup (issue + why + editable title/body) → Accept applies
+  the fix to the slide, marks the note **green**, persists `applied`, and saves
+  the note's `reason` to memory so future reviews learn it.
+- **Deterministic "Fix issues"** button (no AI) repairs REQUIRED failures via
+  `autoFixCarousel` (cover/closing structure, follow+bell CTA, ≤50 words, split
+  to 8-slide min). Validation errors are clickable → jump to the slide.
+- **Settings:** `SettingsModule` → "LinkedIn design memory" section to view /
+  add / edit / disable / delete the learned rules.
 
 ## Supabase Edge Functions
 

@@ -36,6 +36,21 @@ export type DetectedLogo = {
   hasAsset: boolean;
 };
 
+/**
+ * Common English words that are ALSO brand names in the 1295-logo registry
+ * (e.g. "Follow", "Impact", "Ready", "Make"). They constantly false-fire on
+ * ordinary post copy and CTA chrome ("Follow Saleh…"), so they're excluded
+ * from detection. A user who genuinely means one of these tools can still add
+ * it by hand from the asset picker. Edit freely to tune precision.
+ */
+export const DETECTION_STOPWORDS = new Set([
+  "follow", "impact", "ready", "make", "close", "front", "default", "live",
+  "loop", "loops", "segment", "now", "later", "next", "lead", "leads", "motion",
+  "pitch", "frame", "reach", "boost", "sense", "flow", "build", "ship", "launch",
+  "grow", "growth", "win", "focus", "brand", "scale", "sync", "signal", "pulse",
+  "spark", "beam", "range", "attention", "simple", "smart", "boldly", "drift",
+]);
+
 let cachedRegistry: any[] | null = null;
 
 async function getLogosRegistry() {
@@ -145,7 +160,8 @@ export async function detectMentionedLogos(text: string): Promise<DetectedLogo[]
     });
   }
 
-  return Array.from(outMap.values());
+  // Drop common-word false positives so the bar + auto-place only show real tools.
+  return Array.from(outMap.values()).filter((d) => !DETECTION_STOPWORDS.has(d.name.trim().toLowerCase()));
 }
 
 /** Convert a tool name to the chip format the canvas uses ("Name :: Mono :: #bg :: #fg"). */

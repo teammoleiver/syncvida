@@ -46,6 +46,14 @@ export type Overlay =
       src: string;
       radius?: number;
       objectFit?: "cover" | "contain";
+      /** Original (pre background-removal) source, kept so removeBg can be toggled. */
+      originalSrc?: string;
+      /** Whether `src` has had its white background stripped. */
+      removeBg?: boolean;
+      /** Human label shown in the layers panel (e.g. "Clay logo"). */
+      name?: string;
+      /** True when placed by the auto-decorator (so a re-run can replace only these). */
+      auto?: boolean;
     }
   | {
       id: string;
@@ -239,22 +247,25 @@ function TopChrome({ typeLabel }: { typeLabel: string }) {
   );
 }
 
-function Signature({ data, size = "md" }: { data: any; size?: "sm" | "md" | "lg" }) {
+function Signature({ data, size = "md", onPhotoClick }: { data: any; size?: "sm" | "md" | "lg"; onPhotoClick?: () => void }) {
   const photo = pickPhoto(data);
   const initial = (data.author || "S").trim().charAt(0).toUpperCase();
   const dim = size === "lg" ? 56 : size === "sm" ? 36 : 44;
   return (
     <div className="cnv-sig">
       <div
-        className="cnv-sig-avatar"
+        className={`cnv-sig-avatar${onPhotoClick ? " cnv-photo-editable" : ""}`}
         style={{
           width: dim,
           height: dim,
           backgroundImage: photo ? `url(${photo})` : undefined,
-          backgroundColor: photo ? undefined : "var(--brand-coral)",
+          backgroundColor: photo ? "var(--brand-coral)" : "var(--brand-coral)",
         }}
+        onMouseDown={onPhotoClick ? (e) => { e.stopPropagation(); e.preventDefault(); onPhotoClick(); } : undefined}
+        title={onPhotoClick ? "Click to change photo from your assets" : undefined}
       >
         {!photo && initial}
+        {onPhotoClick && <span className="cnv-photo-edit-badge export-hide" aria-hidden>✎</span>}
       </div>
       <div className="cnv-sig-meta">
         <div className="cnv-sig-name">{data.author}</div>
@@ -458,13 +469,14 @@ function SectionContent({ section }: { section: SheetSection }) {
 export function CheatSheetCanvas({
   data, idForExport = "canvas-export",
   editableOverlays = false, selectedOverlayId = null,
-  onSelectOverlay, onChangeOverlays, zoom = 1,
+  onSelectOverlay, onChangeOverlays, zoom = 1, onPhotoClick,
 }: {
   data: CheatSheetData; idForExport?: string;
   editableOverlays?: boolean; selectedOverlayId?: string | null;
   onSelectOverlay?: (id: string | null) => void;
   onChangeOverlays?: (next: Overlay[]) => void;
   zoom?: number;
+  onPhotoClick?: () => void;
 }) {
   const accentOrder: AccentKey[] = ["coral", "amber", "teal", "indigo", "plum", "olive", "sky"];
   const sections = safeSections(data.sections);
@@ -498,7 +510,7 @@ export function CheatSheetCanvas({
       </div>
       <div style={{ flex: 1 }} />
       <div className="cnv-footer cnv-footer-sig">
-        <Signature data={data} size="md" />
+        <Signature data={data} size="md" onPhotoClick={onPhotoClick} />
         <div className="cnv-footer-right">
           {data.closer && <div className="closer">{data.closer}</div>}
           <div className="attribution">{data.attribution || `saleh seddik // ${new Date().getFullYear()}`}</div>
@@ -564,12 +576,27 @@ function isSameContent(a?: string, b?: string): boolean {
   return overlap / wordsB.length >= 0.6;
 }
 
-function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: string; handleShort?: string; avatarUrl?: string; photoKey?: AccentKey; } }) {
+function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?: { author: string; handleShort?: string; avatarUrl?: string; photoKey?: AccentKey; }; onPhotoClick?: () => void }) {
   const layout: CarouselLayout = slide.layout || "text";
 
   if (layout === "cover") {
+    // Face on the cover is mandatory — the single most effective scroll-stopper.
+    const coverPhoto = ctx ? pickPhoto(ctx) : "";
+    const coverInitial = (ctx?.author || "S").trim().charAt(0).toUpperCase();
     return (
       <div className="carousel-body carousel-cover">
+        <div
+          className={`carousel-cover-face${onPhotoClick ? " cnv-photo-editable" : ""}`}
+          style={{
+            backgroundImage: coverPhoto ? `url(${coverPhoto})` : undefined,
+            backgroundColor: coverPhoto ? "var(--brand-coral)" : "var(--accent)",
+          }}
+          onMouseDown={onPhotoClick ? (e) => { e.stopPropagation(); e.preventDefault(); onPhotoClick(); } : undefined}
+          title={onPhotoClick ? "Click to change photo from your assets" : undefined}
+        >
+          {!coverPhoto && <span className="carousel-cover-face-initial">{coverInitial}</span>}
+          {onPhotoClick && <span className="cnv-photo-edit-badge export-hide" aria-hidden>✎ change</span>}
+        </div>
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
         <h1 className="carousel-cover-title">{clip(slide.title, 110)}</h1>
         {slide.body && !isSameContent(slide.title, slide.body) && (
@@ -646,18 +673,27 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
       <div className="carousel-body carousel-cta">
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
         <div
-          className="carousel-cta-avatar"
+          className={`carousel-cta-avatar${onPhotoClick ? " cnv-photo-editable" : ""}`}
           style={{
             backgroundImage: photo ? `url(${photo})` : undefined,
-            backgroundColor: photo ? undefined : "var(--brand-coral)",
+            backgroundColor: photo ? "var(--brand-coral)" : "var(--brand-coral)",
           }}
+          onMouseDown={onPhotoClick ? (e) => { e.stopPropagation(); e.preventDefault(); onPhotoClick(); } : undefined}
+          title={onPhotoClick ? "Click to change photo from your assets" : undefined}
         >
           {!photo && initial}
+          {onPhotoClick && <span className="cnv-photo-edit-badge export-hide" aria-hidden>✎</span>}
         </div>
         <div className="carousel-cta-name">{ctx?.author || slide.quoteAuthor || ""}</div>
         {ctx?.handleShort && <div className="carousel-cta-handle">@{ctx.handleShort}</div>}
         <h2 className="carousel-cta-prompt">{clip(slide.ctaPrompt || slide.title || "What would you add?", 80)}</h2>
-        {slide.ctaAction && <p className="carousel-cta-action">{slide.ctaAction}</p>}
+        {slide.ctaAction && (
+          <div className="carousel-cta-actions">
+            {slide.ctaAction.split("\n").map((l) => l.trim()).filter(Boolean).map((line, i) => (
+              <p key={i} className="carousel-cta-action">{line}</p>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -677,13 +713,15 @@ function CarouselBody({ slide, ctx }: { slide: CarouselSlide; ctx?: { author: st
 export function CarouselCanvas({
   data, slideIndex = 0, idForExport = "canvas-export",
   editableOverlays = false, selectedOverlayId = null,
-  onSelectOverlay, onChangeOverlays, zoom = 1,
+  onSelectOverlay, onChangeOverlays, zoom = 1, onPhotoClick,
 }: {
   data: CarouselData; slideIndex?: number; idForExport?: string;
   editableOverlays?: boolean; selectedOverlayId?: string | null;
   onSelectOverlay?: (id: string | null) => void;
   onChangeOverlays?: (next: Overlay[]) => void;
   zoom?: number;
+  /** Editor-only: click the face photo to change it from the asset library. */
+  onPhotoClick?: () => void;
 }) {
   const slides = safeSlides(data.slides);
   const slide = slides[slideIndex] || slides[0] || ({ title: "" } as CarouselSlide);
@@ -692,9 +730,9 @@ export function CarouselCanvas({
   return (
     <div className="canvas" data-format="carousel" data-accent={accent} data-theme={data.themeKey || undefined} id={idForExport}>
       <TopChrome typeLabel={data.typeLabel || "Carousel"} />
-      <CarouselBody slide={slide} ctx={{ author: data.author, handleShort: data.handleShort, avatarUrl: data.avatarUrl, photoKey: data.photoKey }} />
+      <CarouselBody slide={slide} ctx={{ author: data.author, handleShort: data.handleShort, avatarUrl: data.avatarUrl, photoKey: data.photoKey }} onPhotoClick={onPhotoClick} />
       <div className="cnv-footer cnv-footer-sig">
-        <Signature data={data} size="md" />
+        <Signature data={data} size="md" onPhotoClick={onPhotoClick} />
         <div className="cnv-footer-right">
           {slide.closer && <div className="closer">{slide.closer}</div>}
           <div className="attribution">{`${String(slideIndex + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}`}</div>
@@ -715,13 +753,14 @@ export function CarouselCanvas({
 export function SquareCanvas({
   data, idForExport = "canvas-export",
   editableOverlays = false, selectedOverlayId = null,
-  onSelectOverlay, onChangeOverlays, zoom = 1,
+  onSelectOverlay, onChangeOverlays, zoom = 1, onPhotoClick,
 }: {
   data: SquareData; idForExport?: string;
   editableOverlays?: boolean; selectedOverlayId?: string | null;
   onSelectOverlay?: (id: string | null) => void;
   onChangeOverlays?: (next: Overlay[]) => void;
   zoom?: number;
+  onPhotoClick?: () => void;
 }) {
   const renderStatement = (text: string) => {
     const parts = String(text || "").split(/(\*[^*]+\*)/g);
@@ -739,7 +778,7 @@ export function SquareCanvas({
         {data.support && <p className="square-support">{data.support}</p>}
       </div>
       <div className="cnv-footer cnv-footer-sig">
-        <Signature data={data} size="lg" />
+        <Signature data={data} size="lg" onPhotoClick={onPhotoClick} />
         <div className="cnv-footer-right">
           {data.closer && <div className="closer">{data.closer}</div>}
           <div className="attribution">{data.attribution || `saleh seddik // ${new Date().getFullYear()}`}</div>
