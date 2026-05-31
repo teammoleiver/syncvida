@@ -1677,6 +1677,9 @@ function PostsTab() {
                         <ArrowUpRight className="w-3.5 h-3.5" />
                       </a>
                     )}
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled={busy[p.id] || !!p.ignored_at} onClick={() => handleLike(p)} title="Relevant to me">
+                      <ThumbsUp className="w-3.5 h-3.5 text-emerald-500" />
+                    </Button>
                     {p.ignored_at ? (
                       <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled={busy[p.id]} onClick={() => handleUnignore(p)} title="Restore">
                         <RefreshCw className="w-3.5 h-3.5" />
