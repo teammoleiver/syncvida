@@ -105,7 +105,11 @@ serve(async (req) => {
     }
 
     const userInstruction = buildInstruction(payload);
-    const userMessage = `${userInstruction}\n\n--- ORIGINAL POST ---\n${postBody}`;
+    const avoid: string[] = Array.isArray(payload.avoid) ? payload.avoid.filter((x: any) => typeof x === "string" && x.trim()) : [];
+    const avoidBlock = avoid.length
+      ? `\n\nThe user has REJECTED past posts for these reasons — make sure this rewrite does NOT repeat them:\n- ${avoid.join("\n- ")}`
+      : "";
+    const userMessage = `${userInstruction}${avoidBlock}\n\n--- ORIGINAL POST ---\n${postBody}`;
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");

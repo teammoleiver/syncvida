@@ -189,6 +189,51 @@ rules · 24pt min-font validation (can't measure rendered px reliably).
 - **Settings:** `SettingsModule` → "LinkedIn design memory" section to view /
   add / edit / disable / delete the learned rules.
 
+## Post lifecycle / stages — May 2026
+
+Stage model in `ContentPlannerPage`: **Draft → Ready → Scheduled → Posted**
+(`STATUSES`, `STATUS_META`; `normalizeStatus()` folds legacy planned/drafting →
+draft). Gating:
+- A post can be **Scheduled only from Ready** with a date + time — the Scheduled
+  pill is locked otherwise, and `scheduleNow` blocks if not Ready.
+- **Draft = no action**: the "Publishing Actions" menu is disabled on Draft.
+- New posts default to `draft`. LinkedIn Review "kept" posts now land on the
+  main Calendar as **Draft** (was `ready`) via `syncToCalendar`.
+- Only `status='scheduled'` posts fire via the dispatcher (now working).
+
+## Reject-learning (LinkedIn Review) — May 2026
+
+- Reject (X) on a post opens `RejectDialog` (reason chips + free note) with
+  **Reject & learn** and **Delete** actions. Delete sets a new `deleted` status
+  (hidden from the grid; removed from the calendar).
+- Reasons are saved to `public.linkedin_writing_memory` (RLS, user-scoped) via
+  `addWritingMemory` in `src/lib/linkedin-review.ts`.
+- `rewritePost` passes active rules as `avoid` to `rewrite-linkedin-post`; the
+  edge function appends them to the prompt (deployed — v61).
+- `deleted` status is allowed by the `linkedin_post_states_status_check`
+  constraint (migration `linkedin_post_states_allow_deleted`).
+- Settings → **Writing-style memory** section manages the rules (view / add /
+  edit / disable / delete). Sibling of the design-memory section.
+- Note: LinkedIn Review "kept" posts already sync to `social_content_plan`
+  (status `ready`, `source_kind='linkedin_review'`, `notes` tagged
+  `[linkedin_review:<id>]`) — relevant for the pending calendar integration.
+
+## Scheduled posting — fixed May 2026
+
+**Root cause:** pg_cron job #5 (`* * * * *`) called `dispatch-due-posts` with the
+**anon key**, but that function requires the **service-role key** for cron mode
+(`if (!isServiceRole) return 401`). Every tick 401'd → scheduled posts never went out.
+
+**Fix (dispatch-due-posts left untouched):**
+- `public.app_config` table holds a `cron_secret` (RLS on, service-role only).
+- New edge function `supabase/functions/cron-dispatch` (verify_jwt=false): checks
+  `x-cron-secret` against `app_config`, then calls `dispatch-due-posts` with the
+  service-role key from its own env (so cron mode is authorized).
+- Cron #5 repointed (via `cron.alter_job`) to `cron-dispatch` with the secret
+  header. Verified: manual trigger returns `200 {"processed":N}` (was 401).
+- To rotate the secret: update `app_config.cron_secret` and re-run `cron.alter_job`
+  for job 5 (inject the value with `format(..., %L)` so it's never printed).
+
 ## Supabase Edge Functions
 
 Located in `supabase/functions/`:

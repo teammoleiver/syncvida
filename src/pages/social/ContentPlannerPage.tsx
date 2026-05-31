@@ -29,7 +29,15 @@ import { PostPreview } from "@/components/social/PostPreview";
 import { resolveAvatarUrl } from "@/lib/avatar";
 import PhotoStoryDialog from "@/components/social/PhotoStoryDialog";
 
-const STATUSES = ["planned", "drafting", "ready", "scheduled", "posted", "failed"];
+// The post lifecycle (Draft → Ready → Scheduled → Posted). A post can only be
+// scheduled once it's Ready — never straight from Draft.
+const STATUSES = ["draft", "ready", "scheduled", "posted"];
+
+/** Map legacy statuses (planned/drafting) onto the simplified Draft stage. */
+function normalizeStatus(s: string | undefined | null): string {
+  if (s === "planned" || s === "drafting" || !s) return "draft";
+  return s;
+}
 const PLATFORM_ICONS: Record<string, any> = { linkedin: Linkedin, facebook: Facebook, instagram: Instagram, twitter: Twitter, youtube: Youtube };
 type View = "month" | "week" | "day" | "list";
 
@@ -193,7 +201,7 @@ export default function ContentPlannerPage() {
         : <ListView entries={entries} onOpen={(e) => setEditing(e)} onDeleted={load} />}
 
       {editing && <PostEditor entry={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
-      {creatingFor && <PostEditor entry={{ scheduled_date: creatingFor, status: "planned", platforms: [] }} isNew onClose={() => setCreatingFor(null)} onSaved={() => { setCreatingFor(null); load(); }} />}
+      {creatingFor && <PostEditor entry={{ scheduled_date: creatingFor, status: "draft", platforms: [] }} isNew onClose={() => setCreatingFor(null)} onSaved={() => { setCreatingFor(null); load(); }} />}
       <PhotoStoryDialog
         open={photoStoryOpen}
         onClose={() => setPhotoStoryOpen(false)}
@@ -562,7 +570,7 @@ function ListView({ entries, onOpen, onDeleted }: { entries: any[]; onOpen: (e: 
 function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: boolean; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<any>({
     hook: "", body: "", image_url: "", scheduled_date: "", scheduled_time: "",
-    status: "planned", figma_brief: "", ...entry,
+    status: "draft", figma_brief: "", ...entry,
     platforms: entry?.platforms ?? [],
   });
   const [busy, setBusy] = useState(false);
@@ -748,6 +756,11 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
   }
 
   function scheduleNow() {
+    // A post must be Ready before it can be scheduled — never straight from Draft.
+    if (!["ready", "scheduled"].includes(normalizeStatus(form.status))) {
+      toast.error("Mark the post as Ready first, then schedule it");
+      return;
+    }
     if (!form.scheduled_date) { toast.error("Pick a date first"); return; }
     if (!form.scheduled_time) { toast.error("Pick a time first"); return; }
     if (!(form.platforms ?? []).length) { toast.error("Pick at least one platform"); return; }
@@ -1102,7 +1115,13 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
             {!isNew && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline">Publishing Actions <ChevronDown className="w-4 h-4 ml-1" /></Button>
+                  <Button
+                    variant="outline"
+                    disabled={normalizeStatus(form.status) === "draft"}
+                    title={normalizeStatus(form.status) === "draft" ? "Mark the post Ready to enable posting / scheduling" : undefined}
+                  >
+                    Publishing Actions <ChevronDown className="w-4 h-4 ml-1" />
+                  </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem onClick={sendNow} disabled={busy} className="gap-2 cursor-pointer">
@@ -1172,8 +1191,9 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STATUS_META: Record<string, { label: string; dot: string; ring: string }> = {
-  planned:   { label: "Planned",   dot: "bg-slate-400",   ring: "data-[on=true]:bg-slate-500/15 data-[on=true]:text-slate-700 dark:data-[on=true]:text-slate-200 data-[on=true]:border-slate-400/40" },
-  drafting:  { label: "Drafting",  dot: "bg-amber-400",   ring: "data-[on=true]:bg-amber-500/15 data-[on=true]:text-amber-700 dark:data-[on=true]:text-amber-300 data-[on=true]:border-amber-500/40" },
+  draft:     { label: "Draft",     dot: "bg-slate-400",   ring: "data-[on=true]:bg-slate-500/15 data-[on=true]:text-slate-700 dark:data-[on=true]:text-slate-200 data-[on=true]:border-slate-400/40" },
+  planned:   { label: "Draft",     dot: "bg-slate-400",   ring: "data-[on=true]:bg-slate-500/15 data-[on=true]:text-slate-700 dark:data-[on=true]:text-slate-200 data-[on=true]:border-slate-400/40" },
+  drafting:  { label: "Draft",     dot: "bg-slate-400",   ring: "data-[on=true]:bg-slate-500/15 data-[on=true]:text-slate-700 dark:data-[on=true]:text-slate-200 data-[on=true]:border-slate-400/40" },
   ready:     { label: "Ready",     dot: "bg-violet-400",  ring: "data-[on=true]:bg-violet-500/15 data-[on=true]:text-violet-700 dark:data-[on=true]:text-violet-300 data-[on=true]:border-violet-500/40" },
   scheduled: { label: "Scheduled", dot: "bg-blue-500",    ring: "data-[on=true]:bg-blue-500/15 data-[on=true]:text-blue-700 dark:data-[on=true]:text-blue-300 data-[on=true]:border-blue-500/40" },
   posted:    { label: "Posted",    dot: "bg-emerald-500", ring: "data-[on=true]:bg-emerald-500/15 data-[on=true]:text-emerald-700 dark:data-[on=true]:text-emerald-300 data-[on=true]:border-emerald-500/40" },
@@ -1324,16 +1344,22 @@ function ScheduleBlock({
         <div className="flex flex-wrap gap-1.5">
           {STATUSES.map((s) => {
             const meta = STATUS_META[s];
-            const on = status === s;
+            const cur = normalizeStatus(status);
+            const on = cur === s;
+            // A post can only become Scheduled from Ready, and only with a date + time.
+            const lockedScheduled = s === "scheduled" && !((cur === "ready" || cur === "scheduled") && !!date && !!time);
             return (
               <button
                 key={s}
                 type="button"
                 data-on={on}
+                disabled={lockedScheduled}
+                title={lockedScheduled ? "Mark the post Ready and pick a date + time to schedule it" : undefined}
                 onClick={() => onChange({ status: s })}
                 className={cn(
                   "inline-flex items-center gap-1.5 px-2.5 h-7 rounded-full border text-xs font-medium transition-all",
                   "border-border bg-background text-muted-foreground hover:text-foreground",
+                  lockedScheduled && "opacity-40 cursor-not-allowed hover:text-muted-foreground",
                   meta.ring,
                 )}
               >

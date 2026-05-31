@@ -10,6 +10,10 @@ const corsHeaders = {
  * against the LinkedIn visual design system and returns structured, per-slide
  * feedback WITH ready-to-apply fixes. Honors the user's learned "memory" rules
  * so it doesn't re-flag patterns they've already accepted.
+ *
+ * Accepts an optional `appliedFixes` array of slide numbers (as strings) that
+ * have already been corrected — the model will skip those slides and score the
+ * deck higher accordingly.
  */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -23,7 +27,7 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
     if (!user) return json({ error: "Unauthorized" }, 401);
 
-    const { slides, hook, body, author, memory } = await req.json();
+    const { slides, hook, body, author, memory, appliedFixes } = await req.json();
     if (!Array.isArray(slides) || slides.length === 0) return json({ error: "No slides provided" }, 400);
 
     const slideSummaries = slides.map((s: any, i: number) => ({
@@ -42,7 +46,12 @@ Deno.serve(async (req) => {
       ? `\n\nThe user has ALREADY accepted these preferences/rules from past reviews — apply them and DO NOT flag anything that already complies:\n- ${memoryRules.join("\n- ")}`
       : "";
 
-    const systemPrompt = `You are a senior LinkedIn content strategist reviewing a carousel for a B2B / GTM founder. Judge it like a viral-content expert against these rules: a strong scroll-stopping cover hook; ONE clear idea per slide (<=50 words); a logical flow (cover -> build-up -> payoff -> CTA); a closing slide that explicitly asks to FOLLOW and TURN ON THE BELL; consistent voice; no filler or near-empty slides.${memoryBlock}
+    const fixedSlides: string[] = Array.isArray(appliedFixes) ? appliedFixes.filter((f) => typeof f === "string" && f.trim()) : [];
+    const fixedBlock = fixedSlides.length
+      ? `\n\nIMPORTANT: The following slide numbers have ALREADY been corrected by the user: [${fixedSlides.join(", ")}]. Do NOT flag these slides again in slideNotes. Acknowledge their improvement in your verdict/flow and adjust the score accordingly — a deck where all previously flagged slides were fixed should score 15-25 points higher than before.`
+      : "";
+
+    const systemPrompt = `You are a senior LinkedIn content strategist reviewing a carousel for a B2B / GTM founder. Judge it like a viral-content expert against these rules: a strong scroll-stopping cover hook; ONE clear idea per slide (<=50 words); a logical flow (cover -> build-up -> payoff -> CTA); a closing slide that explicitly asks to FOLLOW and TURN ON THE BELL; consistent voice; no filler or near-empty slides.${memoryBlock}${fixedBlock}
 
 Return ONLY valid JSON (no markdown) matching EXACTLY this schema:
 {
@@ -71,7 +80,13 @@ Rules for "fix":
 - Use "merge" when a slide should fold into the slide directly above it — provide the combined title/body.
 Every slideNote MUST include a "fix" with an "action" so the user can apply it in one click. Only include slideNotes for slides that genuinely need work. Be specific; never generic. No emojis in JSON values.`;
 
-    const userPrompt = JSON.stringify({ hook: hook || "", body: body || "", author: author || "", slides: slideSummaries });
+    const userPrompt = JSON.stringify({
+      hook: hook || "",
+      body: body || "",
+      author: author || "",
+      slides: slideSummaries,
+      appliedFixes: fixedSlides.length ? fixedSlides : undefined,
+    });
 
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -80,7 +95,7 @@ Every slideNote MUST include a "fix" with an "action" so the user can apply it i
         "Authorization": `Bearer ${Deno.env.get("OPENAI_API_KEY")}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         response_format: { type: "json_object" },
         temperature: 0.2,
         messages: [

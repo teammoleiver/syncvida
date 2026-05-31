@@ -3,8 +3,9 @@ import type { CheatSheetData, CarouselData, SquareData, CarouselSlide, SheetSect
 import { supabase } from "@/integrations/supabase/client";
 import { LINKEDIN_DESIGN_SYSTEM, countWords, slideWordCount, sanitizeCarouselFilename } from "@/lib/linkedin-design-system";
 
-/** Closing-slide bell CTA — required alongside the follow CTA (AB-tested). */
-const BELL_CTA = "🔔 Turn on the bell so you never miss a post";
+/** Closing-slide bell CTA — required alongside the follow CTA (AB-tested).
+ *  No emoji — emojis read as AI-generated; keep the wording clean. */
+const BELL_CTA = "Turn on the bell so you never miss a post";
 
 /**
  * Strip slide-reference markers a writer may leave in the copy — "[S2]",

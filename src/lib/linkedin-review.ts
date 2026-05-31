@@ -13,7 +13,7 @@ export type LinkedInPost = {
   body: string;
 };
 
-export type PostStatus = "pending" | "kept" | "rejected";
+export type PostStatus = "pending" | "kept" | "rejected" | "deleted";
 
 export type PostState = {
   post_id: string;
@@ -74,9 +74,46 @@ export async function rewritePost(payload: {
   keywords?: string[];
   style?: string;
 }): Promise<{ rewrite?: string; error?: string }> {
-  const { data, error } = await supabase.functions.invoke("rewrite-linkedin-post", { body: payload });
+  // Feed the user's learned writing rules so the rewrite avoids what they reject.
+  const avoid = await getActiveWritingRules().catch(() => [] as string[]);
+  const { data, error } = await supabase.functions.invoke("rewrite-linkedin-post", { body: { ...payload, avoid } });
   if (error) return { error: error.message };
   return data as { rewrite?: string; error?: string };
+}
+
+/* ── Writing-style memory: learned from rejected/deleted posts (Settings-editable) ── */
+
+export type WritingMemoryRow = { id: string; rule: string; reason: string | null; source: string; active: boolean; created_at: string };
+
+export async function listWritingMemory(): Promise<WritingMemoryRow[]> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data } = await supabase
+    .from("linkedin_writing_memory" as any)
+    .select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+  return (data as any) ?? [];
+}
+
+export async function getActiveWritingRules(): Promise<string[]> {
+  const rows = await listWritingMemory();
+  return Array.from(new Set(rows.filter((r) => r.active && r.rule.trim()).map((r) => r.rule.trim())));
+}
+
+export async function addWritingMemory(rule: string, reason?: string | null, source = "reject"): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  const clean = (rule || "").trim();
+  if (!user || !clean) return;
+  const existing = await listWritingMemory();
+  if (existing.some((r) => r.rule.trim().toLowerCase() === clean.toLowerCase())) return;
+  await supabase.from("linkedin_writing_memory" as any).insert({ user_id: user.id, rule: clean, reason: reason ?? null, source } as any);
+}
+
+export async function updateWritingMemory(id: string, patch: Partial<Pick<WritingMemoryRow, "rule" | "active">>): Promise<void> {
+  await supabase.from("linkedin_writing_memory" as any).update(patch as any).eq("id", id);
+}
+
+export async function deleteWritingMemory(id: string): Promise<void> {
+  await supabase.from("linkedin_writing_memory" as any).delete().eq("id", id);
 }
 
 export const PILLAR_COLORS: Record<string, { chip: string; border: string; text: string }> = {

@@ -14,7 +14,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   getPostsForUser, listStates, upsertState, clearAllStates, rewritePost,
-  pillarColor, POST_TYPE_LABELS, exportMarkdown, isSeedUser,
+  pillarColor, POST_TYPE_LABELS, exportMarkdown, isSeedUser, addWritingMemory,
   type LinkedInPost, type PostState, type PostStatus,
 } from "@/lib/linkedin-review";
 import { supabase } from "@/integrations/supabase/client";
@@ -72,7 +72,7 @@ async function syncToCalendar(post: LinkedInPost, status: PostStatus, edited?: s
     } else {
       await createPlannerPost({
         hook, body, scheduled_date: date ?? undefined,
-        platforms: ["linkedin"], status: "ready",
+        platforms: ["linkedin"], status: "draft",
         source_kind: "linkedin_review",
       } as any);
       // tag the just-created row with the marker so we can find it later
@@ -102,6 +102,8 @@ export default function LinkedInReview() {
   const [loading, setLoading] = useState(true);
   const [seedUser, setSeedUser] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Post currently being rejected (drives the reason/learn + delete popup).
+  const [rejecting, setRejecting] = useState<LinkedInPost | null>(null);
   const nowYear = new Date().getFullYear();
   const nowMonth = new Date().getMonth();
   const [filter, setFilter] = useState<Filter>({
@@ -190,6 +192,7 @@ export default function LinkedInReview() {
       }
       if (filter.pillar !== "all" && p.pillar !== filter.pillar) return false;
       const status = states[p.id]?.status ?? "pending";
+      if (status === "deleted") return false; // deleted posts are hidden from review
       if (filter.status !== "all" && status !== filter.status) return false;
       if (filter.hideRejected && status === "rejected") return false;
       if (q && !(p.topic.toLowerCase().includes(q) || p.body.toLowerCase().includes(q) || p.date.toLowerCase().includes(q))) return false;
@@ -208,6 +211,15 @@ export default function LinkedInReview() {
         if (status === "kept") toast.success("Added to Calendar");
       }
     } catch (e: any) { toast.error(e?.message ?? "Save failed"); reload(); }
+  }
+
+  /** Confirm a reject/delete with a learned reason → saves to writing memory. */
+  async function confirmReject(post: LinkedInPost, status: "rejected" | "deleted", rules: string[], note: string) {
+    await setStatus(post.id, status);
+    for (const r of rules) await addWritingMemory(r, `Rejected: ${post.topic}`, status).catch(() => {});
+    if (note.trim()) await addWritingMemory(`Avoid: ${note.trim()}`, `Rejected: ${post.topic}`, status).catch(() => {});
+    setRejecting(null);
+    toast.success(status === "deleted" ? "Deleted & remembered" : "Rejected & remembered");
   }
 
   async function saveEdit(post_id: string, edited_body: string | null) {
@@ -408,7 +420,7 @@ export default function LinkedInReview() {
             <PostCard key={p.id} post={p} state={states[p.id]}
               onOpen={() => setEditingId(p.id)}
               onKeep={() => setStatus(p.id, "kept")}
-              onReject={() => setStatus(p.id, "rejected")}
+              onReject={() => setRejecting(p)}
               onDuplicate={(platform) => duplicateTo(p, platform)} />
           ))}
         </div>
@@ -419,14 +431,92 @@ export default function LinkedInReview() {
           post={editingPost}
           state={states[editingPost.id]}
           onClose={() => setEditingId(null)}
-          onSetStatus={(s) => setStatus(editingPost.id, s)}
+          onSetStatus={(s) => { if (s === "rejected") { setRejecting(editingPost); setEditingId(null); } else setStatus(editingPost.id, s); }}
           onSaveEdit={(b) => saveEdit(editingPost.id, b)}
           onReset={() => { reset(editingPost.id); setEditingId(null); }}
           onChangeDate={(d) => changeDate(editingPost.id, d)}
           onDuplicate={(platform) => duplicateTo(editingPost, platform)}
         />
       )}
+
+      {rejecting && (
+        <RejectDialog
+          post={rejecting}
+          onCancel={() => setRejecting(null)}
+          onConfirm={(status, rules, note) => confirmReject(rejecting, status, rules, note)}
+        />
+      )}
     </div>
+  );
+}
+
+/* ---------- Reject / delete + learn-why dialog ---------- */
+
+const REJECT_REASONS: { label: string; rule: string }[] = [
+  { label: "Off-brand voice", rule: "Avoid this voice/tone — it doesn't match how I write." },
+  { label: "Too salesy", rule: "Avoid salesy / promotional phrasing; stay practitioner and value-first." },
+  { label: "Too generic", rule: "Avoid generic, vague content; be specific with concrete detail and real numbers." },
+  { label: "Wrong topic", rule: "Avoid this topic angle — not relevant to my focus." },
+  { label: "Repetitive", rule: "Avoid repeating ideas already covered in other posts." },
+  { label: "Too long", rule: "Keep posts tighter — I prefer shorter, punchier writing." },
+  { label: "Too corporate", rule: "Strip corporate filler and buzzwords; plain operator language only." },
+  { label: "Not my style", rule: "This overall style doesn't fit me — avoid it." },
+];
+
+function RejectDialog({ post, onCancel, onConfirm }: {
+  post: LinkedInPost;
+  onCancel: () => void;
+  onConfirm: (status: "rejected" | "deleted", rules: string[], note: string) => void;
+}) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [note, setNote] = useState("");
+  const rules = REJECT_REASONS.filter((r) => selected.includes(r.label)).map((r) => r.rule);
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onCancel()}>
+      <DialogContent className="max-w-md p-0">
+        <div className="p-4 border-b border-border">
+          <h3 className="font-semibold text-sm">Why are you rejecting this?</h3>
+          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{post.topic}</p>
+          <p className="text-[11px] text-muted-foreground">Your reasons train the AI to stop writing posts like this.</p>
+        </div>
+        <div className="p-4 space-y-3">
+          <div className="flex flex-wrap gap-1.5">
+            {REJECT_REASONS.map((r) => {
+              const on = selected.includes(r.label);
+              return (
+                <button
+                  key={r.label}
+                  type="button"
+                  onClick={() => setSelected((s) => on ? s.filter((x) => x !== r.label) : [...s, r.label])}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition ${on ? "bg-red-500/15 border-red-500/50 text-red-300" : "border-border text-muted-foreground hover:border-red-400"}`}
+                >
+                  {on ? "✓ " : ""}{r.label}
+                </button>
+              );
+            })}
+          </div>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            placeholder="Anything else? (optional — e.g. 'too many emojis')"
+            className="w-full text-sm p-2 rounded-md border border-border bg-background"
+          />
+        </div>
+        <div className="p-3 border-t border-border flex items-center justify-between gap-2">
+          <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="border-red-500/40 text-red-300" onClick={() => onConfirm("rejected", rules, note)}>
+              <X className="w-3.5 h-3.5 mr-1" /> Reject &amp; learn
+            </Button>
+            <Button size="sm" className="bg-destructive hover:bg-destructive/90 text-white" onClick={() => onConfirm("deleted", rules, note)}>
+              <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -133,6 +133,10 @@ export default function LinkedInTemplatesPage() {
   const [appliedNotes, setAppliedNotes] = useState<string[]>([]);
   // The slide-note currently open in the correction popup + its editable fix.
   const [correction, setCorrection] = useState<{ idx: number; note: any; action: string; title: string; body: string } | null>(null);
+  // Score delta tracking: score from the first/previous review run (for +/- display).
+  const [baseScore, setBaseScore] = useState<number | null>(null);
+  // True after remove/merge actions shift slide numbers — stale notes warn the user.
+  const [staleReview, setStaleReview] = useState(false);
   // The user's real headshot — the design system makes a face photo MANDATORY
   // on the carousel cover (a logo does not stop the scroll).
   const [profileAvatar, setProfileAvatar] = useState<string | undefined>(undefined);
@@ -615,14 +619,25 @@ export default function LinkedInTemplatesPage() {
       const hook = planMeta?.hook ?? params.get("hook") ?? carouselData.slides?.[0]?.title ?? "";
       const body = planMeta?.body ?? params.get("body") ?? "";
       const memory = await getActiveMemoryRules().catch(() => [] as string[]);
+      // Build the list of slide numbers that were already corrected in this session.
+      const appliedFixes = appliedNotes
+        .map((i) => String(aiReview?.slideNotes?.[Number(i)]?.n ?? ""))
+        .filter(Boolean);
       const { data, error } = await supabase.functions.invoke("review-carousel", {
-        body: { slides: carouselData.slides, hook, body, author: carouselData.author, memory },
+        body: { slides: carouselData.slides, hook, body, author: carouselData.author, memory, appliedFixes },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       const review = (data as any).review;
+      // Score delta: remember the old score before overwriting.
+      if (typeof aiReview?.score === "number") {
+        setBaseScore(aiReview.score);
+      } else if (typeof review?.score === "number") {
+        setBaseScore(null); // first run — no delta yet
+      }
       setAiReview(review);
       setAppliedNotes([]);
+      setStaleReview(false);
       setAiReviewOpen(true);
       const id = designId ?? (await persist());
       if (id) await saveAiReview(id, review, []);
@@ -664,7 +679,10 @@ export default function LinkedInTemplatesPage() {
         slides[sIdx - 1] = { ...prev, title: title.trim() || prev.title, body: merged };
         slides.splice(sIdx, 1);
       } else if (slides[sIdx]) {
-        slides[sIdx] = { ...slides[sIdx], ...(title.trim() ? { title: title.trim() } : {}), ...(body.trim() ? { body: body.trim() } : {}) };
+        // Guaranteed apply: if both title and body are empty, fall back to the
+        // AI's raw suggestion text as the body so the accept is never a no-op.
+        const resolvedBody = body.trim() || note?.suggestion || "";
+        slides[sIdx] = { ...slides[sIdx], ...(title.trim() ? { title: title.trim() } : {}), ...(resolvedBody ? { body: resolvedBody } : {}) };
       }
       return { ...d, slides };
     });
@@ -677,10 +695,45 @@ export default function LinkedInTemplatesPage() {
     if (id) await saveAiReview(id, aiReview, nextApplied);
     if (note?.reason) void addDesignMemory(note.reason, "ai_review");
     if (action === "remove" || action === "merge") {
+      // Structural actions shift slide numbers — mark review as stale.
+      setStaleReview(true);
       toast.success(`Slide ${note?.n} ${action === "remove" ? "removed" : "merged up"} — slide numbers shifted, Re-run for a fresh check`);
     } else {
       toast.success(`Slide ${note?.n} corrected`);
     }
+  }
+
+  /**
+   * Batch-apply all high-severity rewrite notes in one click.
+   * Skips remove/merge to avoid index shifting mid-loop.
+   */
+  async function applyAllHigh() {
+    if (!aiReview?.slideNotes) return;
+    const highRewrites = (aiReview.slideNotes as any[])
+      .map((n: any, i: number) => ({ n, i }))
+      .filter(({ n, i }) => n.severity === "high" && n.fix?.action === "rewrite" && !appliedNotes.includes(String(i)));
+    if (highRewrites.length === 0) return;
+
+    let applied = 0;
+    editCarouselData((d) => {
+      const slides = [...(d.slides ?? [])];
+      for (const { n } of highRewrites) {
+        const sIdx = (n.n ?? 1) - 1;
+        if (!slides[sIdx]) continue;
+        const newTitle = n.fix?.title?.trim() || "";
+        const newBody = n.fix?.body?.trim() || n.suggestion || "";
+        slides[sIdx] = { ...slides[sIdx], ...(newTitle ? { title: newTitle } : {}), ...(newBody ? { body: newBody } : {}) };
+        applied++;
+      }
+      return { ...d, slides };
+    });
+
+    const newIdxs = highRewrites.map(({ i }) => String(i));
+    const nextApplied = Array.from(new Set([...appliedNotes, ...newIdxs]));
+    setAppliedNotes(nextApplied);
+    const id = designId ?? (await persist());
+    if (id) await saveAiReview(id, aiReview, nextApplied);
+    toast.success(`Applied ${applied} high-severity rewrite${applied === 1 ? "" : "s"} — Re-run to check progress`);
   }
 
   async function saveCarouselPdfAndLink() {
@@ -1140,88 +1193,150 @@ export default function LinkedInTemplatesPage() {
         onClose={() => setStylePickerOpen(false)}
       />
 
-      {aiReviewOpen && aiReview && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setAiReviewOpen(false)}>
-          <div className="bg-background rounded-lg border border-border w-full max-w-lg max-h-[88vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b border-border">
-              <div className="flex items-center gap-2.5">
-                <Sparkles className="w-4 h-4 text-primary" />
-                <h3 className="font-semibold">AI review</h3>
-                {typeof aiReview.score === "number" && (
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                    aiReview.score >= 75 ? "bg-emerald-500/15 text-emerald-500"
-                    : aiReview.score >= 50 ? "bg-amber-500/15 text-amber-600"
-                    : "bg-destructive/15 text-destructive"}`}>
-                    {aiReview.score}/100
-                  </span>
+      {aiReviewOpen && aiReview && (() => {
+        const totalNotes = Array.isArray(aiReview.slideNotes) ? aiReview.slideNotes.length : 0;
+        const doneCount = appliedNotes.filter((i) => Number(i) < totalNotes).length;
+        const progressPct = totalNotes > 0 ? Math.round((doneCount / totalNotes) * 100) : 0;
+        const allDone = totalNotes > 0 && doneCount >= totalNotes;
+        const scoreDelta = typeof baseScore === "number" && typeof aiReview.score === "number" ? aiReview.score - baseScore : null;
+        const highUnapplied = Array.isArray(aiReview.slideNotes)
+          ? (aiReview.slideNotes as any[]).filter((n: any, i: number) => n.severity === "high" && n.fix?.action === "rewrite" && !appliedNotes.includes(String(i)))
+          : [];
+        return (
+          <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setAiReviewOpen(false)}>
+            <div className="bg-background rounded-lg border border-border w-full max-w-lg max-h-[88vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <h3 className="font-semibold">AI review</h3>
+                  {typeof aiReview.score === "number" && (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      aiReview.score >= 75 ? "bg-emerald-500/15 text-emerald-500"
+                      : aiReview.score >= 50 ? "bg-amber-500/15 text-amber-600"
+                      : "bg-destructive/15 text-destructive"}`}>
+                      {aiReview.score}/100
+                      {scoreDelta !== null && scoreDelta !== 0 && (
+                        <span className={scoreDelta > 0 ? "text-emerald-400 ml-1" : "text-destructive ml-1"}>
+                          {scoreDelta > 0 ? `+${scoreDelta} ↑` : `${scoreDelta} ↓`}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {highUnapplied.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={applyAllHigh}
+                      className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 transition"
+                      title="Batch-apply all high-severity rewrite fixes"
+                    >
+                      Apply all high ({highUnapplied.length})
+                    </button>
+                  )}
+                </div>
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setAiReviewOpen(false)}>×</Button>
+              </div>
+              {staleReview && (
+                <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/30 flex items-center gap-2 text-[12px] text-amber-600 dark:text-amber-400">
+                  <span className="shrink-0">⚠</span>
+                  <span className="flex-1">Slide structure changed — some note numbers may be stale.</span>
+                  <button
+                    type="button"
+                    onClick={() => runAiReview(true)}
+                    disabled={aiReviewing}
+                    className="shrink-0 font-semibold underline underline-offset-2 animate-pulse hover:no-underline"
+                  >
+                    Re-run now
+                  </button>
+                </div>
+              )}
+              {totalNotes > 0 && (
+                <div className="px-4 pt-3">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                    <span>{doneCount}/{totalNotes} fixes applied</span>
+                    <span>{progressPct}%</span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all"
+                      style={{ width: `${progressPct}%` }}
+                    />
+                  </div>
+                  {allDone && (
+                    <p className="text-[12px] text-emerald-500 font-medium mt-1.5">🎯 All fixes applied — Re-run for final score</p>
+                  )}
+                </div>
+              )}
+              <div className="overflow-auto p-4 space-y-4 text-sm">
+                {aiReview.verdict && <p className="font-medium">{aiReview.verdict}</p>}
+                {aiReview.flow && (
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Narrative flow</div>
+                    <p className="text-muted-foreground text-[13px] leading-relaxed">{aiReview.flow}</p>
+                  </div>
+                )}
+                {Array.isArray(aiReview.slideNotes) && aiReview.slideNotes.length > 0 && (
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Per-slide notes</div>
+                    <div className="space-y-1.5">
+                      {aiReview.slideNotes.map((n: any, i: number) => {
+                        const done = appliedNotes.includes(String(i));
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => openCorrection(i, n)}
+                            className={`w-full text-left rounded-md border p-2 transition flex gap-2 ${
+                              done ? "border-emerald-500/50 bg-emerald-500/5" : "border-border hover:border-primary"}`}
+                            title="Review the fix and accept or edit it"
+                          >
+                            <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded h-fit ${
+                              done ? "bg-emerald-500/15 text-emerald-500"
+                              : n.severity === "high" ? "bg-destructive/15 text-destructive"
+                              : n.severity === "medium" ? "bg-amber-500/15 text-amber-600"
+                              : "bg-muted text-muted-foreground"}`}>
+                              {done ? "✓ " : ""}Slide {n.n}
+                            </span>
+                            <span className="text-[12px] flex-1">
+                              <span className={done ? "text-emerald-600 dark:text-emerald-500 line-through/0" : "text-foreground"}>{n.issue}</span>
+                              {n.suggestion && <span className="text-muted-foreground"> → {n.suggestion}</span>}
+                              <span className="block text-[10px] text-primary mt-0.5">{done ? "Applied · tap to revisit" : "Tap to fix →"}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {Array.isArray(aiReview.improvements) && aiReview.improvements.length > 0 && (
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Top improvements</div>
+                    <ul className="space-y-1">
+                      {aiReview.improvements.map((s: string, i: number) => (
+                        <li key={i} className="flex gap-2 text-[13px]"><span className="text-primary shrink-0">{i + 1}.</span><span>{s}</span></li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </div>
-              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setAiReviewOpen(false)}>×</Button>
-            </div>
-            <div className="overflow-auto p-4 space-y-4 text-sm">
-              {aiReview.verdict && <p className="font-medium">{aiReview.verdict}</p>}
-              {aiReview.flow && (
-                <div>
-                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Narrative flow</div>
-                  <p className="text-muted-foreground text-[13px] leading-relaxed">{aiReview.flow}</p>
+              <div className="p-3 border-t border-border flex justify-between items-center gap-2">
+                <span className="text-[10px] text-muted-foreground">Saved — accepted fixes train future reviews.</span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={aiReviewing}
+                    onClick={() => runAiReview(true)}
+                    className={staleReview ? "animate-pulse ring-1 ring-amber-500/50" : ""}
+                  >
+                    {aiReviewing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null} Re-run
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setAiReviewOpen(false)}>Close</Button>
                 </div>
-              )}
-              {Array.isArray(aiReview.slideNotes) && aiReview.slideNotes.length > 0 && (
-                <div>
-                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Per-slide notes</div>
-                  <div className="space-y-1.5">
-                    {aiReview.slideNotes.map((n: any, i: number) => {
-                      const done = appliedNotes.includes(String(i));
-                      return (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => openCorrection(i, n)}
-                          className={`w-full text-left rounded-md border p-2 transition flex gap-2 ${
-                            done ? "border-emerald-500/50 bg-emerald-500/5" : "border-border hover:border-primary"}`}
-                          title="Review the fix and accept or edit it"
-                        >
-                          <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded h-fit ${
-                            done ? "bg-emerald-500/15 text-emerald-500"
-                            : n.severity === "high" ? "bg-destructive/15 text-destructive"
-                            : n.severity === "medium" ? "bg-amber-500/15 text-amber-600"
-                            : "bg-muted text-muted-foreground"}`}>
-                            {done ? "✓ " : ""}Slide {n.n}
-                          </span>
-                          <span className="text-[12px] flex-1">
-                            <span className={done ? "text-emerald-600 dark:text-emerald-500 line-through/0" : "text-foreground"}>{n.issue}</span>
-                            {n.suggestion && <span className="text-muted-foreground"> → {n.suggestion}</span>}
-                            <span className="block text-[10px] text-primary mt-0.5">{done ? "Applied · tap to revisit" : "Tap to fix →"}</span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {Array.isArray(aiReview.improvements) && aiReview.improvements.length > 0 && (
-                <div>
-                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Top improvements</div>
-                  <ul className="space-y-1">
-                    {aiReview.improvements.map((s: string, i: number) => (
-                      <li key={i} className="flex gap-2 text-[13px]"><span className="text-primary shrink-0">{i + 1}.</span><span>{s}</span></li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-            <div className="p-3 border-t border-border flex justify-between items-center gap-2">
-              <span className="text-[10px] text-muted-foreground">Saved — accepted fixes train future reviews.</span>
-              <div className="flex gap-2">
-                <Button size="sm" variant="ghost" disabled={aiReviewing} onClick={() => runAiReview(true)}>
-                  {aiReviewing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null} Re-run
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setAiReviewOpen(false)}>Close</Button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {correction && (
         <div className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4" onClick={() => setCorrection(null)}>
