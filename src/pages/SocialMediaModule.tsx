@@ -1308,6 +1308,8 @@ function PostsTab() {
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleteIntent, setDeleteIntent] = useState<"relevant" | "irrelevant">("relevant");
   const [staleFilter, setStaleFilter] = useState<"all" | "stale" | "fresh">("all");
+  // Feedback dialog (used by ignore/like — captures memory tags + free-text reason)
+  const [feedbackTarget, setFeedbackTarget] = useState<{ post: any; signal: ScrapeMemorySignal; source: ScrapeMemorySource; alsoIgnore?: boolean } | null>(null);
 
   // Debounce search input → triggers server-side refetch
   useEffect(() => {
