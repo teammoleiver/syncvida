@@ -1391,11 +1391,37 @@ function PostsTab() {
   });
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
-  const handleIgnore = async (p: any, reason?: string) => {
-    setBusy((b) => ({ ...b, [p.id]: true }));
-    try { await ignoreSocialPost(p.id, reason); toast.success("Marked irrelevant — AI will deprioritize similar posts"); load(); }
-    catch (e: any) { toast.error(e?.message ?? "Failed"); }
-    finally { setBusy((b) => ({ ...b, [p.id]: false })); }
+  const handleIgnore = async (p: any) => {
+    // Open the feedback dialog so the AI can learn WHY this post isn't relevant.
+    setFeedbackTarget({ post: p, signal: "negative", source: "ignore", alsoIgnore: true });
+  };
+  const handleLike = (p: any) => {
+    // Capture a positive signal — what the user wants to see MORE of.
+    setFeedbackTarget({ post: p, signal: "positive", source: "like" });
+  };
+  const submitFeedback = async (tags: string[], reason: string) => {
+    const t = feedbackTarget;
+    if (!t) return;
+    setFeedbackTarget(null);
+    setBusy((b) => ({ ...b, [t.post.id]: true }));
+    try {
+      await addScrapeMemory({
+        signal: t.signal,
+        tags,
+        reason,
+        source: t.source,
+        source_post: { id: t.post.id, author: t.post.author, text: t.post.post_text },
+      });
+      if (t.alsoIgnore) {
+        const note = [tags.join(", "), reason].filter(Boolean).join(" — ").slice(0, 280) || undefined;
+        try { await ignoreSocialPost(t.post.id, note); } catch {}
+      }
+      toast.success(t.signal === "positive"
+        ? "Saved — AI will surface more posts like this"
+        : "Saved — AI will deprioritize similar posts");
+      load();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); }
+    finally { setBusy((b) => ({ ...b, [t.post.id]: false })); }
   };
   const handleUnignore = async (p: any) => {
     setBusy((b) => ({ ...b, [p.id]: true }));
