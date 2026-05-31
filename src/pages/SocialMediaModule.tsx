@@ -2653,8 +2653,75 @@ function SettingsTab() {
 
       <ScrapeHistoryPanel />
 
+      <ScrapeMemoryPanel />
+
       <Button onClick={save} disabled={busy} className="w-full md:w-auto">{busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Save settings</Button>
     </section>
+  );
+}
+
+// ───────── Scraped-post memory editor (Settings) ─────────
+function ScrapeMemoryPanel() {
+  const [rows, setRows] = useState<ScrapeMemoryRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "positive" | "negative">("all");
+  const load = async () => { setLoading(true); try { setRows(await listScrapeMemory()); } finally { setLoading(false); } };
+  useEffect(() => { load(); }, []);
+  const visible = rows.filter((r) => filter === "all" || r.signal === filter);
+  const toggle = async (r: ScrapeMemoryRow) => { await updateScrapeMemory(r.id, { active: !r.active }); load(); };
+  const remove = async (r: ScrapeMemoryRow) => { if (!confirm("Delete this memory entry?")) return; await deleteScrapeMemory(r.id); load(); };
+  return (
+    <Card className="p-5 space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2"><Brain className="w-5 h-5 text-primary" /><h2 className="font-medium">Scraped-post memory</h2></div>
+        <div className="flex items-center gap-2">
+          <Select value={filter} onValueChange={(v: any) => setFilter(v)}>
+            <SelectTrigger className="h-8 w-[160px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All signals</SelectItem>
+              <SelectItem value="positive">👍 Relevant</SelectItem>
+              <SelectItem value="negative">👎 Not relevant</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="ghost" onClick={load}><RefreshCw className="w-3.5 h-3.5" /></Button>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Every time you like, ignore, or delete-as-irrelevant a scraped post, your reason is saved here.
+        The relevance scorer reads this memory to keep getting smarter about what you actually want to see.
+        Toggle off any rule that's no longer accurate.
+      </p>
+      {loading ? <p className="text-xs text-muted-foreground">Loading…</p> :
+        visible.length === 0 ? <p className="text-xs text-muted-foreground py-3">No memory yet. Use the 👍 / ✕ / 🗑 buttons on scraped posts to teach the AI.</p> :
+        <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+          {visible.map((r) => (
+            <div key={r.id} className={`flex items-start gap-3 p-3 rounded-md border ${r.active ? "border-border" : "border-border/40 opacity-60"}`}>
+              <div className={`shrink-0 mt-0.5 ${r.signal === "positive" ? "text-emerald-500" : "text-rose-500"}`}>
+                {r.signal === "positive" ? <ThumbsUp className="w-4 h-4" /> : <ThumbsDown className="w-4 h-4" />}
+              </div>
+              <div className="flex-1 min-w-0 space-y-1">
+                {r.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {r.tags.map((t, i) => (
+                      <Badge key={i} variant="outline" className={`text-[10px] py-0 h-4.5 ${r.signal === "positive" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" : "bg-rose-500/10 text-rose-500 border-rose-500/30"}`}>{t}</Badge>
+                    ))}
+                  </div>
+                )}
+                {r.reason && <p className="text-xs text-foreground/90">{r.reason}</p>}
+                <p className="text-[10px] text-muted-foreground">
+                  {r.source} · {new Date(r.created_at).toLocaleDateString()}
+                  {r.source_post_author ? <> · re: <span className="font-medium">{r.source_post_author}</span></> : null}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Switch checked={r.active} onCheckedChange={() => toggle(r)} />
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => remove(r)} title="Delete"><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      }
+    </Card>
   );
 }
 
