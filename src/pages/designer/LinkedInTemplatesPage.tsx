@@ -137,6 +137,8 @@ export default function LinkedInTemplatesPage() {
   const [baseScore, setBaseScore] = useState<number | null>(null);
   // True after remove/merge actions shift slide numbers — stale notes warn the user.
   const [staleReview, setStaleReview] = useState(false);
+  // True while the silent background pre-review is running (new carousel load).
+  const [silentReviewing, setSilentReviewing] = useState(false);
   // The user's real headshot — the design system makes a face photo MANDATORY
   // on the carousel cover (a logo does not stop the scroll).
   const [profileAvatar, setProfileAvatar] = useState<string | undefined>(undefined);
@@ -287,6 +289,9 @@ export default function LinkedInTemplatesPage() {
       void runAutoPlace(builtCarousel, { markDirty: false });
       // First-time generation — prompt for a visual style.
       setStylePickerOpen(true);
+      // Silent pre-review using learned memory rules so Fix Issues is pre-populated.
+      // Delayed 1.5 s so the carousel renders first and the user sees the editor.
+      setTimeout(() => void runSilentReview(builtCarousel), 1500);
     }
     if (planId) {
       void getPlanEntry(planId).then((p) => {
@@ -306,6 +311,8 @@ export default function LinkedInTemplatesPage() {
           });
           setCarouselData(builtFromPlan);
           void runAutoPlace(builtFromPlan, { markDirty: false });
+          // Silent pre-review using learned memory rules.
+          setTimeout(() => void runSilentReview(builtFromPlan), 1500);
         }
       });
     }
@@ -608,6 +615,34 @@ export default function LinkedInTemplatesPage() {
   }
 
   /**
+   * Silent background pre-review — runs automatically after a new carousel is
+   * generated. Only fires when the user has at least one learned memory rule.
+   * Caches the result but does NOT open the dialog; the AI review button badge
+   * shows the count of pre-detected issues so the user knows to check.
+   */
+  async function runSilentReview(carousel: CarouselData) {
+    try {
+      const memory = await getActiveMemoryRules().catch(() => [] as string[]);
+      if (!memory.length) return; // no rules learned yet — nothing to pre-check
+      setSilentReviewing(true);
+      const hook = params.get("hook") ?? carousel.slides?.[0]?.title ?? "";
+      const body = params.get("body") ?? "";
+      const { data, error } = await supabase.functions.invoke("review-carousel", {
+        body: { slides: carousel.slides, hook, body, author: carousel.author, memory },
+      });
+      if (error || (data as any)?.error) return;
+      const review = (data as any).review;
+      if (!review?.slideNotes?.length) return;
+      // Store silently — don't open dialog, just pre-populate so Fix Issues is instant
+      setAiReview(review);
+      setAppliedNotes([]);
+      setBaseScore(null);
+      setStaleReview(false);
+    } catch { /* silent — never surface errors from background review */ }
+    finally { setSilentReviewing(false); }
+  }
+
+  /**
    * AI review. If a cached review already exists and we're not forcing a
    * re-run, just reopen it (no new LLM call, no lost feedback). Otherwise call
    * the LLM (passing the user's learned memory rules) and persist the result.
@@ -877,10 +912,34 @@ export default function LinkedInTemplatesPage() {
                       <Sparkles className="w-3 h-3 mr-1" /> Fix issues
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" className="h-6 text-[11px] px-2" disabled={aiReviewing} onClick={() => runAiReview()}>
-                    {aiReviewing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
-                    {aiReview ? "AI review ✓" : "AI review"}
-                  </Button>
+                  {/* AI Review button — shows pre-detected issue badge when memory found issues */}
+                  {(() => {
+                    const preHighCount = aiReview && !aiReviewOpen
+                      ? (aiReview.slideNotes ?? []).filter((n: any) => n.severity === "high" && !appliedNotes.includes(String((aiReview.slideNotes ?? []).indexOf(n)))).length
+                      : 0;
+                    return (
+                      <div className="relative">
+                        <Button
+                          size="sm"
+                          variant={preHighCount > 0 ? "default" : "outline"}
+                          className={`h-6 text-[11px] px-2 ${
+                            preHighCount > 0 ? "bg-amber-500/90 hover:bg-amber-500 text-white border-amber-500" : ""
+                          }`}
+                          disabled={aiReviewing || silentReviewing}
+                          onClick={() => runAiReview()}
+                        >
+                          {(aiReviewing || silentReviewing) ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                          {silentReviewing ? "Checking…" : aiReview ? "AI review ✓" : "AI review"}
+                        </Button>
+                        {preHighCount > 0 && (
+                          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 rounded-full bg-destructive text-white text-[9px] font-bold flex items-center justify-center px-0.5 shadow-sm animate-bounce">
+                            {preHighCount}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  
                 </div>
               </div>
               <ul className="text-[11px] space-y-0.5 pl-0.5">

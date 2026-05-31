@@ -24,12 +24,25 @@ Deno.serve(async (req) => {
     return json({ error: "Need exactly 6 posts" }, 400);
   }
 
+  // Fetch the user's learned memory rules — injected as negative constraints so
+  // generated copy is already free of patterns flagged in past AI reviews.
+  const { data: memoryRows } = await supabase
+    .from("linkedin_design_memory")
+    .select("rule")
+    .eq("user_id", user.id)
+    .eq("active", true)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  const memoryRules: string[] = (memoryRows ?? [])
+    .map((r: any) => (r.rule ?? "").trim())
+    .filter(Boolean);
+
   const { data: row, error: insertError } = await supabase
     .from("carousels").insert({ user_id: user.id, posts, status: "pending" })
     .select().single();
   if (insertError) return json({ error: insertError.message }, 500);
 
-  processCarousel(supabase, row.id, posts).catch(async (err) => {
+  processCarousel(supabase, row.id, posts, memoryRules).catch(async (err) => {
     console.error("processCarousel failed:", err);
     await supabase.from("carousels")
       .update({ status: "failed", error_message: String(err?.message || err) })
@@ -39,14 +52,17 @@ Deno.serve(async (req) => {
   return json({ id: row.id }, 200);
 });
 
-async function processCarousel(supabase: any, rowId: string, posts: string[]) {
+async function processCarousel(supabase: any, rowId: string, posts: string[], memoryRules: string[]) {
   await update(supabase, rowId, { status: "writing_copy" });
-  const copy = await generateCopy(posts);
-
+  const copy = await generateCopy(posts, memoryRules);
   await update(supabase, rowId, { status: "ready", copy });
 }
 
-async function generateCopy(posts: string[]) {
+async function generateCopy(posts: string[], memoryRules: string[]) {
+  const memoryBlock = memoryRules.length
+    ? `\n\nCRITICAL — avoid these patterns flagged as weak in past carousels for this user:\n- ${memoryRules.join("\n- ")}\nWrite copy that is already free of these issues from the first word.`
+    : "";
+
   const systemPrompt = `You are a viral content strategist for LinkedIn carousels. Given 6 LinkedIn posts, extract the strongest common theme and write copy for a 4-page carousel. Tone: professional but conversational and bold. No fluff, no jargon, no emojis, no hashtags. Active verbs, social-proof tone, slight urgency. Output ONLY valid JSON matching this exact schema with no extra keys:
 {
   "title_of_the_post": "6-9 word bold headline",
@@ -58,7 +74,7 @@ async function generateCopy(posts: string[]) {
   "page_3_body": "one sentence on the solution with specifics",
   "page_4_title": "short call to action title",
   "page_4_body": "conversational one sentence CTA"
-}`;
+}${memoryBlock}`;
 
   const userPrompt = JSON.stringify({
     post_1: posts[0], post_2: posts[1], post_3: posts[2],
@@ -88,6 +104,7 @@ async function generateCopy(posts: string[]) {
 async function update(supabase: any, rowId: string, patch: any) {
   await supabase.from("carousels").update(patch).eq("id", rowId);
 }
+
 function json(obj: any, status = 200) {
   return new Response(JSON.stringify(obj), {
     status, headers: { ...corsHeaders, "Content-Type": "application/json" },
