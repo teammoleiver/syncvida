@@ -1950,6 +1950,20 @@ function PostInspectorDialog({ post, onClose, onGenerated }: { post: any; onClos
     setDrafts((d) => ({ ...d, [framework]: { body: (data as any)?.draft?.body ?? "", loading: false } }));
     onGenerated?.();
     try { setExisting(await listDraftsForPost(post.id)); } catch {}
+    // Implicit positive signal — the user chose to generate from this post.
+    // Tag with detected post fields so the AI learns "more like this".
+    try {
+      const fields = Array.isArray((post as any)?.relevance_fields?.fields)
+        ? (post as any).relevance_fields.fields.slice(0, 5) as string[]
+        : [];
+      await addScrapeMemory({
+        signal: "positive",
+        tags: fields.length ? fields : ["Inspired a draft"],
+        reason: `Generated a "${framework}" draft from this post`,
+        source: "generate",
+        source_post: { id: post.id, author: post.author, text: post.post_text },
+      });
+    } catch {}
   };
 
   const sendToPlanner = async (framework: string, body: string) => {
