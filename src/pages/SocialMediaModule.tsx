@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle, Star, ListPlus, Tag, Folder, ChevronDown, BarChart3, Pin, PinOff, Search as SearchIcon } from "lucide-react";
+import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle, Star, ListPlus, Tag, Folder, ChevronDown, BarChart3, Pin, PinOff, Search as SearchIcon, ThumbsUp, ThumbsDown, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +38,11 @@ import {
 import ApifyActorsPanel from "@/components/social/ApifyActorsPanel";
 import EngagementFeedTab from "@/components/social/EngagementFeedTab";
 import LinkedInAnalyticsTab from "@/components/social/LinkedInAnalyticsTab";
+import {
+  POSITIVE_TAGS, NEGATIVE_TAGS,
+  addScrapeMemory, listScrapeMemory, updateScrapeMemory, deleteScrapeMemory,
+  type ScrapeMemoryRow, type ScrapeMemorySignal, type ScrapeMemorySource,
+} from "@/lib/social-memory";
 
 type Tab = "profiles" | "posts" | "engagement" | "analytics" | "topics" | "planner" | "settings";
 
@@ -1302,7 +1307,11 @@ function PostsTab() {
   const [scoringAll, setScoringAll] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleteIntent, setDeleteIntent] = useState<"relevant" | "irrelevant">("relevant");
+  const [deleteTags, setDeleteTags] = useState<string[]>([]);
+  const [deleteReason, setDeleteReason] = useState("");
   const [staleFilter, setStaleFilter] = useState<"all" | "stale" | "fresh">("all");
+  // Feedback dialog (used by ignore/like — captures memory tags + free-text reason)
+  const [feedbackTarget, setFeedbackTarget] = useState<{ post: any; signal: ScrapeMemorySignal; source: ScrapeMemorySource; alsoIgnore?: boolean } | null>(null);
 
   // Debounce search input → triggers server-side refetch
   useEffect(() => {
@@ -1384,11 +1393,37 @@ function PostsTab() {
   });
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
-  const handleIgnore = async (p: any, reason?: string) => {
-    setBusy((b) => ({ ...b, [p.id]: true }));
-    try { await ignoreSocialPost(p.id, reason); toast.success("Marked irrelevant — AI will deprioritize similar posts"); load(); }
-    catch (e: any) { toast.error(e?.message ?? "Failed"); }
-    finally { setBusy((b) => ({ ...b, [p.id]: false })); }
+  const handleIgnore = async (p: any) => {
+    // Open the feedback dialog so the AI can learn WHY this post isn't relevant.
+    setFeedbackTarget({ post: p, signal: "negative", source: "ignore", alsoIgnore: true });
+  };
+  const handleLike = (p: any) => {
+    // Capture a positive signal — what the user wants to see MORE of.
+    setFeedbackTarget({ post: p, signal: "positive", source: "like" });
+  };
+  const submitFeedback = async (tags: string[], reason: string) => {
+    const t = feedbackTarget;
+    if (!t) return;
+    setFeedbackTarget(null);
+    setBusy((b) => ({ ...b, [t.post.id]: true }));
+    try {
+      await addScrapeMemory({
+        signal: t.signal,
+        tags,
+        reason,
+        source: t.source,
+        source_post: { id: t.post.id, author: t.post.author, text: t.post.post_text },
+      });
+      if (t.alsoIgnore) {
+        const note = [tags.join(", "), reason].filter(Boolean).join(" — ").slice(0, 280) || undefined;
+        try { await ignoreSocialPost(t.post.id, note); } catch {}
+      }
+      toast.success(t.signal === "positive"
+        ? "Saved — AI will surface more posts like this"
+        : "Saved — AI will deprioritize similar posts");
+      load();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); }
+    finally { setBusy((b) => ({ ...b, [t.post.id]: false })); }
   };
   const handleUnignore = async (p: any) => {
     setBusy((b) => ({ ...b, [p.id]: true }));
@@ -1398,6 +1433,8 @@ function PostsTab() {
   };
   const handleDelete = async (p: any) => {
     setDeleteIntent("relevant");
+    setDeleteTags([]);
+    setDeleteReason("");
     setDeleteTarget(p);
   };
   const confirmDelete = async () => {
@@ -1407,7 +1444,17 @@ function PostsTab() {
     setDeleteTarget(null);
     try {
       if (deleteIntent === "irrelevant") {
-        try { await ignoreSocialPost(p.id, "Marked irrelevant on delete"); } catch {}
+        const note = [deleteTags.join(", "), deleteReason].filter(Boolean).join(" — ").slice(0, 280) || "Marked irrelevant on delete";
+        try { await ignoreSocialPost(p.id, note); } catch {}
+        try {
+          await addScrapeMemory({
+            signal: "negative",
+            tags: deleteTags,
+            reason: deleteReason,
+            source: "delete",
+            source_post: { id: p.id, author: p.author, text: p.post_text },
+          });
+        } catch {}
       }
       await deleteSocialPost(p.id);
       toast.success(deleteIntent === "irrelevant" ? "Deleted — AI will deprioritize similar posts" : "Deleted");
@@ -1552,6 +1599,9 @@ function PostsTab() {
                   <td className="px-3 py-2 text-right">
                     <div className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" className="text-primary inline-flex p-1 hover:bg-muted rounded" title="Open on LinkedIn"><ArrowUpRight className="w-4 h-4" /></a>}
+                      <Button size="sm" variant="ghost" disabled={busy[p.id] || !!p.ignored_at} onClick={() => handleLike(p)} title="Relevant to me — AI will learn this topic IS my niche">
+                        <ThumbsUp className="w-3.5 h-3.5 text-emerald-500" />
+                      </Button>
                       {p.ignored_at ? (
                         <Button size="sm" variant="ghost" disabled={busy[p.id]} onClick={() => handleUnignore(p)} title="Restore">
                           <RefreshCw className="w-3.5 h-3.5" />
@@ -1627,6 +1677,9 @@ function PostsTab() {
                         <ArrowUpRight className="w-3.5 h-3.5" />
                       </a>
                     )}
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled={busy[p.id] || !!p.ignored_at} onClick={() => handleLike(p)} title="Relevant to me">
+                      <ThumbsUp className="w-3.5 h-3.5 text-emerald-500" />
+                    </Button>
                     {p.ignored_at ? (
                       <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled={busy[p.id]} onClick={() => handleUnignore(p)} title="Restore">
                         <RefreshCw className="w-3.5 h-3.5" />
@@ -1710,13 +1763,114 @@ function PostsTab() {
               </div>
             </Label>
           </RadioGroup>
+          {deleteIntent === "irrelevant" && (
+            <div className="space-y-2 px-1 pb-2">
+              <div className="text-xs font-medium">Why isn't it relevant? <span className="text-muted-foreground font-normal">(your reasons train the AI)</span></div>
+              <div className="flex flex-wrap gap-1.5">
+                {NEGATIVE_TAGS.map((t) => {
+                  const on = deleteTags.includes(t);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setDeleteTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t])}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${on ? "bg-rose-500/15 text-rose-500 border-rose-500/40" : "border-border text-muted-foreground hover:bg-muted/40"}`}
+                    >{t}</button>
+                  );
+                })}
+              </div>
+              <Textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Anything else? (optional — e.g. 'not about marketing automation')"
+                className="min-h-[70px] resize-y text-xs"
+              />
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <FeedbackDialog target={feedbackTarget} onClose={() => setFeedbackTarget(null)} onSubmit={submitFeedback} />
     </section>
+  );
+}
+
+// ───────── Feedback dialog (captures reasons → memory) ─────────
+function FeedbackDialog({
+  target,
+  onClose,
+  onSubmit,
+}: {
+  target: { post: any; signal: ScrapeMemorySignal; source: ScrapeMemorySource; alsoIgnore?: boolean } | null;
+  onClose: () => void;
+  onSubmit: (tags: string[], reason: string) => void;
+}) {
+  const [tags, setTags] = useState<string[]>([]);
+  const [reason, setReason] = useState("");
+  useEffect(() => { if (target) { setTags([]); setReason(""); } }, [target]);
+  if (!target) return null;
+  const positive = target.signal === "positive";
+  const palette = positive ? POSITIVE_TAGS : NEGATIVE_TAGS;
+  const accent = positive
+    ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/40"
+    : "bg-rose-500/15 text-rose-500 border-rose-500/40";
+  const cta = positive ? "bg-emerald-500 hover:bg-emerald-500/90 text-white" : "bg-rose-500 hover:bg-rose-500/90 text-white";
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {positive ? <ThumbsUp className="w-4 h-4 text-emerald-500" /> : <ThumbsDown className="w-4 h-4 text-rose-500" />}
+            {positive ? "What did you like about this post?" : "Why isn't this relevant to you?"}
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-xs text-muted-foreground">
+          {positive
+            ? "Your reasons train the AI to surface more posts like this."
+            : "Your reasons train the AI to stop surfacing posts like this."}
+        </p>
+        {target.post?.post_text && (
+          <div className="text-xs text-muted-foreground line-clamp-2 italic border-l-2 border-border pl-3">
+            {target.post.author ? <span className="font-medium text-foreground/80">{target.post.author}: </span> : null}
+            {target.post.post_text}
+          </div>
+        )}
+        <div className="flex flex-wrap gap-1.5">
+          {palette.map((t) => {
+            const on = tags.includes(t);
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t])}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${on ? accent : "border-border text-muted-foreground hover:bg-muted/40"}`}
+              >{t}</button>
+            );
+          })}
+        </div>
+        <Textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder={positive ? "Anything else? (optional — e.g. 'great breakdown of B2B GTM stack')" : "Anything else? (optional — e.g. 'not about marketing automation')"}
+          className="min-h-[80px] resize-y text-xs"
+        />
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          <Button
+            size="sm"
+            className={cta}
+            disabled={tags.length === 0 && !reason.trim()}
+            onClick={() => onSubmit(tags, reason.trim())}
+          >
+            {positive ? <><ThumbsUp className="w-3.5 h-3.5 mr-1" />Save & learn</> : <><ThumbsDown className="w-3.5 h-3.5 mr-1" />{target.alsoIgnore ? "Ignore & learn" : "Save & learn"}</>}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1796,6 +1950,20 @@ function PostInspectorDialog({ post, onClose, onGenerated }: { post: any; onClos
     setDrafts((d) => ({ ...d, [framework]: { body: (data as any)?.draft?.body ?? "", loading: false } }));
     onGenerated?.();
     try { setExisting(await listDraftsForPost(post.id)); } catch {}
+    // Implicit positive signal — the user chose to generate from this post.
+    // Tag with detected post fields so the AI learns "more like this".
+    try {
+      const fields = Array.isArray((post as any)?.relevance_fields?.fields)
+        ? (post as any).relevance_fields.fields.slice(0, 5) as string[]
+        : [];
+      await addScrapeMemory({
+        signal: "positive",
+        tags: fields.length ? fields : ["Inspired a draft"],
+        reason: `Generated a "${framework}" draft from this post`,
+        source: "generate",
+        source_post: { id: post.id, author: post.author, text: post.post_text },
+      });
+    } catch {}
   };
 
   const sendToPlanner = async (framework: string, body: string) => {
@@ -2485,8 +2653,75 @@ function SettingsTab() {
 
       <ScrapeHistoryPanel />
 
+      <ScrapeMemoryPanel />
+
       <Button onClick={save} disabled={busy} className="w-full md:w-auto">{busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Save settings</Button>
     </section>
+  );
+}
+
+// ───────── Scraped-post memory editor (Settings) ─────────
+function ScrapeMemoryPanel() {
+  const [rows, setRows] = useState<ScrapeMemoryRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "positive" | "negative">("all");
+  const load = async () => { setLoading(true); try { setRows(await listScrapeMemory()); } finally { setLoading(false); } };
+  useEffect(() => { load(); }, []);
+  const visible = rows.filter((r) => filter === "all" || r.signal === filter);
+  const toggle = async (r: ScrapeMemoryRow) => { await updateScrapeMemory(r.id, { active: !r.active }); load(); };
+  const remove = async (r: ScrapeMemoryRow) => { if (!confirm("Delete this memory entry?")) return; await deleteScrapeMemory(r.id); load(); };
+  return (
+    <Card className="p-5 space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2"><Brain className="w-5 h-5 text-primary" /><h2 className="font-medium">Scraped-post memory</h2></div>
+        <div className="flex items-center gap-2">
+          <Select value={filter} onValueChange={(v: any) => setFilter(v)}>
+            <SelectTrigger className="h-8 w-[160px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All signals</SelectItem>
+              <SelectItem value="positive">👍 Relevant</SelectItem>
+              <SelectItem value="negative">👎 Not relevant</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="ghost" onClick={load}><RefreshCw className="w-3.5 h-3.5" /></Button>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Every time you like, ignore, or delete-as-irrelevant a scraped post, your reason is saved here.
+        The relevance scorer reads this memory to keep getting smarter about what you actually want to see.
+        Toggle off any rule that's no longer accurate.
+      </p>
+      {loading ? <p className="text-xs text-muted-foreground">Loading…</p> :
+        visible.length === 0 ? <p className="text-xs text-muted-foreground py-3">No memory yet. Use the 👍 / ✕ / 🗑 buttons on scraped posts to teach the AI.</p> :
+        <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+          {visible.map((r) => (
+            <div key={r.id} className={`flex items-start gap-3 p-3 rounded-md border ${r.active ? "border-border" : "border-border/40 opacity-60"}`}>
+              <div className={`shrink-0 mt-0.5 ${r.signal === "positive" ? "text-emerald-500" : "text-rose-500"}`}>
+                {r.signal === "positive" ? <ThumbsUp className="w-4 h-4" /> : <ThumbsDown className="w-4 h-4" />}
+              </div>
+              <div className="flex-1 min-w-0 space-y-1">
+                {r.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {r.tags.map((t, i) => (
+                      <Badge key={i} variant="outline" className={`text-[10px] py-0 h-4.5 ${r.signal === "positive" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" : "bg-rose-500/10 text-rose-500 border-rose-500/30"}`}>{t}</Badge>
+                    ))}
+                  </div>
+                )}
+                {r.reason && <p className="text-xs text-foreground/90">{r.reason}</p>}
+                <p className="text-[10px] text-muted-foreground">
+                  {r.source} · {new Date(r.created_at).toLocaleDateString()}
+                  {r.source_post_author ? <> · re: <span className="font-medium">{r.source_post_author}</span></> : null}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Switch checked={r.active} onCheckedChange={() => toggle(r)} />
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => remove(r)} title="Delete"><Trash2 className="w-3.5 h-3.5 text-destructive" /></Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      }
+    </Card>
   );
 }
 

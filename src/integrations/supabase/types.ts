@@ -80,6 +80,24 @@ export type Database = {
         }
         Relationships: []
       }
+      app_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       blood_test_records: {
         Row: {
           analyzed_at: string | null
@@ -1047,6 +1065,60 @@ export type Database = {
         }
         Relationships: []
       }
+      linkedin_ai_reviews: {
+        Row: {
+          applied: Json
+          design_id: string
+          id: string
+          review: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          applied?: Json
+          design_id: string
+          id?: string
+          review?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          applied?: Json
+          design_id?: string
+          id?: string
+          review?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      linkedin_design_memory: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          rule: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          rule: string
+          source?: string
+          user_id?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          rule?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       linkedin_engagement_comments: {
         Row: {
           created_at: string
@@ -1147,6 +1219,36 @@ export type Database = {
           overall_score?: number | null
           profile_url?: string | null
           report?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      linkedin_writing_memory: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          reason: string | null
+          rule: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          reason?: string | null
+          rule: string
+          source?: string
+          user_id?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          reason?: string | null
+          rule?: string
+          source?: string
           user_id?: string
         }
         Relationships: []
@@ -2189,6 +2291,51 @@ export type Database = {
           last_fetch_error?: string | null
           last_fetch_status?: string | null
           last_fetched_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      social_scrape_memory: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          reason: string | null
+          signal: string
+          source: string
+          source_post_author: string | null
+          source_post_excerpt: string | null
+          source_post_id: string | null
+          tags: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          reason?: string | null
+          signal: string
+          source?: string
+          source_post_author?: string | null
+          source_post_excerpt?: string | null
+          source_post_id?: string | null
+          tags?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          reason?: string | null
+          signal?: string
+          source?: string
+          source_post_author?: string | null
+          source_post_excerpt?: string | null
+          source_post_id?: string | null
+          tags?: string[]
           updated_at?: string
           user_id?: string
         }
