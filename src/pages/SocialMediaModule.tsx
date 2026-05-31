@@ -1312,6 +1312,11 @@ function PostsTab() {
   const [staleFilter, setStaleFilter] = useState<"all" | "stale" | "fresh">("all");
   // Feedback dialog (used by ignore/like — captures memory tags + free-text reason)
   const [feedbackTarget, setFeedbackTarget] = useState<{ post: any; signal: ScrapeMemorySignal; source: ScrapeMemorySource; alsoIgnore?: boolean } | null>(null);
+  // Bulk selection
+  const [selectedPostIds, setSelectedPostIds] = useState<Set<string>>(new Set());
+  const [bulkFeedback, setBulkFeedback] = useState<{ posts: any[]; signal: ScrapeMemorySignal; source: ScrapeMemorySource; alsoIgnore?: boolean } | null>(null);
+  const [bulkDeleteTargets, setBulkDeleteTargets] = useState<any[] | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   // Debounce search input → triggers server-side refetch
   useEffect(() => {
@@ -1320,6 +1325,8 @@ function PostsTab() {
   }, [search]);
   // Reset to page 1 whenever filters change
   useEffect(() => { setPage(1); }, [profileFilter, ignoredFilter, debouncedSearch]);
+  // Clear selection whenever the visible page/filters change
+  useEffect(() => { setSelectedPostIds(new Set()); }, [page, profileFilter, listFilter, usageFilter, ignoredFilter, staleFilter, debouncedSearch]);
 
   const load = async () => {
     setLoading(true);
@@ -1436,6 +1443,95 @@ function PostsTab() {
     setDeleteTags([]);
     setDeleteReason("");
     setDeleteTarget(p);
+  };
+  // ── Bulk selection helpers ──
+  const togglePostSelection = (id: string) =>
+    setSelectedPostIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const visibleIds = filtered.map((p) => p.id);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedPostIds.has(id));
+  const someVisibleSelected = visibleIds.some((id) => selectedPostIds.has(id));
+  const togglePageSelection = () =>
+    setSelectedPostIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) visibleIds.forEach((id) => next.delete(id));
+      else visibleIds.forEach((id) => next.add(id));
+      return next;
+    });
+  const clearSelection = () => setSelectedPostIds(new Set());
+  const selectedPosts = filtered.filter((p) => selectedPostIds.has(p.id));
+  const startBulkIgnore = () => {
+    if (selectedPosts.length === 0) return;
+    setBulkFeedback({ posts: selectedPosts, signal: "negative", source: "ignore", alsoIgnore: true });
+  };
+  const startBulkLike = () => {
+    if (selectedPosts.length === 0) return;
+    setBulkFeedback({ posts: selectedPosts, signal: "positive", source: "like" });
+  };
+  const startBulkDelete = () => {
+    if (selectedPosts.length === 0) return;
+    setDeleteIntent("relevant");
+    setDeleteTags([]);
+    setDeleteReason("");
+    setBulkDeleteTargets(selectedPosts);
+  };
+  const submitBulkFeedback = async (tags: string[], reason: string) => {
+    const t = bulkFeedback;
+    if (!t) return;
+    setBulkFeedback(null);
+    setBulkBusy(true);
+    try {
+      const note = [tags.join(", "), reason].filter(Boolean).join(" — ").slice(0, 280) || undefined;
+      for (const p of t.posts) {
+        try {
+          await addScrapeMemory({
+            signal: t.signal,
+            tags,
+            reason,
+            source: t.source,
+            source_post: { id: p.id, author: p.author, text: p.post_text },
+          });
+        } catch {}
+        if (t.alsoIgnore) {
+          try { await ignoreSocialPost(p.id, note); } catch {}
+        }
+      }
+      toast.success(`${t.posts.length} post(s) saved — AI will ${t.signal === "positive" ? "surface more like these" : "deprioritize similar posts"}`);
+      clearSelection();
+      load();
+    } catch (e: any) { toast.error(e?.message ?? "Bulk action failed"); }
+    finally { setBulkBusy(false); }
+  };
+  const confirmBulkDelete = async () => {
+    const list = bulkDeleteTargets;
+    if (!list || list.length === 0) return;
+    setBulkDeleteTargets(null);
+    setBulkBusy(true);
+    try {
+      const note = [deleteTags.join(", "), deleteReason].filter(Boolean).join(" — ").slice(0, 280) || "Marked irrelevant on bulk delete";
+      for (const p of list) {
+        if (deleteIntent === "irrelevant") {
+          try { await ignoreSocialPost(p.id, note); } catch {}
+          try {
+            await addScrapeMemory({
+              signal: "negative",
+              tags: deleteTags,
+              reason: deleteReason,
+              source: "delete",
+              source_post: { id: p.id, author: p.author, text: p.post_text },
+            });
+          } catch {}
+        }
+        try { await deleteSocialPost(p.id); } catch {}
+      }
+      toast.success(`${list.length} post(s) deleted${deleteIntent === "irrelevant" ? " — AI will deprioritize similar posts" : ""}`);
+      clearSelection();
+      load();
+    } catch (e: any) { toast.error(e?.message ?? "Bulk delete failed"); }
+    finally { setBulkBusy(false); }
   };
   const confirmDelete = async () => {
     const p = deleteTarget;
