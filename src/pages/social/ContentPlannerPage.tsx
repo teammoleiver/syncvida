@@ -909,21 +909,6 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
                 {designBusy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Palette className="w-4 h-4 mr-1" />}
                 Design in Studio
               </Button>
-              {entry?.id && (
-                <Button type="button" size="sm" variant="outline"
-                  className="border-emerald-500/40 text-emerald-300"
-                  onClick={() => {
-                    const params = new URLSearchParams({
-                      planId: entry.id,
-                      preset: "cheatsheet",
-                    });
-                    if (form.hook) params.set("hook", form.hook);
-                    if (form.body) params.set("body", form.body);
-                    navigate(`/designer/linkedin-templates?${params.toString()}`);
-                  }}>
-                  <Sparkles className="w-4 h-4 mr-1" /> LinkedIn Template
-                </Button>
-              )}
               {linkedDesign?.thumbnail_url && (
                 <Button type="button" size="sm" variant="outline" onClick={useDesignAsImage}
                   className="border-emerald-500/40 text-emerald-300">

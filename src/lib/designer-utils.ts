@@ -242,3 +242,50 @@ export function emptySlide(bg: Fill = "#FFFFFF"): Slide {
 
 // ── Export ergonomics ──
 export function safeFilename(s: string) { return s.replace(/[^a-z0-9-_]+/gi, "_"); }
+
+/**
+ * Programmatically chroma-keys solid white backgrounds of brand logos on-the-fly.
+ * Scans all canvas pixel buffers and switches close-to-white pixels (R/G/B > 240) to transparent.
+ */
+export async function removeWhiteBackground(imageUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(imageUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
+
+        // Strip pixels that are very close to pure white
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          // Threshold of 240 out of 255
+          if (r > 240 && g > 240 && b > 240) {
+            data[i + 3] = 0; // Set alpha to 0 (fully transparent)
+          }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      } catch {
+        resolve(imageUrl);
+      }
+    };
+    img.onerror = () => {
+      resolve(imageUrl);
+    };
+    img.src = imageUrl;
+  });
+}
+

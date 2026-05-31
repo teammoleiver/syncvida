@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Loader2, Image as ImageIcon, Search, X, Check, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { listAssets, uploadAssetWithProgress, type DesignAsset } from "@/lib/designer-queries";
+import { BUILTIN_ASSETS } from "@/lib/builtin-assets";
 
 type SortKey = "newest" | "oldest" | "name";
 type AspectKey = "1:1" | "4:5" | "16:9" | "free";
@@ -21,6 +22,9 @@ export default function AssetPickerDialog({
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
+  const [activeTab, setActiveTab] = useState<"uploads" | "logos" | "symbols" | "charts">("uploads");
+  const [sectorLogos, setSectorLogos] = useState<any[]>([]);
+  const [loadingLogos, setLoadingLogos] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Upload flow state
@@ -38,8 +42,16 @@ export default function AssetPickerDialog({
     if (!open) return;
     setStage("browse");
     setQuery("");
+    setActiveTab("uploads");
     setLoading(true);
     listAssets().then((a) => setAssets(a)).finally(() => setLoading(false));
+
+    setLoadingLogos(true);
+    fetch("/logos-registry.json")
+      .then((r) => r.json())
+      .then((d) => setSectorLogos(d))
+      .catch(() => setSectorLogos([]))
+      .finally(() => setLoadingLogos(false));
   }, [open]);
 
   useEffect(() => () => { if (pickedUrl) URL.revokeObjectURL(pickedUrl); }, [pickedUrl]);
@@ -55,6 +67,23 @@ export default function AssetPickerDialog({
     });
     return list;
   }, [assets, query, sort]);
+
+  const filteredBuiltin = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (activeTab === "logos") {
+      let list = sectorLogos;
+      if (q) {
+        list = list.filter((b) => b.name.toLowerCase().includes(q));
+      }
+      return list;
+    }
+    const cat = activeTab === "symbols" ? "symbol" : "chart";
+    let list = BUILTIN_ASSETS.filter((b) => b.category === cat);
+    if (q) {
+      list = list.filter((b) => b.name.toLowerCase().includes(q));
+    }
+    return list;
+  }, [activeTab, query, sectorLogos]);
 
   function startUpload(file: File) {
     setPickedFile(file);
@@ -112,6 +141,28 @@ export default function AssetPickerDialog({
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
 
+        {/* Tabs Trigger */}
+        {stage === "browse" && (
+          <div className="flex border-b border-border bg-muted/20 px-3 py-1.5 gap-1 shrink-0">
+            {(["uploads", "logos", "symbols", "charts"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setActiveTab(t)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  activeTab === t
+                    ? "bg-background text-foreground shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-foreground border border-transparent"
+                }`}
+              >
+                {t === "uploads" && "My Uploads"}
+                {t === "logos" && "Sector Logos"}
+                {t === "symbols" && "Growth Symbols"}
+                {t === "charts" && "Data & Charts"}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Browse */}
         {stage === "browse" && (
           <>
@@ -121,50 +172,76 @@ export default function AssetPickerDialog({
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search by name or filename…"
+                  placeholder="Search by name…"
                   className="pl-8 h-9"
                 />
               </div>
-              <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-                <SelectTrigger className="h-9 w-full sm:w-40"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="newest">Newest first</SelectItem>
-                  <SelectItem value="oldest">Oldest first</SelectItem>
-                  <SelectItem value="name">Name A→Z</SelectItem>
-                </SelectContent>
-              </Select>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) startUpload(f); e.currentTarget.value = ""; }}
-              />
-              <Button size="sm" className="h-9" onClick={() => fileRef.current?.click()}>
-                <ImageIcon className="w-3.5 h-3.5 mr-1" /> Upload
-              </Button>
+              {activeTab === "uploads" && (
+                <>
+                  <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+                    <SelectTrigger className="h-9 w-full sm:w-40"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest first</SelectItem>
+                      <SelectItem value="oldest">Oldest first</SelectItem>
+                      <SelectItem value="name">Name A→Z</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) startUpload(f); e.currentTarget.value = ""; }}
+                  />
+                  <Button size="sm" className="h-9" onClick={() => fileRef.current?.click()}>
+                    <ImageIcon className="w-3.5 h-3.5 mr-1" /> Upload
+                  </Button>
+                </>
+              )}
             </div>
             <div className="flex-1 overflow-auto p-3 sm:p-4">
-              {loading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>
-              ) : filtered.length === 0 ? (
-                <div className="text-sm text-muted-foreground italic">
-                  {assets.length === 0 ? <>No assets yet — click <strong>Upload</strong> above to add one.</> : "No assets match your search."}
-                </div>
+              {activeTab === "uploads" ? (
+                loading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>
+                ) : filtered.length === 0 ? (
+                  <div className="text-sm text-muted-foreground italic">
+                    {assets.length === 0 ? <>No assets yet — click <strong>Upload</strong> above to add one.</> : "No assets match your search."}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    {filtered.map((a) => (
+                      <button key={a.id} onClick={() => onPick(a)} className="group text-left rounded-md border border-border overflow-hidden hover:border-primary transition">
+                        <div className="aspect-square bg-muted/30">
+                          <img src={a.public_url} alt={a.name ?? ""} className="w-full h-full object-cover" loading="lazy" />
+                        </div>
+                        <div className="p-1.5">
+                          <div className="text-xs font-medium truncate">{a.name || a.storage_path.split("/").pop()}</div>
+                          <div className="text-[10px] text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {filtered.map((a) => (
-                    <button key={a.id} onClick={() => onPick(a)} className="group text-left rounded-md border border-border overflow-hidden hover:border-primary transition">
-                      <div className="aspect-square bg-muted/30">
-                        <img src={a.public_url} alt={a.name ?? ""} className="w-full h-full object-cover" loading="lazy" />
-                      </div>
-                      <div className="p-1.5">
-                        <div className="text-xs font-medium truncate">{a.name || a.storage_path.split("/").pop()}</div>
-                        <div className="text-[10px] text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                activeTab === "logos" && loadingLogos ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading logos…</div>
+                ) : filteredBuiltin.length === 0 ? (
+                  <div className="text-sm text-muted-foreground italic">No assets match your search.</div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    {filteredBuiltin.map((b) => (
+                      <button key={b.id} onClick={() => onPick(b as any)} className="group text-left rounded-md border border-border overflow-hidden hover:border-primary transition">
+                        <div className="aspect-square bg-[#0E0E0E] flex items-center justify-center p-4">
+                          <img src={b.public_url} alt={b.name} className="w-full h-full object-contain" />
+                        </div>
+                        <div className="p-1.5 bg-card">
+                          <div className="text-xs font-medium truncate">{b.name}</div>
+                          <div className="text-[10px] text-muted-foreground capitalize">{b.category}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )
               )}
             </div>
           </>

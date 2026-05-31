@@ -6,10 +6,11 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Sparkles, Upload, Image as ImageIcon, X, Check, User, Star } from "lucide-react";
 import { toast } from "sonner";
 import {
-  listAssets, uploadAsset, generateAssetImageWithRefs, getBrandKit,
+  listAssets, uploadAsset, generateAssetImageWithRefs, getBrandKit, createDesign,
   type DesignAsset, type BrandKit,
 } from "@/lib/designer-queries";
 import { supabase } from "@/integrations/supabase/client";
+import { detectMentionedLogos } from "@/components/designer/linkedin/detectLogos";
 
 type Aspect = "1:1" | "4:5" | "9:16";
 
@@ -49,10 +50,21 @@ export default function GenerateWithAIDialog({
       listAssets().catch(() => []),
       getBrandKit().catch(() => null),
       supabase.auth.getUser().then((u) => ({ name: u.data.user?.user_metadata?.full_name ?? u.data.user?.user_metadata?.name ?? u.data.user?.email?.split("@")[0] })),
-    ]).then(([a, b, u]) => {
-      setAssets(a);
+      detectMentionedLogos(hook + "\n" + (body ?? "")).catch(() => []),
+    ]).then(([a, b, u, detected]) => {
+      const matchedAssets = detected
+        .filter((d) => d.hasAsset && d.asset)
+        .map((d) => d.asset as DesignAsset);
+      
+      const combined = [...matchedAssets, ...a];
+      setAssets(combined);
       setBrand(b);
       setMe(u);
+
+      // Auto-pre-check the tools spoken about in the post!
+      const initialPicked = new Set<string>();
+      matchedAssets.forEach((ma) => initialPicked.add(ma.id));
+      setPicked(initialPicked);
     }).finally(() => setLoadingAssets(false));
   }, [open, hook, body]);
 
@@ -82,16 +94,8 @@ export default function GenerateWithAIDialog({
 
   function buildFinalPrompt(): string {
     const lines: string[] = [prompt.trim()];
-    const refUrls: string[] = [];
-    if (includeAvatar && brand?.avatar_url) refUrls.push(brand.avatar_url);
-    if (refUrls.length) {
-      lines.push(`Render the person from the attached reference photo as a small circular avatar in the bottom-left corner.`);
-    }
-    if (includeName && me?.name) {
-      lines.push(`Add the name "${me.name}" next to the avatar in clean modern sans-serif typography.`);
-    }
-    if (picked.size > 0) {
-      lines.push(`Use the ${picked.size} attached reference image${picked.size === 1 ? "" : "s"} faithfully — incorporate any logos, products, or people exactly as shown.`);
+    if (includeAvatar || includeName || picked.size > 0) {
+      lines.push("Style: clean, modern, professional, social-media editorial background. No embedded text, watermarks, faces, or names painted on the image itself. Leave the bottom area clean for layered overlays.");
     }
     return lines.filter(Boolean).join("\n\n");
   }
@@ -112,13 +116,107 @@ export default function GenerateWithAIDialog({
       const asset: DesignAsset | undefined = d?.asset;
       if (!asset?.public_url) throw new Error("No image URL returned");
 
-      // Persist on the planner entry if we have one
-      if (planId) {
-        await supabase.from("social_content_plan" as any)
-          .update({ image_url: asset.public_url } as any)
-          .eq("id", planId);
+      let finalUrl = asset.public_url;
+
+      // Composite creation: If avatar, name, or logos are requested, create a layered design
+      if (includeAvatar || includeName || picked.size > 0) {
+        const height = aspect === "1:1" ? 1080 : aspect === "4:5" ? 1350 : 1920;
+        const slideElements: any[] = [
+          {
+            id: crypto.randomUUID(),
+            type: "image",
+            src: asset.public_url,
+            fit: "cover",
+            x: 0,
+            y: 0,
+            w: 1080,
+            h: height,
+          }
+        ];
+
+        // Avatar
+        if (includeAvatar && brand?.avatar_url) {
+          slideElements.push({
+            id: crypto.randomUUID(),
+            type: "image",
+            src: brand.avatar_url,
+            fit: "cover",
+            radius: 999,
+            x: 48,
+            y: height - 168,
+            w: 120,
+            h: 120,
+          });
+        }
+
+        // Name text
+        if (includeName && me?.name) {
+          slideElements.push({
+            id: crypto.randomUUID(),
+            type: "text",
+            text: me.name,
+            size: 28,
+            weight: 700,
+            color: "#FFFFFF",
+            align: "left",
+            x: includeAvatar && brand?.avatar_url ? 190 : 48,
+            y: height - 124,
+            w: 400,
+            h: 40,
+          });
+        }
+
+        // Sector logos
+        if (picked.size > 0) {
+          const pickedAssets = assets.filter((a) => picked.has(a.id));
+          pickedAssets.forEach((pa, idx) => {
+            slideElements.push({
+              id: crypto.randomUUID(),
+              type: "image",
+              src: pa.public_url,
+              fit: "contain",
+              x: 1080 - 128 - (idx * 96), // perfectly spaced horizontally to prevent overlapping!
+              y: height - 148,
+              w: 80,
+              h: 80,
+            });
+          });
+        }
+
+        // Create the composite design in our studio database
+        const createdDesign = await createDesign({
+          type: "single",
+          platform: "linkedin",
+          title: `Generated: ${prompt.slice(0, 30)}`,
+          width: 1080,
+          height: height,
+          slides: [
+            {
+              id: crypto.randomUUID(),
+              bg: "#0B0F1A",
+              elements: slideElements,
+            }
+          ]
+        });
+
+        // Link directly to the planner post
+        if (planId) {
+          await supabase.from("designs" as any)
+            .update({ planner_entry_id: planId } as any)
+            .eq("id", createdDesign.id);
+        }
+
+        finalUrl = createdDesign.thumbnail_url || asset.public_url;
+      } else {
+        // Flat image fallback
+        if (planId) {
+          await supabase.from("social_content_plan" as any)
+            .update({ image_url: asset.public_url } as any)
+            .eq("id", planId);
+        }
       }
-      onGenerated(asset.public_url, asset);
+
+      onGenerated(finalUrl, asset);
       toast.success("Image generated with your references");
       onClose();
     } catch (e: any) {

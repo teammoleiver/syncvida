@@ -36,34 +36,120 @@ export type DetectedLogo = {
   hasAsset: boolean;
 };
 
+let cachedRegistry: any[] | null = null;
+
+async function getLogosRegistry() {
+  if (cachedRegistry) return cachedRegistry;
+  try {
+    const res = await fetch("/logos-registry.json");
+    if (!res.ok) throw new Error();
+    cachedRegistry = await res.json();
+    return cachedRegistry ?? [];
+  } catch {
+    return [];
+  }
+}
+
 /**
- * Scan a body of text for tool/brand mentions, then look them up in the
- * user's Asset Library. Returns one entry per detected name with a possible
- * matched asset (if the user has uploaded a logo for it).
+ * Scan a body of text for tool/brand mentions, then look them up in our 1295+
+ * sector logos registry and the user's Asset Library. Returns detected entries
+ * with instantly bindable asset structures.
  */
 export async function detectMentionedLogos(text: string): Promise<DetectedLogo[]> {
-  const found = new Map<string, true>();
-  for (const t of TOOL_KEYWORDS) {
-    if (t.matchers.test(text)) found.set(t.name, true);
-  }
-  if (found.size === 0) return [];
+  if (!text) return [];
 
-  // Fetch user assets once and match by name (case-insensitive substring).
-  const assets = await listAssets().catch(() => [] as DesignAsset[]);
-  const out: DetectedLogo[] = [];
-  for (const name of found.keys()) {
-    const needle = name.toLowerCase();
-    const asset = assets.find((a) =>
-      [(a as any).name, a.prompt, a.storage_path]
-        .filter(Boolean)
-        .some((s: string) => s.toLowerCase().includes(needle)),
-    );
-    out.push({ name, asset, hasAsset: !!asset });
+  const registry = await getLogosRegistry();
+  const lowerText = text.toLowerCase();
+
+  // 1. Scan text for exact word boundaries in our rich sector logos registry
+  const matchedEntries = registry.filter((entry) => {
+    // Escape special characters to construct a safe RegExp boundary
+    const escaped = entry.name.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+    const regex = new RegExp(`\\b${escaped}\\b`, "i");
+    return regex.test(lowerText);
+  });
+
+  // 2. Also run the original TOOL_KEYWORDS matchers as a backup/enhancement
+  const foundBackup = new Map<string, true>();
+  for (const t of TOOL_KEYWORDS) {
+    if (t.matchers.test(text)) {
+      foundBackup.set(t.name, true);
+    }
   }
-  return out;
+
+  // 3. Combine them into unique output structures
+  const outMap = new Map<string, DetectedLogo>();
+
+  // Process matched entries from registry first
+  matchedEntries.forEach((entry) => {
+    outMap.set(entry.name.toLowerCase(), {
+      name: entry.name,
+      asset: {
+        id: entry.id,
+        name: entry.name,
+        public_url: entry.public_url,
+        storage_path: entry.public_url,
+        created_at: new Date().toISOString(),
+        user_id: "",
+        mime: "image/png"
+      } as any,
+      hasAsset: true
+    });
+  });
+
+  // Check backup matchers and supplement registry matches
+  for (const name of foundBackup.keys()) {
+    const lowerName = name.toLowerCase();
+    if (!outMap.has(lowerName)) {
+      const matchedReg = registry.find((entry) => entry.name.toLowerCase() === lowerName);
+      if (matchedReg) {
+        outMap.set(lowerName, {
+          name: matchedReg.name,
+          asset: {
+            id: matchedReg.id,
+            name: matchedReg.name,
+            public_url: matchedReg.public_url,
+            storage_path: matchedReg.public_url,
+            created_at: new Date().toISOString(),
+            user_id: "",
+            mime: "image/png"
+          } as any,
+          hasAsset: true
+        });
+      } else {
+        outMap.set(lowerName, { name, hasAsset: false });
+      }
+    }
+  }
+
+  // Resolve custom uploads for any remaining unmatched logos
+  const unmatchedKeys = Array.from(outMap.entries())
+    .filter(([_, v]) => !v.hasAsset)
+    .map(([k]) => k);
+
+  if (unmatchedKeys.length > 0) {
+    const assets = await listAssets().catch(() => [] as DesignAsset[]);
+    unmatchedKeys.forEach((needle) => {
+      const asset = assets.find((a) =>
+        [(a as any).name, a.prompt, a.storage_path]
+          .filter(Boolean)
+          .some((s: string) => s.toLowerCase().includes(needle)),
+      );
+      if (asset) {
+        const item = outMap.get(needle);
+        if (item) {
+          item.asset = asset;
+          item.hasAsset = true;
+        }
+      }
+    });
+  }
+
+  return Array.from(outMap.values());
 }
 
 /** Convert a tool name to the chip format the canvas uses ("Name :: Mono :: #bg :: #fg"). */
 export function toolNameToChip(name: string): string {
-  return name; // The canvas's TOOL_REGISTRY already covers these names.
+  return name;
 }
+

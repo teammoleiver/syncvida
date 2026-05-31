@@ -4,7 +4,7 @@ import {
   ArrowLeft, Save, Plus, Type, Image as ImageIcon, Square as SquareIcon, Circle as CircleIcon,
   Triangle as TriangleIcon, Trash2, Copy, ArrowUp, ArrowDown, Wand2, Download, Loader2, Sparkles,
   Undo2, Redo2, ZoomIn, ZoomOut, Maximize, Minus as LineIcon, Smile, BookmarkPlus, Layers as LayersIcon,
-  MessageSquare, Upload as UploadIcon, ChevronDown, Hash, Move, Link2, Pencil, Eye,
+  MessageSquare, Upload as UploadIcon, ChevronDown, Hash, Move, Link2, Pencil, Eye, Search,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import {
   saveAsTemplate, resizeDesign,
   type Design, type Slide, type DesignElement, type BrandKit, type DesignAsset,
 } from "@/lib/designer-queries";
+import { BUILTIN_ASSETS } from "@/lib/builtin-assets";
 import { useHistory } from "@/lib/designer-history";
 import {
   newId, makeText, makeShape, makeLine, makeIcon, makeImage, makeLogo,
@@ -53,6 +54,7 @@ export default function DesignEditor() {
   const [tplOpen, setTplOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [rightTab, setRightTab] = useState<"inspect" | "layers" | "ai">("inspect");
+  const [mobileTab, setMobileTab] = useState<"edit" | "preview" | "style">("edit");
   const stageRef = useRef<HTMLDivElement>(null);
   const fileImportRef = useRef<HTMLInputElement>(null);
 
@@ -80,9 +82,7 @@ export default function DesignEditor() {
     const ro = new ResizeObserver(calc);
     ro.observe(stageRef.current);
     return () => ro.disconnect();
-  }, [design?.width, design?.height, autoFit, activeIdx]);
-
-  const [mobileTab, setMobileTab] = useState<"edit" | "preview" | "style">("edit");
+  }, [design?.width, design?.height, autoFit, activeIdx, mobileTab]);
   const slide = design?.slides[activeIdx];
   const selectedFirst = slide?.elements.find((e) => selectedIds.has(e.id)) ?? null;
 
@@ -176,7 +176,30 @@ export default function DesignEditor() {
       return n;
     });
   }
-  const onPickAsset = (a: DesignAsset) => { addElement(makeImage(a.public_url, a.id)); setPickerOpen(false); };
+  const onPickAsset = (a: DesignAsset) => {
+    const img = new Image();
+    img.src = a.public_url;
+    img.onload = () => {
+      let w = img.naturalWidth || 300;
+      let h = img.naturalHeight || 300;
+      const maxDim = 300;
+      if (w > maxDim || h > maxDim) {
+        const ratio = w / h;
+        if (ratio > 1) {
+          w = maxDim;
+          h = Math.round(maxDim / ratio);
+        } else {
+          h = maxDim;
+          w = Math.round(maxDim * ratio);
+        }
+      }
+      addElement(makeImage(a.public_url, a.id, { x: 150, y: 150, w, h, fit: "contain", radius: 0 }));
+    };
+    img.onerror = () => {
+      addElement(makeImage(a.public_url, a.id, { fit: "contain", radius: 0 }));
+    };
+    setPickerOpen(false);
+  };
   const onPickIcon = (name: string) => { addElement(makeIcon(brand, name)); setIconOpen(false); };
 
   // File import (PNG/JPG/SVG -> upload as asset, add to canvas)
@@ -186,7 +209,27 @@ export default function DesignEditor() {
       try {
         if (f.type.startsWith("image/")) {
           const a = await uploadAsset(f);
-          addElement(makeImage(a.public_url, a.id, { x: 80, y: 80, w: 600, h: 600 }));
+          const img = new Image();
+          img.src = a.public_url;
+          img.onload = () => {
+            let w = img.naturalWidth || 300;
+            let h = img.naturalHeight || 300;
+            const maxDim = 300;
+            if (w > maxDim || h > maxDim) {
+              const ratio = w / h;
+              if (ratio > 1) {
+                w = maxDim;
+                h = Math.round(maxDim / ratio);
+              } else {
+                h = maxDim;
+                w = Math.round(maxDim * ratio);
+              }
+            }
+            addElement(makeImage(a.public_url, a.id, { x: 150, y: 150, w, h, fit: "contain", radius: 0 }));
+          };
+          img.onerror = () => {
+            addElement(makeImage(a.public_url, a.id, { fit: "contain", radius: 0 }));
+          };
         } else {
           toast.error(`Unsupported file: ${f.name}`);
         }
@@ -371,7 +414,7 @@ export default function DesignEditor() {
   if (!design || !slide) return <div className="p-8 text-muted-foreground">Loading…</div>;
 
   return (
-    <section className="h-[calc(100vh-4rem)] flex flex-col">
+    <section className="h-[calc(100dvh-4rem)] flex flex-col">
       {/* Top bar */}
       <header className="flex items-center justify-between gap-1.5 px-3 py-2 border-b border-border flex-wrap">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -543,7 +586,13 @@ export default function DesignEditor() {
           <div className="flex-1 flex items-center justify-center min-h-0">
             <Canvas
               design={design} slide={slide} brand={brand}
-              selectedIds={selectedIds} onSelectionChange={setSelectedIds}
+              selectedIds={selectedIds}
+              onSelectionChange={(ids) => {
+                setSelectedIds(ids);
+                if (ids.size > 0 && window.innerWidth < 1024) {
+                  setMobileTab("edit");
+                }
+              }}
               onLiveUpdate={(u) => patchSlide(u, true)}
               onCommit={() => commitNow()}
               zoom={zoom} onZoom={(z) => { setAutoFit(false); setZoom(z); }}
@@ -704,23 +753,143 @@ function ToolBtn({ icon: Icon, label, onClick }: { icon: any; label: string; onC
 function AssetPicker({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (a: DesignAsset) => void }) {
   const [assets, setAssets] = useState<DesignAsset[]>([]);
   const [loading, setLoading] = useState(false);
-  useEffect(() => { if (open) { setLoading(true); listAssets().then((a) => { setAssets(a); setLoading(false); }); } }, [open]);
+  const [activeTab, setActiveTab] = useState<"uploads" | "logos" | "symbols" | "charts">("uploads");
+  const [query, setQuery] = useState("");
+  const [sectorLogos, setSectorLogos] = useState<any[]>([]);
+  const [loadingLogos, setLoadingLogos] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setLoading(true);
+      setActiveTab("uploads");
+      setQuery("");
+      listAssets().then((a) => {
+        setAssets(a);
+        setLoading(false);
+      });
+
+      setLoadingLogos(true);
+      fetch("/logos-registry.json")
+        .then((r) => r.json())
+        .then((d) => setSectorLogos(d))
+        .catch(() => setSectorLogos([]))
+        .finally(() => setLoadingLogos(false));
+    }
+  }, [open]);
+
+  const filteredAssets = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return assets;
+    return assets.filter((a) => (a.name ?? "").toLowerCase().includes(q) || a.storage_path.toLowerCase().includes(q));
+  }, [assets, query]);
+
+  const filteredBuiltin = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (activeTab === "logos") {
+      let list = sectorLogos;
+      if (q) {
+        list = list.filter((b) => b.name.toLowerCase().includes(q));
+      }
+      return list;
+    }
+    const cat = activeTab === "symbols" ? "symbol" : "chart";
+    let list = BUILTIN_ASSETS.filter((b) => b.category === cat);
+    if (q) {
+      list = list.filter((b) => b.name.toLowerCase().includes(q));
+    }
+    return list;
+  }, [activeTab, query, sectorLogos]);
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Pick an image</DialogTitle></DialogHeader>
-        {loading ? <p className="text-muted-foreground">Loading…</p>
-          : assets.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No assets yet. <Link to="/designer/assets" className="underline text-primary">Add some</Link>.</p>
-          ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-              {assets.map((a) => (
-                <button key={a.id} onClick={() => onPick(a)} className="overflow-hidden rounded-md border border-border hover:border-primary">
-                  <img src={a.public_url} className="w-full aspect-square object-cover" alt="" />
-                </button>
-              ))}
-            </div>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-0 bg-background border border-border">
+        <DialogHeader className="px-6 pt-6 pb-2 border-b border-border shrink-0">
+          <DialogTitle>Pick an image asset</DialogTitle>
+        </DialogHeader>
+
+        {/* Tab switcher */}
+        <div className="flex border-b border-border bg-muted/20 px-6 py-2 gap-1 shrink-0">
+          {(["uploads", "logos", "symbols", "charts"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setActiveTab(t)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                activeTab === t
+                  ? "bg-background text-foreground shadow-sm border border-border"
+                  : "text-muted-foreground hover:text-foreground border border-transparent"
+              }`}
+            >
+              {t === "uploads" && "My Uploads"}
+              {t === "logos" && "Sector Logos"}
+              {t === "symbols" && "Growth Symbols"}
+              {t === "charts" && "Data & Charts"}
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div className="px-6 py-2 border-b border-border flex items-center gap-2 shrink-0">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by name…"
+              className="pl-8 h-9"
+            />
+          </div>
+          {activeTab === "uploads" && (
+            <Button size="sm" asChild className="h-9">
+              <Link to="/designer/assets" target="_blank" rel="noreferrer">
+                <ImageIcon className="w-3.5 h-3.5 mr-1" /> Upload more
+              </Link>
+            </Button>
           )}
+        </div>
+
+        {/* Content list */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {activeTab === "uploads" ? (
+            loading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : filteredAssets.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No uploads found.</p>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                {filteredAssets.map((a) => (
+                  <button key={a.id} onClick={() => onPick(a)} className="group text-left rounded-md border border-border overflow-hidden hover:border-primary transition">
+                    <div className="aspect-square bg-muted/30">
+                      <img src={a.public_url} className="w-full h-full object-cover" alt="" />
+                    </div>
+                    <div className="p-1.5">
+                      <div className="text-xs font-medium truncate">{a.name || a.storage_path.split("/").pop()}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )
+          ) : (
+            activeTab === "logos" && loadingLogos ? (
+              <p className="text-sm text-muted-foreground">Loading logos…</p>
+            ) : filteredBuiltin.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No assets match your search.</p>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                {filteredBuiltin.map((b) => (
+                  <button key={b.id} onClick={() => onPick(b as any)} className="group text-left rounded-md border border-border overflow-hidden hover:border-primary transition">
+                    <div className="aspect-square bg-[#0E0E0E] flex items-center justify-center p-4">
+                      <img src={b.public_url} alt={b.name} className="w-full h-full object-contain" />
+                    </div>
+                    <div className="p-1.5 bg-card">
+                      <div className="text-xs font-medium truncate">{b.name}</div>
+                      <div className="text-[10px] text-muted-foreground capitalize">{b.category}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

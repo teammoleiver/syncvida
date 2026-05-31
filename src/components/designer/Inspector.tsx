@@ -4,8 +4,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Wand2, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Lock, Unlock, Eye, EyeOff } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 import type { BrandKit, DesignElement, Fill, Gradient } from "@/lib/designer-queries";
-import { fillToCss } from "@/lib/designer-utils";
+import { fillToCss, removeWhiteBackground } from "@/lib/designer-utils";
 
 const PALETTE_KEYS = ["primary", "secondary", "accent", "bg", "text"] as const;
 
@@ -256,6 +258,39 @@ function IconSection({ element, brand, onChange }: { element: any; brand: BrandK
 function ImageSection({ element, onChange, onAiEdit }: { element: any; onChange: (p: any) => void; onAiEdit?: () => void }) {
   return (
     <div className="space-y-2">
+      <div>
+        <Label className="text-xs">Layer Label</Label>
+        <Input value={element.name ?? ""} onChange={(e) => onChange({ name: e.target.value })} className="h-7" placeholder="e.g. Logo layer" />
+      </div>
+      <div className="flex items-center justify-between border border-border p-2 rounded-md bg-muted/20 my-1">
+        <div className="space-y-0.5">
+          <Label className="text-xs font-semibold block">Remove white background</Label>
+          <span className="text-[9px] text-muted-foreground block leading-tight">Makes solid white pixel boundaries transparent.</span>
+        </div>
+        <Switch
+          checked={!!element.removeBg}
+          onCheckedChange={async (checked) => {
+            if (checked) {
+              const orig = element.originalSrc ?? element.src;
+              toast.loading("Removing background...", { id: "bg-remove" });
+              const transparent = await removeWhiteBackground(orig);
+              onChange({
+                src: transparent,
+                originalSrc: orig,
+                removeBg: true
+              });
+              toast.success("Background removed", { id: "bg-remove" });
+            } else {
+              const orig = element.originalSrc ?? element.src;
+              onChange({
+                src: orig,
+                removeBg: false
+              });
+              toast.success("Background restored");
+            }
+          }}
+        />
+      </div>
       <img src={element.src} alt="" className="w-full rounded border border-border max-h-40 object-contain" />
       <div className="grid grid-cols-2 gap-2">
         <div><Label className="text-xs">Fit</Label>

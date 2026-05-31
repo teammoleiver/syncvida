@@ -27,6 +27,8 @@ import {
 } from "@/components/designer/linkedin/editorHelpers";
 import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, type DesignAsset } from "@/lib/designer-queries";
 import { detectMentionedLogos, type DetectedLogo } from "@/components/designer/linkedin/detectLogos";
+import { Switch } from "@/components/ui/switch";
+import { removeWhiteBackground } from "@/lib/designer-utils";
 
 type TemplateKey = "cheatsheet" | "carousel" | "square";
 
@@ -90,6 +92,12 @@ export default function LinkedInTemplatesPage() {
   }, []);
   // Overlay editing state
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const handleSelectOverlay = (id: string | null) => {
+    setSelectedOverlayId(id);
+    if (id && window.innerWidth < 1024) {
+      setMobileTab("style");
+    }
+  };
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
   // Style/theme picker — opens automatically on first generation (when the
   // editor is opened with hook/body params and no existing design id).
@@ -372,7 +380,38 @@ export default function LinkedInTemplatesPage() {
   }
 
   function addImageFromAsset(asset: DesignAsset) {
-    addOverlay({ id: crypto.randomUUID(), type: "image", x: 100, y: 100, w: 240, h: 240, src: asset.public_url, objectFit: "contain" });
+    const img = new Image();
+    img.src = asset.public_url;
+    img.onload = () => {
+      let w = img.naturalWidth || 240;
+      let h = img.naturalHeight || 240;
+      // Scale down to a max bounding box of 250x250, keeping aspect ratio perfectly
+      const maxDim = 250;
+      if (w > maxDim || h > maxDim) {
+        const ratio = w / h;
+        if (ratio > 1) {
+          w = maxDim;
+          h = Math.round(maxDim / ratio);
+        } else {
+          h = maxDim;
+          w = Math.round(maxDim * ratio);
+        }
+      }
+      addOverlay({
+        id: crypto.randomUUID(),
+        type: "image",
+        x: 150,
+        y: 150,
+        w,
+        h,
+        src: asset.public_url,
+        objectFit: "contain",
+        radius: 0
+      } as any);
+    };
+    img.onerror = () => {
+      addOverlay({ id: crypto.randomUUID(), type: "image", x: 100, y: 100, w: 240, h: 240, src: asset.public_url, objectFit: "contain", radius: 0 } as any);
+    };
     setAssetPickerOpen(false);
   }
 
@@ -458,7 +497,7 @@ export default function LinkedInTemplatesPage() {
     : cheatData.themeKey;
 
   return (
-    <section className="h-[calc(100vh-4rem)] flex flex-col">
+    <section className="h-[calc(100dvh-4rem)] flex flex-col">
       {/* Top header — same shell as the canvas DesignEditor */}
       <header className="flex items-center justify-between gap-1.5 px-3 py-2 border-b border-border flex-wrap">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -537,13 +576,36 @@ export default function LinkedInTemplatesPage() {
               <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
               <span className="text-xs font-medium">Detected:</span>
               <div className="flex flex-wrap gap-1">
-                {detected.map((d) => (
-                  <span key={d.name} className={`inline-flex items-center gap-1 pl-1 pr-2 py-0.5 rounded-full border text-[11px] ${d.hasAsset ? "border-emerald-500/50 bg-emerald-500/5" : "border-border"}`}>
-                    {d.asset?.public_url ? <img src={d.asset.public_url} className="w-4 h-4 rounded-full object-cover" alt={d.name} /> : <ImageIcon className="w-2.5 h-2.5 ml-0.5 text-muted-foreground" />}
-                    {d.name}
-                    {d.hasAsset && <Check className="w-2.5 h-2.5 text-emerald-400" />}
-                  </span>
-                ))}
+                {detected.map((d) => {
+                  const clickHandler = () => {
+                    if (d.asset) {
+                      addImageFromAsset(d.asset);
+                      toast.success(`Injected ${d.name} logo onto canvas`);
+                    }
+                  };
+                  return (
+                    <button
+                      key={d.name}
+                      onClick={clickHandler}
+                      type="button"
+                      disabled={!d.hasAsset}
+                      className={`inline-flex items-center gap-1 pl-1 pr-2 py-0.5 rounded-full border text-[11px] transition ${
+                        d.hasAsset 
+                          ? "border-emerald-500/50 bg-emerald-500/5 hover:bg-emerald-500/20 cursor-pointer" 
+                          : "border-border opacity-65 cursor-not-allowed"
+                      }`}
+                      title={d.hasAsset ? `Click to inject ${d.name} logo onto active slide` : `${d.name} logo not found`}
+                    >
+                      {d.asset?.public_url ? (
+                        <img src={d.asset.public_url} className="w-4 h-4 rounded-full object-contain" alt={d.name} />
+                      ) : (
+                        <ImageIcon className="w-2.5 h-2.5 ml-0.5 text-muted-foreground" />
+                      )}
+                      <span>{d.name}</span>
+                      {d.hasAsset && <Check className="w-2.5 h-2.5 text-emerald-400" />}
+                    </button>
+                  );
+                })}
               </div>
               <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => injectToolsIntoCheatSheet(detected.map((d) => d.name))}>
                 <Plus className="w-3 h-3 mr-1" /> Add to sheet
@@ -623,7 +685,7 @@ export default function LinkedInTemplatesPage() {
                   data={cheatData}
                   editableOverlays
                   selectedOverlayId={selectedOverlayId}
-                  onSelectOverlay={setSelectedOverlayId}
+                  onSelectOverlay={handleSelectOverlay}
                   onChangeOverlays={(next) => editCheatData({ ...cheatData, overlays: next })}
                   zoom={zoom}
                 />
@@ -634,7 +696,7 @@ export default function LinkedInTemplatesPage() {
                   slideIndex={slideIdx}
                   editableOverlays
                   selectedOverlayId={selectedOverlayId}
-                  onSelectOverlay={setSelectedOverlayId}
+                  onSelectOverlay={handleSelectOverlay}
                   onChangeOverlays={(next) => editCarouselData({ ...carouselData, overlays: { ...(carouselData.overlays ?? {}), [slideIdx]: next } })}
                   zoom={zoom}
                 />
@@ -644,7 +706,7 @@ export default function LinkedInTemplatesPage() {
                   data={squareData}
                   editableOverlays
                   selectedOverlayId={selectedOverlayId}
-                  onSelectOverlay={setSelectedOverlayId}
+                  onSelectOverlay={handleSelectOverlay}
                   onChangeOverlays={(next) => editSquareData({ ...squareData, overlays: next })}
                   zoom={zoom}
                 />
@@ -1187,7 +1249,7 @@ function ElementsPanel({
               <span className="text-[10px] font-mono text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
               <span className="capitalize">{o.type}</span>
               {o.type === "text" && <span className="text-muted-foreground truncate flex-1">{(o as any).text?.slice(0, 30)}</span>}
-              {o.type === "image" && <span className="text-muted-foreground truncate flex-1">{(o as any).src?.split("/").pop()?.slice(0, 30)}</span>}
+              {o.type === "image" && <span className="text-muted-foreground truncate flex-1">{(o as any).name || (o as any).src?.split("/").pop()?.slice(0, 30)}</span>}
               {o.type === "shape" && <span className="text-muted-foreground flex-1">{(o as any).shape}</span>}
             </button>
           ))}
@@ -1220,6 +1282,36 @@ function ElementsPanel({
           )}
           {sel.type === "image" && (
             <>
+              <FieldText label="Layer Name / Label" value={(sel as any).name ?? ""} onChange={(v) => onUpdate({ name: v } as any)} placeholder="e.g. Logo layer" />
+              <div className="flex items-center justify-between border border-border p-2 rounded-md bg-muted/20 my-1">
+                <div className="space-y-0.5">
+                  <label className="text-xs font-semibold block">Remove white background</label>
+                  <p className="text-[10px] text-muted-foreground leading-tight">Makes solid white pixel boundaries transparent.</p>
+                </div>
+                <Switch
+                  checked={!!(sel as any).removeBg}
+                  onCheckedChange={async (checked) => {
+                    if (checked) {
+                      const orig = (sel as any).originalSrc ?? (sel as any).src;
+                      toast.loading("Removing background...", { id: "bg-remove" });
+                      const transparent = await removeWhiteBackground(orig);
+                      onUpdate({
+                        src: transparent,
+                        originalSrc: orig,
+                        removeBg: true
+                      } as any);
+                      toast.success("Background removed", { id: "bg-remove" });
+                    } else {
+                      const orig = (sel as any).originalSrc ?? (sel as any).src;
+                      onUpdate({
+                        src: orig,
+                        removeBg: false
+                      } as any);
+                      toast.success("Background restored");
+                    }
+                  }}
+                />
+              </div>
               <FieldText label="Image URL" value={(sel as any).src ?? ""} onChange={(v) => onUpdate({ src: v } as any)} />
               <NumField label="Corner radius" value={(sel as any).radius ?? 0} onChange={(v) => onUpdate({ radius: v } as any)} />
               <div className="space-y-1">
