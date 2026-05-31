@@ -1799,6 +1799,81 @@ function PostsTab() {
   );
 }
 
+// ───────── Feedback dialog (captures reasons → memory) ─────────
+function FeedbackDialog({
+  target,
+  onClose,
+  onSubmit,
+}: {
+  target: { post: any; signal: ScrapeMemorySignal; source: ScrapeMemorySource; alsoIgnore?: boolean } | null;
+  onClose: () => void;
+  onSubmit: (tags: string[], reason: string) => void;
+}) {
+  const [tags, setTags] = useState<string[]>([]);
+  const [reason, setReason] = useState("");
+  useEffect(() => { if (target) { setTags([]); setReason(""); } }, [target]);
+  if (!target) return null;
+  const positive = target.signal === "positive";
+  const palette = positive ? POSITIVE_TAGS : NEGATIVE_TAGS;
+  const accent = positive
+    ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/40"
+    : "bg-rose-500/15 text-rose-500 border-rose-500/40";
+  const cta = positive ? "bg-emerald-500 hover:bg-emerald-500/90 text-white" : "bg-rose-500 hover:bg-rose-500/90 text-white";
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {positive ? <ThumbsUp className="w-4 h-4 text-emerald-500" /> : <ThumbsDown className="w-4 h-4 text-rose-500" />}
+            {positive ? "What did you like about this post?" : "Why isn't this relevant to you?"}
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-xs text-muted-foreground">
+          {positive
+            ? "Your reasons train the AI to surface more posts like this."
+            : "Your reasons train the AI to stop surfacing posts like this."}
+        </p>
+        {target.post?.post_text && (
+          <div className="text-xs text-muted-foreground line-clamp-2 italic border-l-2 border-border pl-3">
+            {target.post.author ? <span className="font-medium text-foreground/80">{target.post.author}: </span> : null}
+            {target.post.post_text}
+          </div>
+        )}
+        <div className="flex flex-wrap gap-1.5">
+          {palette.map((t) => {
+            const on = tags.includes(t);
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t])}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${on ? accent : "border-border text-muted-foreground hover:bg-muted/40"}`}
+              >{t}</button>
+            );
+          })}
+        </div>
+        <Textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder={positive ? "Anything else? (optional — e.g. 'great breakdown of B2B GTM stack')" : "Anything else? (optional — e.g. 'not about marketing automation')"}
+          className="min-h-[80px] resize-y text-xs"
+        />
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          <Button
+            size="sm"
+            className={cta}
+            disabled={tags.length === 0 && !reason.trim()}
+            onClick={() => onSubmit(tags, reason.trim())}
+          >
+            {positive ? <><ThumbsUp className="w-3.5 h-3.5 mr-1" />Save & learn</> : <><ThumbsDown className="w-3.5 h-3.5 mr-1" />{target.alsoIgnore ? "Ignore & learn" : "Save & learn"}</>}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ManualPostDialog({ profiles, onCreated }: { profiles: any[]; onCreated: () => void }) {
   const [profileId, setProfileId] = useState<string>("");
   const [author, setAuthor] = useState("");
