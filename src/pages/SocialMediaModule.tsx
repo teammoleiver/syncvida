@@ -1312,6 +1312,11 @@ function PostsTab() {
   const [staleFilter, setStaleFilter] = useState<"all" | "stale" | "fresh">("all");
   // Feedback dialog (used by ignore/like — captures memory tags + free-text reason)
   const [feedbackTarget, setFeedbackTarget] = useState<{ post: any; signal: ScrapeMemorySignal; source: ScrapeMemorySource; alsoIgnore?: boolean } | null>(null);
+  // Bulk selection
+  const [selectedPostIds, setSelectedPostIds] = useState<Set<string>>(new Set());
+  const [bulkFeedback, setBulkFeedback] = useState<{ posts: any[]; signal: ScrapeMemorySignal; source: ScrapeMemorySource; alsoIgnore?: boolean } | null>(null);
+  const [bulkDeleteTargets, setBulkDeleteTargets] = useState<any[] | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   // Debounce search input → triggers server-side refetch
   useEffect(() => {
@@ -1320,6 +1325,8 @@ function PostsTab() {
   }, [search]);
   // Reset to page 1 whenever filters change
   useEffect(() => { setPage(1); }, [profileFilter, ignoredFilter, debouncedSearch]);
+  // Clear selection whenever the visible page/filters change
+  useEffect(() => { setSelectedPostIds(new Set()); }, [page, profileFilter, listFilter, usageFilter, ignoredFilter, staleFilter, debouncedSearch]);
 
   const load = async () => {
     setLoading(true);
@@ -1437,6 +1444,95 @@ function PostsTab() {
     setDeleteReason("");
     setDeleteTarget(p);
   };
+  // ── Bulk selection helpers ──
+  const togglePostSelection = (id: string) =>
+    setSelectedPostIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const visibleIds = filtered.map((p) => p.id);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedPostIds.has(id));
+  const someVisibleSelected = visibleIds.some((id) => selectedPostIds.has(id));
+  const togglePageSelection = () =>
+    setSelectedPostIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) visibleIds.forEach((id) => next.delete(id));
+      else visibleIds.forEach((id) => next.add(id));
+      return next;
+    });
+  const clearSelection = () => setSelectedPostIds(new Set());
+  const selectedPosts = filtered.filter((p) => selectedPostIds.has(p.id));
+  const startBulkIgnore = () => {
+    if (selectedPosts.length === 0) return;
+    setBulkFeedback({ posts: selectedPosts, signal: "negative", source: "ignore", alsoIgnore: true });
+  };
+  const startBulkLike = () => {
+    if (selectedPosts.length === 0) return;
+    setBulkFeedback({ posts: selectedPosts, signal: "positive", source: "like" });
+  };
+  const startBulkDelete = () => {
+    if (selectedPosts.length === 0) return;
+    setDeleteIntent("relevant");
+    setDeleteTags([]);
+    setDeleteReason("");
+    setBulkDeleteTargets(selectedPosts);
+  };
+  const submitBulkFeedback = async (tags: string[], reason: string) => {
+    const t = bulkFeedback;
+    if (!t) return;
+    setBulkFeedback(null);
+    setBulkBusy(true);
+    try {
+      const note = [tags.join(", "), reason].filter(Boolean).join(" — ").slice(0, 280) || undefined;
+      for (const p of t.posts) {
+        try {
+          await addScrapeMemory({
+            signal: t.signal,
+            tags,
+            reason,
+            source: t.source,
+            source_post: { id: p.id, author: p.author, text: p.post_text },
+          });
+        } catch {}
+        if (t.alsoIgnore) {
+          try { await ignoreSocialPost(p.id, note); } catch {}
+        }
+      }
+      toast.success(`${t.posts.length} post(s) saved — AI will ${t.signal === "positive" ? "surface more like these" : "deprioritize similar posts"}`);
+      clearSelection();
+      load();
+    } catch (e: any) { toast.error(e?.message ?? "Bulk action failed"); }
+    finally { setBulkBusy(false); }
+  };
+  const confirmBulkDelete = async () => {
+    const list = bulkDeleteTargets;
+    if (!list || list.length === 0) return;
+    setBulkDeleteTargets(null);
+    setBulkBusy(true);
+    try {
+      const note = [deleteTags.join(", "), deleteReason].filter(Boolean).join(" — ").slice(0, 280) || "Marked irrelevant on bulk delete";
+      for (const p of list) {
+        if (deleteIntent === "irrelevant") {
+          try { await ignoreSocialPost(p.id, note); } catch {}
+          try {
+            await addScrapeMemory({
+              signal: "negative",
+              tags: deleteTags,
+              reason: deleteReason,
+              source: "delete",
+              source_post: { id: p.id, author: p.author, text: p.post_text },
+            });
+          } catch {}
+        }
+        try { await deleteSocialPost(p.id); } catch {}
+      }
+      toast.success(`${list.length} post(s) deleted${deleteIntent === "irrelevant" ? " — AI will deprioritize similar posts" : ""}`);
+      clearSelection();
+      load();
+    } catch (e: any) { toast.error(e?.message ?? "Bulk delete failed"); }
+    finally { setBulkBusy(false); }
+  };
   const confirmDelete = async () => {
     const p = deleteTarget;
     if (!p) return;
@@ -1533,6 +1629,23 @@ function PostsTab() {
         </div>
       </div>
 
+      {selectedPostIds.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+          <span className="text-xs font-medium">{selectedPostIds.size} selected</span>
+          <span className="text-[11px] text-muted-foreground">·</span>
+          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={bulkBusy} onClick={startBulkLike}>
+            <ThumbsUp className="w-3.5 h-3.5 mr-1 text-emerald-500" />Like with reason
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={bulkBusy} onClick={startBulkIgnore}>
+            <X className="w-3.5 h-3.5 mr-1 text-amber-500" />Ignore with reason
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 text-xs border-destructive/40 text-destructive hover:bg-destructive/10" disabled={bulkBusy} onClick={startBulkDelete}>
+            <Trash2 className="w-3.5 h-3.5 mr-1" />Delete…
+          </Button>
+          <Button size="sm" variant="ghost" className="h-7 text-xs ml-auto" disabled={bulkBusy} onClick={clearSelection}>Clear</Button>
+        </div>
+      )}
+
       {loading ? <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div> :
         filtered.length === 0 ? <Card className="p-8 text-center text-muted-foreground">No posts. Run a scrape or add one manually.</Card> :
         <>
@@ -1540,6 +1653,16 @@ function PostsTab() {
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs uppercase">
               <tr>
+                <th className="px-2 py-2 w-8">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all on page"
+                    checked={allVisibleSelected}
+                    ref={(el) => { if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected; }}
+                    onChange={togglePageSelection}
+                    className="cursor-pointer"
+                  />
+                </th>
                 <th className="text-left px-3 py-2">Author</th>
                 <th className="text-left px-3 py-2">Company</th>
                 <th className="text-left px-3 py-2">Post</th>
@@ -1555,8 +1678,18 @@ function PostsTab() {
                 const ageDays = postAgeDays(p);
                 const bucket = ageBucket(ageDays);
                 const tint = usage[p.id] ? "bg-primary/5 hover:bg-primary/10" : (ageRowTint(bucket) || "hover:bg-muted/20");
+                const isSelected = selectedPostIds.has(p.id);
                 return (
-                <tr key={p.id} className={`border-t border-border cursor-pointer ${p.ignored_at ? "opacity-50" : ""} ${tint}`} onClick={() => setOpenPost(p)}>
+                <tr key={p.id} className={`border-t border-border cursor-pointer ${p.ignored_at ? "opacity-50" : ""} ${isSelected ? "bg-primary/10" : tint}`} onClick={() => setOpenPost(p)}>
+                  <td className="px-2 py-2 w-8" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      aria-label="Select post"
+                      checked={isSelected}
+                      onChange={() => togglePostSelection(p.id)}
+                      className="cursor-pointer"
+                    />
+                  </td>
                   <td className="px-3 py-2 font-medium">
                     <div className="flex items-center gap-2">
                       {usage[p.id] && <span title={`Generated ${usage[p.id].drafts} draft(s) · ${usage[p.id].plans} planner entry(ies)`} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary"><Sparkles className="w-3 h-3" /></span>}
@@ -1628,14 +1761,23 @@ function PostsTab() {
             const ageDays = postAgeDays(p);
             const bucket = ageBucket(ageDays);
             const tint = usage[p.id] ? "bg-primary/5 border-primary/20" : (bucket === "stale" ? "bg-rose-500/5 border-rose-500/10" : (bucket === "aging" ? "bg-amber-500/5 border-amber-500/10" : "bg-card border-border"));
+            const isSelected = selectedPostIds.has(p.id);
             return (
               <div
                 key={p.id}
                 onClick={() => setOpenPost(p)}
-                className={`p-4 rounded-xl border cursor-pointer hover:shadow-sm transition-all space-y-3 relative ${p.ignored_at ? "opacity-50" : ""} ${tint}`}
+                className={`p-4 rounded-xl border cursor-pointer hover:shadow-sm transition-all space-y-3 relative ${p.ignored_at ? "opacity-50" : ""} ${isSelected ? "bg-primary/10 border-primary/40" : tint}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2 min-w-0">
+                    <input
+                      type="checkbox"
+                      aria-label="Select post"
+                      checked={isSelected}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => togglePostSelection(p.id)}
+                      className="cursor-pointer mt-1"
+                    />
                     {usage[p.id] && (
                       <span title="Used" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary">
                         <Sparkles className="w-3 h-3" />
@@ -1795,6 +1937,74 @@ function PostsTab() {
       </AlertDialog>
 
       <FeedbackDialog target={feedbackTarget} onClose={() => setFeedbackTarget(null)} onSubmit={submitFeedback} />
+
+      {/* Bulk feedback (ignore/like with reason for many posts) */}
+      <FeedbackDialog
+        target={bulkFeedback ? {
+          post: { post_text: `${bulkFeedback.posts.length} posts selected`, author: "Bulk action" },
+          signal: bulkFeedback.signal,
+          source: bulkFeedback.source,
+          alsoIgnore: bulkFeedback.alsoIgnore,
+        } : null}
+        onClose={() => setBulkFeedback(null)}
+        onSubmit={submitBulkFeedback}
+      />
+
+      {/* Bulk delete confirmation */}
+      <AlertDialog open={!!bulkDeleteTargets} onOpenChange={(o) => { if (!o) setBulkDeleteTargets(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {bulkDeleteTargets?.length ?? 0} post(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tell us whether these posts match your tone & topics — the AI keeps learning even when you bulk-clean your view.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <RadioGroup value={deleteIntent} onValueChange={(v) => setDeleteIntent(v as any)} className="space-y-2 py-2">
+            <Label htmlFor="bulk-del-rel" className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-muted/40">
+              <RadioGroupItem id="bulk-del-rel" value="relevant" className="mt-0.5" />
+              <div>
+                <div className="text-sm font-medium">Yes — still relevant to me</div>
+                <div className="text-xs text-muted-foreground">Just delete to clean my view. Don't teach the AI to avoid posts like these.</div>
+              </div>
+            </Label>
+            <Label htmlFor="bulk-del-irr" className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-muted/40">
+              <RadioGroupItem id="bulk-del-irr" value="irrelevant" className="mt-0.5" />
+              <div>
+                <div className="text-sm font-medium">No — not relevant to me</div>
+                <div className="text-xs text-muted-foreground">Delete and remember. The AI will deprioritize similar posts in the future.</div>
+              </div>
+            </Label>
+          </RadioGroup>
+          {deleteIntent === "irrelevant" && (
+            <div className="space-y-2 px-1 pb-2">
+              <div className="text-xs font-medium">Why aren't they relevant? <span className="text-muted-foreground font-normal">(your reasons train the AI)</span></div>
+              <div className="flex flex-wrap gap-1.5">
+                {NEGATIVE_TAGS.map((t) => {
+                  const on = deleteTags.includes(t);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setDeleteTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t])}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${on ? "bg-rose-500/15 text-rose-500 border-rose-500/40" : "border-border text-muted-foreground hover:bg-muted/40"}`}
+                    >{t}</button>
+                  );
+                })}
+              </div>
+              <Textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Anything else? (optional)"
+                className="min-h-[70px] resize-y text-xs"
+              />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete {bulkDeleteTargets?.length ?? 0}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
