@@ -1200,13 +1200,48 @@ const STATUS_META: Record<string, { label: string; dot: string; ring: string }> 
   failed:    { label: "Failed",    dot: "bg-destructive", ring: "data-[on=true]:bg-destructive/15 data-[on=true]:text-destructive data-[on=true]:border-destructive/40" },
 };
 
-const TIME_PRESETS = ["08:00", "09:00", "12:00", "15:00", "18:00", "20:00"];
+// Peak-reach slots come from the LinkedIn design system (Tue/Thu · 09:00 / 13:30).
+const REC_TIMES: string[] = [...LINKEDIN_DESIGN_SYSTEM.scheduling.times]; // ["09:00","13:30"]
+const REC_DAYS: number[] = [...LINKEDIN_DESIGN_SYSTEM.scheduling.days]; // [2,4] Tue/Thu
+const OTHER_TIMES = ["08:00", "12:00", "18:00", "20:00"];
 
 function toLocalYmd(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+/** "09:00" → "9:00 AM" for friendly display (storage stays 24-hour). */
+function to12h(t: string): string {
+  if (!t) return "";
+  const [h, m] = t.split(":").map(Number);
+  if (Number.isNaN(h)) return t;
+  const ampm = h >= 12 ? "PM" : "AM";
+  return `${h % 12 || 12}:${String(m ?? 0).padStart(2, "0")} ${ampm}`;
+}
+
+/** Soonest date (today or later) that lands on the given weekday. */
+function nextDow(targetDow: number): Date {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + ((targetDow - d.getDay() + 7) % 7));
+  return d;
+}
+
+/** The soonest FUTURE peak slot — next Tue/Thu at 09:00 or 13:30. */
+function nextBestSlot(): { date: string; time: string; when: Date } {
+  const now = new Date();
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(now); d.setDate(now.getDate() + i); d.setHours(0, 0, 0, 0);
+    if (!REC_DAYS.includes(d.getDay())) continue;
+    for (const t of REC_TIMES) {
+      const [h, m] = t.split(":").map(Number);
+      const dt = new Date(d); dt.setHours(h, m, 0, 0);
+      if (dt.getTime() > now.getTime()) return { date: toLocalYmd(d), time: t, when: dt };
+    }
+  }
+  const d = new Date(now); d.setDate(now.getDate() + 1); d.setHours(9, 0, 0, 0);
+  return { date: toLocalYmd(d), time: "09:00", when: d };
 }
 
 function ScheduleBlock({
@@ -1220,32 +1255,33 @@ function ScheduleBlock({
 }) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-  const nextMonday = (() => {
-    const d = new Date(today);
-    const days = (8 - d.getDay()) % 7 || 7;
-    d.setDate(d.getDate() + days);
-    return d;
-  })();
 
   const dateObj = date ? new Date(`${date}T00:00:00`) : undefined;
   const past = utcIso ? new Date(utcIso).getTime() <= Date.now() : false;
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const datePresets: { label: string; value: Date }[] = [
-    { label: "Today",       value: today },
-    { label: "Tomorrow",    value: tomorrow },
-    { label: "Next Monday", value: nextMonday },
+  const best = nextBestSlot();
+  const bestLabel = `${best.when.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · ${to12h(best.time)}`;
+  const isBestPicked = date === best.date && time === best.time;
+
+  const datePresets: { label: string; value: Date; rec: boolean }[] = [
+    { label: "Today",    value: today,      rec: REC_DAYS.includes(today.getDay()) },
+    { label: "Tomorrow", value: tomorrow,   rec: REC_DAYS.includes(tomorrow.getDay()) },
+    { label: "Next Tue", value: nextDow(2), rec: true },
+    { label: "Next Thu", value: nextDow(4), rec: true },
   ];
 
   const dateLabel = dateObj
     ? dateObj.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
     : "Pick a date";
+  const dayIsRec = !!dateObj && REC_DAYS.includes(dateObj.getDay());
+  const timeIsRec = REC_TIMES.includes(time);
 
   return (
     <div className="rounded-xl border border-border bg-card/40 p-3 space-y-3">
       <div className="flex items-center justify-between">
         <Label className="text-xs uppercase tracking-wider text-muted-foreground/80">Schedule</Label>
-        {date && (
+        {(date || time) && (
           <button
             type="button"
             onClick={() => onChange({ scheduled_date: "", scheduled_time: "" })}
@@ -1256,6 +1292,24 @@ function ScheduleBlock({
         )}
       </div>
 
+      {/* One-click best slot — the soonest peak-reach moment */}
+      {!isBestPicked && (
+        <button
+          type="button"
+          onClick={() => onChange({ scheduled_date: best.date, scheduled_time: best.time })}
+          className="w-full flex items-center gap-2.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 px-3 py-2 text-left transition-colors"
+        >
+          <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium leading-tight">Best time to post</div>
+            <div className="text-[11px] text-muted-foreground truncate">{bestLabel} — peak LinkedIn reach</div>
+          </div>
+          <span className="text-[11px] font-semibold text-primary shrink-0">Use</span>
+        </button>
+      )}
+
       {/* Date + Time row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {/* Date picker */}
@@ -1264,13 +1318,11 @@ function ScheduleBlock({
             <Button
               type="button"
               variant="outline"
-              className={cn(
-                "h-11 justify-start font-normal text-sm",
-                !date && "text-muted-foreground",
-              )}
+              className={cn("h-11 justify-start font-normal text-sm", !date && "text-muted-foreground")}
             >
-              <CalendarIcon className="w-4 h-4 mr-2 text-primary" />
-              {dateLabel}
+              <CalendarIcon className="w-4 h-4 mr-2 text-primary shrink-0" />
+              <span className="flex-1 text-left truncate">{dateLabel}</span>
+              {dayIsRec && <span className="ml-1 text-[9px] font-bold uppercase tracking-wide text-emerald-500">peak</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-auto p-3 space-y-2">
@@ -1280,10 +1332,11 @@ function ScheduleBlock({
                   key={p.label}
                   size="sm"
                   variant="secondary"
-                  className="h-7 text-xs"
+                  className="h-7 text-xs gap-1"
                   onClick={() => onChange({ scheduled_date: toLocalYmd(p.value) })}
                 >
                   {p.label}
+                  {p.rec && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                 </Button>
               ))}
             </div>
@@ -1291,8 +1344,13 @@ function ScheduleBlock({
               mode="single"
               selected={dateObj}
               onSelect={(d) => d && onChange({ scheduled_date: toLocalYmd(d) })}
+              modifiers={{ rec: (d: Date) => REC_DAYS.includes(d.getDay()) }}
+              modifiersClassNames={{ rec: "text-emerald-600 dark:text-emerald-400 font-semibold" }}
               className={cn("p-0 pointer-events-auto")}
             />
+            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Tue &amp; Thu get the most reach
+            </p>
           </PopoverContent>
         </Popover>
 
@@ -1302,30 +1360,39 @@ function ScheduleBlock({
             <Button
               type="button"
               variant="outline"
-              className={cn(
-                "h-11 justify-start font-normal text-sm",
-                !time && "text-muted-foreground",
-              )}
+              className={cn("h-11 justify-start font-normal text-sm", !time && "text-muted-foreground")}
             >
-              <Clock className="w-4 h-4 mr-2 text-primary" />
-              {time || "Pick a time"}
+              <Clock className="w-4 h-4 mr-2 text-primary shrink-0" />
+              <span className="flex-1 text-left truncate">{time ? to12h(time) : "Pick a time"}</span>
+              {timeIsRec && <span className="ml-1 text-[9px] font-bold uppercase tracking-wide text-emerald-500">peak</span>}
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-64 p-3 space-y-2">
-            <div className="grid grid-cols-3 gap-1.5">
-              {TIME_PRESETS.map((t) => (
-                <Button
-                  key={t}
-                  size="sm"
-                  variant={time === t ? "default" : "secondary"}
-                  className="h-8 text-xs"
-                  onClick={() => onChange({ scheduled_time: t })}
-                >
-                  {t}
-                </Button>
-              ))}
+          <PopoverContent align="start" className="w-64 p-3 space-y-2.5">
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400 font-semibold mb-1 flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> Recommended
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {REC_TIMES.map((t) => (
+                  <Button key={t} size="sm" variant={time === t ? "default" : "secondary"} className="h-8 text-xs"
+                    onClick={() => onChange({ scheduled_time: t })}>
+                    {to12h(t)}
+                  </Button>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-2 pt-1 border-t border-border">
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70 font-semibold mb-1">Other times</div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {OTHER_TIMES.map((t) => (
+                  <Button key={t} size="sm" variant={time === t ? "default" : "secondary"} className="h-8 text-xs"
+                    onClick={() => onChange({ scheduled_time: t })}>
+                    {to12h(t)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-1.5 border-t border-border">
               <Label className="text-[11px] text-muted-foreground shrink-0">Custom</Label>
               <Input
                 type="time"
