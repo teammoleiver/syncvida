@@ -1431,6 +1431,8 @@ function PostsTab() {
   };
   const handleDelete = async (p: any) => {
     setDeleteIntent("relevant");
+    setDeleteTags([]);
+    setDeleteReason("");
     setDeleteTarget(p);
   };
   const confirmDelete = async () => {
@@ -1440,7 +1442,17 @@ function PostsTab() {
     setDeleteTarget(null);
     try {
       if (deleteIntent === "irrelevant") {
-        try { await ignoreSocialPost(p.id, "Marked irrelevant on delete"); } catch {}
+        const note = [deleteTags.join(", "), deleteReason].filter(Boolean).join(" — ").slice(0, 280) || "Marked irrelevant on delete";
+        try { await ignoreSocialPost(p.id, note); } catch {}
+        try {
+          await addScrapeMemory({
+            signal: "negative",
+            tags: deleteTags,
+            reason: deleteReason,
+            source: "delete",
+            source_post: { id: p.id, author: p.author, text: p.post_text },
+          });
+        } catch {}
       }
       await deleteSocialPost(p.id);
       toast.success(deleteIntent === "irrelevant" ? "Deleted — AI will deprioritize similar posts" : "Deleted");
