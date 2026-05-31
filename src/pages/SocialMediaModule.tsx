@@ -1937,6 +1937,74 @@ function PostsTab() {
       </AlertDialog>
 
       <FeedbackDialog target={feedbackTarget} onClose={() => setFeedbackTarget(null)} onSubmit={submitFeedback} />
+
+      {/* Bulk feedback (ignore/like with reason for many posts) */}
+      <FeedbackDialog
+        target={bulkFeedback ? {
+          post: { post_text: `${bulkFeedback.posts.length} posts selected`, author: "Bulk action" },
+          signal: bulkFeedback.signal,
+          source: bulkFeedback.source,
+          alsoIgnore: bulkFeedback.alsoIgnore,
+        } : null}
+        onClose={() => setBulkFeedback(null)}
+        onSubmit={submitBulkFeedback}
+      />
+
+      {/* Bulk delete confirmation */}
+      <AlertDialog open={!!bulkDeleteTargets} onOpenChange={(o) => { if (!o) setBulkDeleteTargets(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {bulkDeleteTargets?.length ?? 0} post(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tell us whether these posts match your tone & topics — the AI keeps learning even when you bulk-clean your view.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <RadioGroup value={deleteIntent} onValueChange={(v) => setDeleteIntent(v as any)} className="space-y-2 py-2">
+            <Label htmlFor="bulk-del-rel" className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-muted/40">
+              <RadioGroupItem id="bulk-del-rel" value="relevant" className="mt-0.5" />
+              <div>
+                <div className="text-sm font-medium">Yes — still relevant to me</div>
+                <div className="text-xs text-muted-foreground">Just delete to clean my view. Don't teach the AI to avoid posts like these.</div>
+              </div>
+            </Label>
+            <Label htmlFor="bulk-del-irr" className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-muted/40">
+              <RadioGroupItem id="bulk-del-irr" value="irrelevant" className="mt-0.5" />
+              <div>
+                <div className="text-sm font-medium">No — not relevant to me</div>
+                <div className="text-xs text-muted-foreground">Delete and remember. The AI will deprioritize similar posts in the future.</div>
+              </div>
+            </Label>
+          </RadioGroup>
+          {deleteIntent === "irrelevant" && (
+            <div className="space-y-2 px-1 pb-2">
+              <div className="text-xs font-medium">Why aren't they relevant? <span className="text-muted-foreground font-normal">(your reasons train the AI)</span></div>
+              <div className="flex flex-wrap gap-1.5">
+                {NEGATIVE_TAGS.map((t) => {
+                  const on = deleteTags.includes(t);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setDeleteTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t])}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${on ? "bg-rose-500/15 text-rose-500 border-rose-500/40" : "border-border text-muted-foreground hover:bg-muted/40"}`}
+                    >{t}</button>
+                  );
+                })}
+              </div>
+              <Textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Anything else? (optional)"
+                className="min-h-[70px] resize-y text-xs"
+              />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete {bulkDeleteTargets?.length ?? 0}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }
