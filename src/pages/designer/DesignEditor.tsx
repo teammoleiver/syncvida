@@ -4,7 +4,7 @@ import {
   ArrowLeft, Save, Plus, Type, Image as ImageIcon, Square as SquareIcon, Circle as CircleIcon,
   Triangle as TriangleIcon, Trash2, Copy, ArrowUp, ArrowDown, Wand2, Download, Loader2, Sparkles,
   Undo2, Redo2, ZoomIn, ZoomOut, Maximize, Minus as LineIcon, Smile, BookmarkPlus, Layers as LayersIcon,
-  MessageSquare, Upload as UploadIcon, ChevronDown, Hash, Move, Link2, Pencil, Eye, Search,
+  MessageSquare, Upload as UploadIcon, ChevronDown, Hash, Move, Link2, Pencil, Eye, Search, Check,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -176,22 +176,34 @@ export default function DesignEditor() {
       return n;
     });
   }
-  const onPickAsset = (a: DesignAsset) => {
+  const onPickAsset = (a: DesignAsset & { _idealW?: number; _idealH?: number; removeBg?: boolean; originalSrc?: string; customName?: string }) => {
+    // If the picker pre-computed the ideal size, use it directly
+    if (a._idealW && a._idealH) {
+      addElement(makeImage(a.public_url, a.id, {
+        x: 150, y: 150,
+        w: a._idealW, h: a._idealH,
+        fit: "contain", radius: 0,
+        src: a.public_url,
+        originalSrc: a.originalSrc ?? a.public_url,
+        removeBg: a.removeBg ?? false,
+        name: a.customName ?? (a as any).name ?? undefined,
+      } as any));
+      setPickerOpen(false);
+      return;
+    }
+    // Fallback: compute from natural image dimensions
+    const canvasW = design?.width ?? 1080;
     const img = new Image();
     img.src = a.public_url;
     img.onload = () => {
       let w = img.naturalWidth || 300;
       let h = img.naturalHeight || 300;
-      const maxDim = 300;
+      // Target ~15% of canvas width for logos
+      const maxDim = Math.round(canvasW * 0.15);
       if (w > maxDim || h > maxDim) {
         const ratio = w / h;
-        if (ratio > 1) {
-          w = maxDim;
-          h = Math.round(maxDim / ratio);
-        } else {
-          h = maxDim;
-          w = Math.round(maxDim * ratio);
-        }
+        if (ratio > 1) { w = maxDim; h = Math.round(maxDim / ratio); }
+        else { h = maxDim; w = Math.round(maxDim * ratio); }
       }
       addElement(makeImage(a.public_url, a.id, { x: 150, y: 150, w, h, fit: "contain", radius: 0 }));
     };
@@ -693,7 +705,12 @@ export default function DesignEditor() {
         </div>
       </div>
 
-      <AssetPicker open={pickerOpen} onClose={() => setPickerOpen(false)} onPick={onPickAsset} />
+      <AssetPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onPick={onPickAsset as any}
+        canvasSize={design ? { w: design.width, h: design.height } : undefined}
+      />
       <IconPicker open={iconOpen} onClose={() => setIconOpen(false)} onPick={onPickIcon} />
       <AiEditDialog state={aiEditOpen} onClose={() => setAiEditOpen(null)} onSaved={(newAsset) => {
         if (!selectedFirst || selectedFirst.type !== "image") return;
@@ -750,19 +767,35 @@ function ToolBtn({ icon: Icon, label, onClick }: { icon: any; label: string; onC
   );
 }
 
-function AssetPicker({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (a: DesignAsset) => void }) {
+function AssetPicker({
+  open, onClose, onPick, canvasSize,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onPick: (a: DesignAsset & { _idealW?: number; _idealH?: number; removeBg?: boolean; originalSrc?: string; customName?: string }) => void;
+  canvasSize?: { w: number; h: number };
+}) {
   const [assets, setAssets] = useState<DesignAsset[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"uploads" | "logos" | "symbols" | "charts">("uploads");
   const [query, setQuery] = useState("");
   const [sectorLogos, setSectorLogos] = useState<any[]>([]);
   const [loadingLogos, setLoadingLogos] = useState(false);
+  const [selectedLogo, setSelectedLogo] = useState<any | null>(null);
+  const [removeBg, setRemoveBg] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [transparentSrc, setTransparentSrc] = useState<string | null>(null);
+  const [customName, setCustomName] = useState("");
+  const [editingName, setEditingName] = useState(false);
 
   useEffect(() => {
     if (open) {
       setLoading(true);
       setActiveTab("uploads");
       setQuery("");
+      setSelectedLogo(null);
+      setRemoveBg(false);
+      setTransparentSrc(null);
       listAssets().then((a) => {
         setAssets(a);
         setLoading(false);
@@ -787,18 +820,129 @@ function AssetPicker({ open, onClose, onPick }: { open: boolean; onClose: () => 
     const q = query.trim().toLowerCase();
     if (activeTab === "logos") {
       let list = sectorLogos;
-      if (q) {
-        list = list.filter((b) => b.name.toLowerCase().includes(q));
-      }
+      if (q) list = list.filter((b) => b.name.toLowerCase().includes(q));
       return list;
     }
     const cat = activeTab === "symbols" ? "symbol" : "chart";
     let list = BUILTIN_ASSETS.filter((b) => b.category === cat);
-    if (q) {
-      list = list.filter((b) => b.name.toLowerCase().includes(q));
-    }
+    if (q) list = list.filter((b) => b.name.toLowerCase().includes(q));
     return list;
   }, [activeTab, query, sectorLogos]);
+
+  // Compute ideal size for a logo/image
+  function computeSize(naturalW: number, naturalH: number) {
+    const target = canvasSize ? Math.round(canvasSize.w * 0.15) : 200;
+    const maxDim = Math.max(target, 120);
+    let w = naturalW || maxDim, h = naturalH || maxDim;
+    const ratio = w / h;
+    if (w > maxDim || h > maxDim) {
+      if (ratio > 1) { w = maxDim; h = Math.round(maxDim / ratio); }
+      else { h = maxDim; w = Math.round(maxDim * ratio); }
+    }
+    return { w: Math.max(w, 60), h: Math.max(h, 60) };
+  }
+
+  async function handleToggleBg(on: boolean) {
+    setRemoveBg(on);
+    if (on && !transparentSrc && selectedLogo) {
+      setProcessing(true);
+      try {
+        // Inline import to avoid circular deps — the same removeWhiteBackground from designer-utils
+        const { removeWhiteBackground } = await import("@/lib/designer-utils");
+        const result = await removeWhiteBackground(selectedLogo.public_url);
+        setTransparentSrc(result);
+      } catch {
+        toast.error("Could not remove background");
+        setRemoveBg(false);
+      } finally {
+        setProcessing(false);
+      }
+    }
+  }
+
+  async function addSelectedLogo() {
+    if (!selectedLogo) return;
+    const src = removeBg ? (transparentSrc ?? selectedLogo.public_url) : selectedLogo.public_url;
+    try {
+      const img = new Image();
+      await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; img.src = src; });
+      const { w, h } = computeSize(img.naturalWidth, img.naturalHeight);
+      onPick({
+        ...selectedLogo,
+        public_url: src,
+        originalSrc: selectedLogo.public_url,
+        removeBg,
+        customName: customName.trim() || selectedLogo.name,
+        _idealW: w,
+        _idealH: h,
+      } as any);
+    } catch {
+      onPick({ ...selectedLogo, public_url: src, removeBg, customName: customName || selectedLogo.name } as any);
+    }
+    setSelectedLogo(null);
+  }
+
+  // Logo detail view
+  if (selectedLogo) {
+    const displaySrc = removeBg ? (transparentSrc ?? selectedLogo.public_url) : selectedLogo.public_url;
+    return (
+      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-hidden flex flex-col p-0 bg-background border border-border">
+          <DialogHeader className="px-4 pt-4 pb-2 border-b border-border shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <button onClick={() => setSelectedLogo(null)} className="text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="w-4 h-4 inline mr-1" />
+              </button>
+              Logo options
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto p-5 flex flex-col gap-4">
+            {/* Preview */}
+            <div
+              className="rounded-xl border border-border overflow-hidden w-full flex items-center justify-center p-8 min-h-[160px] transition-colors"
+              style={{ background: removeBg ? "repeating-conic-gradient(#888 0% 25%, #ccc 0% 50%) 0 / 20px 20px" : "#0E0E0E" }}
+            >
+              {processing ? <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /> : (
+                <img key={displaySrc} src={displaySrc} alt={customName || selectedLogo.name} className="max-h-36 max-w-full object-contain" />
+              )}
+            </div>
+            {/* Name edit */}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">Logo name</label>
+              {editingName ? (
+                <div className="flex items-center gap-1.5">
+                  <Input value={customName} onChange={(e) => setCustomName(e.target.value)} className="h-8 text-xs" autoFocus
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") setEditingName(false); }} />
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditingName(false)}><Check className="w-3.5 h-3.5" /></Button>
+                </div>
+              ) : (
+                <button className="flex items-center gap-1.5 group" onClick={() => { setCustomName(customName || selectedLogo.name); setEditingName(true); }}>
+                  <span className="text-sm font-semibold">{customName || selectedLogo.name}</span>
+                  <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
+                </button>
+              )}
+            </div>
+            {/* BG removal toggle */}
+            <div className="rounded-lg border border-border bg-muted/10 p-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold">Remove white background</p>
+                <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">Strip solid white to transparent PNG for clean overlays.</p>
+                {removeBg && transparentSrc && <p className="text-[10px] text-emerald-500 mt-1">✓ Transparent PNG ready</p>}
+              </div>
+              <Switch checked={removeBg} onCheckedChange={handleToggleBg} disabled={processing} />
+            </div>
+          </div>
+          <div className="p-4 border-t border-border flex gap-2 shrink-0">
+            <Button variant="outline" className="flex-1" onClick={() => setSelectedLogo(null)}>Back</Button>
+            <Button className="flex-1" onClick={addSelectedLogo} disabled={processing}>
+              {processing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}
+              Add to canvas
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -845,6 +989,9 @@ function AssetPicker({ open, onClose, onPick }: { open: boolean; onClose: () => 
               </Link>
             </Button>
           )}
+          {activeTab === "logos" && (
+            <span className="text-[10px] text-muted-foreground hidden sm:block">Click logo to preview &amp; set background version</span>
+          )}
         </div>
 
         {/* Content list */}
@@ -857,7 +1004,15 @@ function AssetPicker({ open, onClose, onPick }: { open: boolean; onClose: () => 
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                 {filteredAssets.map((a) => (
-                  <button key={a.id} onClick={() => onPick(a)} className="group text-left rounded-md border border-border overflow-hidden hover:border-primary transition">
+                  <button key={a.id} onClick={() => {
+                    const img = new Image();
+                    img.src = a.public_url;
+                    img.onload = () => {
+                      const { w, h } = computeSize(img.naturalWidth, img.naturalHeight);
+                      onPick({ ...a, _idealW: w, _idealH: h } as any);
+                    };
+                    img.onerror = () => onPick(a);
+                  }} className="group text-left rounded-md border border-border overflow-hidden hover:border-primary transition">
                     <div className="aspect-square bg-muted/30">
                       <img src={a.public_url} className="w-full h-full object-cover" alt="" />
                     </div>
@@ -876,9 +1031,35 @@ function AssetPicker({ open, onClose, onPick }: { open: boolean; onClose: () => 
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                 {filteredBuiltin.map((b) => (
-                  <button key={b.id} onClick={() => onPick(b as any)} className="group text-left rounded-md border border-border overflow-hidden hover:border-primary transition">
+                  <button
+                    key={b.id}
+                    onClick={() => {
+                      if (activeTab === "logos") {
+                        setSelectedLogo(b);
+                        setRemoveBg(false);
+                        setTransparentSrc(null);
+                        setCustomName(b.name);
+                        setEditingName(false);
+                      } else {
+                        // Symbols/charts: pick directly with smart size
+                        const img = new Image();
+                        img.src = b.public_url;
+                        img.onload = () => {
+                          const { w, h } = computeSize(img.naturalWidth, img.naturalHeight);
+                          onPick({ ...b, _idealW: w, _idealH: h } as any);
+                        };
+                        img.onerror = () => onPick(b as any);
+                      }
+                    }}
+                    className="group text-left rounded-md border border-border overflow-hidden hover:border-primary transition relative"
+                  >
                     <div className="aspect-square bg-[#0E0E0E] flex items-center justify-center p-4">
                       <img src={b.public_url} alt={b.name} className="w-full h-full object-contain" />
+                      {activeTab === "logos" && (
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+                          <span className="text-[10px] text-white font-semibold bg-black/60 px-2 py-1 rounded-full">Edit &amp; add</span>
+                        </div>
+                      )}
                     </div>
                     <div className="p-1.5 bg-card">
                       <div className="text-xs font-medium truncate">{b.name}</div>

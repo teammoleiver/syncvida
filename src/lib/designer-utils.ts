@@ -244,48 +244,76 @@ export function emptySlide(bg: Fill = "#FFFFFF"): Slide {
 export function safeFilename(s: string) { return s.replace(/[^a-z0-9-_]+/gi, "_"); }
 
 /**
- * Programmatically chroma-keys solid white backgrounds of brand logos on-the-fly.
- * Scans all canvas pixel buffers and switches close-to-white pixels (R/G/B > 240) to transparent.
+ * Programmatically removes solid-white backgrounds from brand logos.
+ *
+ * Strategy:
+ * 1. For relative/same-origin URLs: fetch the image as a blob to avoid canvas
+ *    cross-origin taint, then draw it onto a canvas and process the pixels.
+ * 2. Per-pixel: whites and near-whites get alpha → 0; light-grey anti-aliased
+ *    edge pixels get partial alpha for smooth feathering instead of hard cuts.
+ * 3. Falls back to the original URL on any error.
  */
 export async function removeWhiteBackground(imageUrl: string): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve(imageUrl);
-          return;
-        }
-        ctx.drawImage(img, 0, 0);
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imgData.data;
+  // --- helper: draw src onto canvas and strip white pixels ---
+  function stripWhite(src: string): Promise<string> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      // crossOrigin only needed for absolute external URLs
+      if (/^https?:\/\//.test(src)) img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          // Upscale small logos so anti-aliasing is preserved
+          const scale = Math.min(4, Math.max(1, Math.ceil(512 / Math.max(img.naturalWidth, 1))));
+          canvas.width = img.naturalWidth * scale;
+          canvas.height = img.naturalHeight * scale;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { resolve(src); return; }
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imgData.data;
 
-        // Strip pixels that are very close to pure white
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          // Threshold of 240 out of 255
-          if (r > 240 && g > 240 && b > 240) {
-            data[i + 3] = 0; // Set alpha to 0 (fully transparent)
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i + 1], b = data[i + 2];
+            const brightness = (r + g + b) / 3;
+            // Fully white pixels → fully transparent
+            if (r > 245 && g > 245 && b > 245) {
+              data[i + 3] = 0;
+            } else if (brightness > 220 && Math.abs(r - g) < 18 && Math.abs(g - b) < 18) {
+              // Near-white grey (anti-aliased edges) → partially transparent for feathering
+              const alphaFactor = 1 - (brightness - 220) / 35;
+              data[i + 3] = Math.round(data[i + 3] * alphaFactor);
+            }
           }
-        }
 
-        ctx.putImageData(imgData, 0, 0);
-        resolve(canvas.toDataURL("image/png"));
-      } catch {
-        resolve(imageUrl);
-      }
-    };
-    img.onerror = () => {
-      resolve(imageUrl);
-    };
-    img.src = imageUrl;
-  });
+          ctx.putImageData(imgData, 0, 0);
+          resolve(canvas.toDataURL("image/png"));
+        } catch {
+          resolve(src);
+        }
+      };
+      img.onerror = () => resolve(src);
+      img.src = src;
+    });
+  }
+
+  // For relative/same-origin URLs: fetch as blob first to avoid taint errors
+  const isRelative = !imageUrl.startsWith("http") && !imageUrl.startsWith("data:");
+  if (isRelative) {
+    try {
+      const resp = await fetch(imageUrl, { cache: "force-cache" });
+      if (!resp.ok) throw new Error("fetch failed");
+      const blob = await resp.blob();
+      // SVGs need to be rasterised differently — convert to PNG blob via img tag
+      const objUrl = URL.createObjectURL(blob);
+      const result = await stripWhite(objUrl);
+      URL.revokeObjectURL(objUrl);
+      return result;
+    } catch {
+      // fall through to direct stripWhite
+    }
+  }
+
+  return stripWhite(imageUrl);
 }
 

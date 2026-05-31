@@ -379,23 +379,39 @@ export default function LinkedInTemplatesPage() {
     setSelectedOverlayId(null);
   }
 
-  function addImageFromAsset(asset: DesignAsset) {
+  function addImageFromAsset(asset: DesignAsset & { _idealW?: number; _idealH?: number; removeBg?: boolean; originalSrc?: string }) {
+    // If the picker already computed the ideal size, use it directly
+    if (asset._idealW && asset._idealH) {
+      addOverlay({
+        id: crypto.randomUUID(),
+        type: "image",
+        x: 150,
+        y: 150,
+        w: asset._idealW,
+        h: asset._idealH,
+        src: asset.public_url,
+        originalSrc: asset.originalSrc ?? asset.public_url,
+        removeBg: asset.removeBg ?? false,
+        objectFit: "contain",
+        radius: 0,
+        name: (asset as any).customName ?? (asset as any).name ?? undefined,
+      } as any);
+      setAssetPickerOpen(false);
+      return;
+    }
+    // Fallback: compute size from image dimensions
+    const dim = DIMENSIONS[active];
     const img = new Image();
     img.src = asset.public_url;
     img.onload = () => {
       let w = img.naturalWidth || 240;
       let h = img.naturalHeight || 240;
-      // Scale down to a max bounding box of 250x250, keeping aspect ratio perfectly
-      const maxDim = 250;
+      // Target ~15% of canvas width
+      const maxDim = Math.round(dim.w * 0.15);
       if (w > maxDim || h > maxDim) {
         const ratio = w / h;
-        if (ratio > 1) {
-          w = maxDim;
-          h = Math.round(maxDim / ratio);
-        } else {
-          h = maxDim;
-          w = Math.round(maxDim * ratio);
-        }
+        if (ratio > 1) { w = maxDim; h = Math.round(maxDim / ratio); }
+        else { h = maxDim; w = Math.round(maxDim * ratio); }
       }
       addOverlay({
         id: crypto.randomUUID(),
@@ -405,12 +421,14 @@ export default function LinkedInTemplatesPage() {
         w,
         h,
         src: asset.public_url,
+        originalSrc: asset.originalSrc ?? asset.public_url,
+        removeBg: asset.removeBg ?? false,
         objectFit: "contain",
-        radius: 0
+        radius: 0,
       } as any);
     };
     img.onerror = () => {
-      addOverlay({ id: crypto.randomUUID(), type: "image", x: 100, y: 100, w: 240, h: 240, src: asset.public_url, objectFit: "contain", radius: 0 } as any);
+      addOverlay({ id: crypto.randomUUID(), type: "image", x: 100, y: 100, w: Math.round(dim.w * 0.15), h: Math.round(dim.w * 0.15), src: asset.public_url, objectFit: "contain", radius: 0 } as any);
     };
     setAssetPickerOpen(false);
   }
@@ -805,8 +823,9 @@ export default function LinkedInTemplatesPage() {
       <AssetPickerDialog
         open={assetPickerOpen}
         onClose={() => setAssetPickerOpen(false)}
-        onPick={(a) => { addImageFromAsset(a); setAssetPickerOpen(false); }}
+        onPick={(a) => { addImageFromAsset(a as any); setAssetPickerOpen(false); }}
         defaultAspect={active === "square" ? "1:1" : "4:5"}
+        canvasSize={DIMENSIONS[active]}
       />
       <TemplateStylePicker
         open={stylePickerOpen}
