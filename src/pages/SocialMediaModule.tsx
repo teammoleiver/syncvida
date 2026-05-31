@@ -1757,12 +1757,38 @@ function PostsTab() {
               </div>
             </Label>
           </RadioGroup>
+          {deleteIntent === "irrelevant" && (
+            <div className="space-y-2 px-1 pb-2">
+              <div className="text-xs font-medium">Why isn't it relevant? <span className="text-muted-foreground font-normal">(your reasons train the AI)</span></div>
+              <div className="flex flex-wrap gap-1.5">
+                {NEGATIVE_TAGS.map((t) => {
+                  const on = deleteTags.includes(t);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setDeleteTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t])}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${on ? "bg-rose-500/15 text-rose-500 border-rose-500/40" : "border-border text-muted-foreground hover:bg-muted/40"}`}
+                    >{t}</button>
+                  );
+                })}
+              </div>
+              <Textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Anything else? (optional — e.g. 'not about marketing automation')"
+                className="min-h-[70px] resize-y text-xs"
+              />
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <FeedbackDialog target={feedbackTarget} onClose={() => setFeedbackTarget(null)} onSubmit={submitFeedback} />
     </section>
   );
 }
