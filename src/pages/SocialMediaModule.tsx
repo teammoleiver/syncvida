@@ -1761,14 +1761,23 @@ function PostsTab() {
             const ageDays = postAgeDays(p);
             const bucket = ageBucket(ageDays);
             const tint = usage[p.id] ? "bg-primary/5 border-primary/20" : (bucket === "stale" ? "bg-rose-500/5 border-rose-500/10" : (bucket === "aging" ? "bg-amber-500/5 border-amber-500/10" : "bg-card border-border"));
+            const isSelected = selectedPostIds.has(p.id);
             return (
               <div
                 key={p.id}
                 onClick={() => setOpenPost(p)}
-                className={`p-4 rounded-xl border cursor-pointer hover:shadow-sm transition-all space-y-3 relative ${p.ignored_at ? "opacity-50" : ""} ${tint}`}
+                className={`p-4 rounded-xl border cursor-pointer hover:shadow-sm transition-all space-y-3 relative ${p.ignored_at ? "opacity-50" : ""} ${isSelected ? "bg-primary/10 border-primary/40" : tint}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2 min-w-0">
+                    <input
+                      type="checkbox"
+                      aria-label="Select post"
+                      checked={isSelected}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => togglePostSelection(p.id)}
+                      className="cursor-pointer mt-1"
+                    />
                     {usage[p.id] && (
                       <span title="Used" className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/15 text-primary">
                         <Sparkles className="w-3 h-3" />
