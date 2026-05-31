@@ -181,7 +181,11 @@ export type ThemeKey =
   | "tech-neon"
   | "pastel-soft"
   | "corporate-clean"
-  | "figma-template";
+  | "figma-template"
+  | "split-insight"
+  | "minimal-line"
+  | "big-statement"
+  | "quote-pull";
 
 export const THEME_KEYS: ThemeKey[] = [
   "editorial-dark",
@@ -193,6 +197,10 @@ export const THEME_KEYS: ThemeKey[] = [
   "pastel-soft",
   "corporate-clean",
   "figma-template",
+  "split-insight",
+  "minimal-line",
+  "big-statement",
+  "quote-pull",
 ];
 
 export const THEMES: { key: ThemeKey; label: string; description: string; preview: { bg: string; fg: string; accent: string } }[] = [
@@ -205,6 +213,10 @@ export const THEMES: { key: ThemeKey; label: string; description: string; previe
   { key: "pastel-soft", label: "Pastel Soft", description: "Lavender background, deep plum text.", preview: { bg: "#F2EAF7", fg: "#3B1B5B", accent: "#7C4DD1" } },
   { key: "corporate-clean", label: "Corporate Clean", description: "Fresh white, navy text, sharp blue accent.", preview: { bg: "#FFFFFF", fg: "#0F1B3D", accent: "#1B5BFF" } },
   { key: "figma-template", label: "Figma Template", description: "Saleh personal-brand carousel — off-black #0E0E0E, mint #00E18A, Inter + JBM.", preview: { bg: "#0E0E0E", fg: "#FFFFFF", accent: "#00E18A" } },
+  { key: "split-insight", label: "Split Insight", description: "Bold left accent column + right text. Data-forward composition.", preview: { bg: "#0A1628", fg: "#FFFFFF", accent: "#2D6BFF" } },
+  { key: "minimal-line", label: "Minimal Line", description: "White canvas, left accent bar, generous white space. Ultra clean.", preview: { bg: "#FAFAFA", fg: "#1A1A1A", accent: "#FF4D1C" } },
+  { key: "big-statement", label: "Big Statement", description: "Typography IS the design — hook fills the slide at massive scale.", preview: { bg: "#0D0D0D", fg: "#FFFFFF", accent: "#FFFFFF" } },
+  { key: "quote-pull", label: "Quote Pull", description: "Giant decorative quote marks. Perfect for insight & thought-leader slides.", preview: { bg: "#0F0F0F", fg: "#FFFFFF", accent: "#2D6BFF" } },
 ];
 
 function pickPhoto(data: any): string {

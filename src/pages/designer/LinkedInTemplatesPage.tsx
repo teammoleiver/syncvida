@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, Download, Plus, Trash2, ChevronLeft as PrevIcon, ChevronRight as NextIcon, Loader2, Link2, Image as ImageIcon, Sparkles, Check, LayoutGrid, Layers, Square as SquareIcon, Palette, Pencil, Eye, User } from "lucide-react";
+import { ChevronLeft, Download, Plus, Trash2, ChevronLeft as PrevIcon, ChevronRight as NextIcon, Loader2, Link2, Image as ImageIcon, Sparkles, Check, LayoutGrid, Layers, Square as SquareIcon, Palette, Pencil, Eye, User, Wand2, Ruler } from "lucide-react";
 import EditorActions from "@/components/designer/EditorActions";
 import { toast } from "sonner";
 import {
@@ -139,6 +139,11 @@ export default function LinkedInTemplatesPage() {
   const [staleReview, setStaleReview] = useState(false);
   // True while the silent background pre-review is running (new carousel load).
   const [silentReviewing, setSilentReviewing] = useState(false);
+  // Fix Everything auto-loop state.
+  const [fixingAll, setFixingAll] = useState(false);
+  const [fixRound, setFixRound] = useState(0);
+  // Active tab in review dialog: "copy" | "visual"
+  const [reviewTab, setReviewTab] = useState<"copy" | "visual">("copy");
   // The user's real headshot — the design system makes a face photo MANDATORY
   // on the carousel cover (a logo does not stop the scroll).
   const [profileAvatar, setProfileAvatar] = useState<string | undefined>(undefined);
@@ -233,15 +238,16 @@ export default function LinkedInTemplatesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [designIdFromUrl]);
 
-  // Load the user's real headshot once (brand kit avatar → profile avatar), but
-  // only use one that actually loads — a broken URL would render an empty box.
+  // Load the user's real headshot once. Prefer the PROFILE photo (a real human
+  // headshot) over the brand-kit "avatar", which is often a logo — the cover
+  // face must be a face, not a logo. Only use a URL that actually loads.
   useEffect(() => {
     void (async () => {
-      const [kit, prof] = await Promise.all([
-        getBrandKit().catch(() => null),
+      const [prof, kit] = await Promise.all([
         getProfile().catch(() => null),
+        getBrandKit().catch(() => null),
       ]);
-      const candidates = [(kit as any)?.avatar_url, (prof as any)?.avatar_url].filter(Boolean) as string[];
+      const candidates = [(prof as any)?.avatar_url, (kit as any)?.avatar_url].filter(Boolean) as string[];
       for (const url of candidates) {
         if (await imageLoads(url)) { setProfileAvatar(url); return; }
       }
@@ -627,8 +633,15 @@ export default function LinkedInTemplatesPage() {
       setSilentReviewing(true);
       const hook = params.get("hook") ?? carousel.slides?.[0]?.title ?? "";
       const body = params.get("body") ?? "";
+      const slidesMeta = (carousel.slides ?? []).map((s, i) => ({
+        n: i + 1,
+        wordCount: (s.body ?? "").split(/\s+/).filter(Boolean).length,
+        overlayCount: ((carousel.overlays as any)?.[i] ?? []).length,
+        layout: s.layout ?? "text",
+        hasContent: !!(s.title?.trim() || s.body?.trim() || s.quote?.trim() || (s.bullets ?? []).length),
+      }));
       const { data, error } = await supabase.functions.invoke("review-carousel", {
-        body: { slides: carousel.slides, hook, body, author: carousel.author, memory },
+        body: { slides: carousel.slides, hook, body, author: carousel.author, memory, slidesMeta },
       });
       if (error || (data as any)?.error) return;
       const review = (data as any).review;
@@ -658,8 +671,15 @@ export default function LinkedInTemplatesPage() {
       const appliedFixes = appliedNotes
         .map((i) => String(aiReview?.slideNotes?.[Number(i)]?.n ?? ""))
         .filter(Boolean);
+      const slidesMeta = (carouselData.slides ?? []).map((s, i) => ({
+        n: i + 1,
+        wordCount: (s.body ?? "").split(/\s+/).filter(Boolean).length,
+        overlayCount: ((carouselData.overlays as any)?.[i] ?? []).length,
+        layout: s.layout ?? "text",
+        hasContent: !!(s.title?.trim() || s.body?.trim() || s.quote?.trim() || (s.bullets ?? []).length),
+      }));
       const { data, error } = await supabase.functions.invoke("review-carousel", {
-        body: { slides: carouselData.slides, hook, body, author: carouselData.author, memory, appliedFixes },
+        body: { slides: carouselData.slides, hook, body, author: carouselData.author, memory, appliedFixes, slidesMeta },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -769,6 +789,115 @@ export default function LinkedInTemplatesPage() {
     const id = designId ?? (await persist());
     if (id) await saveAiReview(id, aiReview, nextApplied);
     toast.success(`Applied ${applied} high-severity rewrite${applied === 1 ? "" : "s"} — Re-run to check progress`);
+  }
+
+  /**
+   * Fix Everything auto-loop: applies ALL unapplied notes in batches, then
+   * re-runs the review, repeating up to 3 rounds until score >= 80 or no
+   * new issues are found.
+   */
+  async function fixEverything() {
+    if (!aiReview?.slideNotes || fixingAll) return;
+    setFixingAll(true);
+    setFixRound(0);
+    const startScore = aiReview.score ?? 0;
+    let currentReview = aiReview;
+    let currentApplied: string[] = [...appliedNotes];
+    let round = 0;
+
+    try {
+      while (round < 3) {
+        round++;
+        setFixRound(round);
+        const notes = (currentReview.slideNotes as any[]) ?? [];
+        const unapplied = notes.map((n: any, i: number) => ({ n, i }))
+          .filter(({ i }) => !currentApplied.includes(String(i)));
+
+        if (unapplied.length === 0) break;
+
+        // Separate: rewrites first (safe batch), then structural (sorted reverse)
+        const rewrites = unapplied.filter(({ n }) => n.fix?.action === "rewrite");
+        const structural = unapplied
+          .filter(({ n }) => n.fix?.action === "remove" || n.fix?.action === "merge")
+          .sort((a, b) => (b.n.n ?? 0) - (a.n.n ?? 0)); // reverse order
+
+        // Apply all rewrites in one batch
+        if (rewrites.length > 0) {
+          editCarouselData((d) => {
+            const slides = [...(d.slides ?? [])];
+            for (const { n } of rewrites) {
+              const sIdx = (n.n ?? 1) - 1;
+              if (!slides[sIdx]) continue;
+              const t = n.fix?.title?.trim() || "";
+              const b = n.fix?.body?.trim() || n.suggestion || "";
+              slides[sIdx] = { ...slides[sIdx], ...(t ? { title: t } : {}), ...(b ? { body: b } : {}) };
+            }
+            return { ...d, slides };
+          });
+          for (const { n } of rewrites) {
+            if (n.reason) void addDesignMemory(n.reason, "ai_review");
+          }
+        }
+
+        // Apply structural notes one by one (already sorted in reverse)
+        for (const { n } of structural) {
+          editCarouselData((d) => {
+            const slides = [...(d.slides ?? [])];
+            const sIdx = (n.n ?? 1) - 1;
+            if (n.fix?.action === "remove" && slides.length > 1 && sIdx >= 0 && sIdx < slides.length) {
+              slides.splice(sIdx, 1);
+            } else if (n.fix?.action === "merge" && sIdx > 0 && slides[sIdx]) {
+              const prev = slides[sIdx - 1];
+              const mergedBody = [prev.body, n.fix?.body?.trim() || slides[sIdx].body].filter(Boolean).join(" ").trim().slice(0, 300);
+              slides[sIdx - 1] = { ...prev, title: n.fix?.title?.trim() || prev.title, body: mergedBody };
+              slides.splice(sIdx, 1);
+            }
+            return { ...d, slides };
+          });
+          if (n.reason) void addDesignMemory(n.reason, "ai_review");
+        }
+
+        const allApplied = notes.map((_: any, i: number) => String(i));
+        setAppliedNotes(allApplied);
+        currentApplied = allApplied;
+
+        toast(`Round ${round} — applied ${unapplied.length} fix${unapplied.length === 1 ? "" : "es"}, re-checking…`);
+
+        // Re-run the review
+        setAiReviewing(true);
+        const memory = await getActiveMemoryRules().catch(() => [] as string[]);
+        const slidesMeta = (carouselData.slides ?? []).map((s, i) => ({
+          n: i + 1,
+          wordCount: (s.body ?? "").split(/\s+/).filter(Boolean).length,
+          overlayCount: ((carouselData.overlays as any)?.[i] ?? []).length,
+          layout: s.layout ?? "text",
+          hasContent: !!(s.title?.trim() || s.body?.trim() || s.quote?.trim() || (s.bullets ?? []).length),
+        }));
+        const { data, error } = await supabase.functions.invoke("review-carousel", {
+          body: { slides: carouselData.slides, hook: "", body: "", author: carouselData.author, memory, slidesMeta },
+        });
+        setAiReviewing(false);
+
+        if (error || (data as any)?.error) break;
+        const newReview = (data as any).review;
+        if (!newReview) break;
+
+        setAiReview(newReview);
+        setAppliedNotes([]);
+        setStaleReview(false);
+        currentReview = newReview;
+        currentApplied = [];
+
+        if ((newReview.score ?? 0) >= 80 || !newReview.slideNotes?.length) break;
+      }
+
+      const endScore = currentReview.score ?? 0;
+      const delta = endScore - startScore;
+      toast.success(`Done in ${round} round${round > 1 ? "s" : ""} — score ${delta >= 0 ? "+" : ""}${delta} (${endScore}/100)`);
+    } finally {
+      setFixingAll(false);
+      setAiReviewOpen(true);
+    }
   }
 
   async function saveCarouselPdfAndLink() {
@@ -1285,12 +1414,25 @@ export default function LinkedInTemplatesPage() {
                     <button
                       type="button"
                       onClick={applyAllHigh}
-                      className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 transition"
+                      disabled={fixingAll}
+                      className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25 transition disabled:opacity-50"
                       title="Batch-apply all high-severity rewrite fixes"
                     >
                       Apply all high ({highUnapplied.length})
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={fixEverything}
+                    disabled={fixingAll || aiReviewing}
+                    className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 transition flex items-center gap-1 disabled:opacity-50"
+                    title="Auto-apply all fixes and re-review until score ≥ 80 (up to 3 rounds)"
+                  >
+                    {fixingAll
+                      ? <><Loader2 className="w-3 h-3 animate-spin" />Fixing… round {fixRound}/3</>
+                      : <><Wand2 className="w-3 h-3" />Fix Everything</>
+                    }
+                  </button>
                 </div>
                 <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setAiReviewOpen(false)}>×</Button>
               </div>
@@ -1325,56 +1467,120 @@ export default function LinkedInTemplatesPage() {
                   )}
                 </div>
               )}
+              {/* Copy / Visual tabs */}
+              <div className="flex border-b border-border px-4 pt-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setReviewTab("copy")}
+                  className={`text-[12px] font-semibold pb-1.5 transition ${reviewTab === "copy" ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  Copy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReviewTab("visual")}
+                  className={`text-[12px] font-semibold pb-1.5 transition flex items-center gap-1 ${reviewTab === "visual" ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Ruler className="w-3 h-3" /> Visual
+                  {Array.isArray(aiReview.designNotes) && aiReview.designNotes.length > 0 && (
+                    <span className="ml-1 bg-sky-500/20 text-sky-600 text-[9px] font-bold px-1 rounded-full">{aiReview.designNotes.length}</span>
+                  )}
+                </button>
+              </div>
               <div className="overflow-auto p-4 space-y-4 text-sm">
-                {aiReview.verdict && <p className="font-medium">{aiReview.verdict}</p>}
-                {aiReview.flow && (
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Narrative flow</div>
-                    <p className="text-muted-foreground text-[13px] leading-relaxed">{aiReview.flow}</p>
-                  </div>
+                {reviewTab === "copy" && (
+                  <>
+                    {aiReview.verdict && <p className="font-medium">{aiReview.verdict}</p>}
+                    {aiReview.flow && (
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Narrative flow</div>
+                        <p className="text-muted-foreground text-[13px] leading-relaxed">{aiReview.flow}</p>
+                      </div>
+                    )}
+                    {Array.isArray(aiReview.slideNotes) && aiReview.slideNotes.length > 0 && (
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Per-slide notes</div>
+                        <div className="space-y-1.5">
+                          {aiReview.slideNotes.map((n: any, i: number) => {
+                            const done = appliedNotes.includes(String(i));
+                            return (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => openCorrection(i, n)}
+                                className={`w-full text-left rounded-md border p-2 transition flex gap-2 ${
+                                  done ? "border-emerald-500/50 bg-emerald-500/5" : "border-border hover:border-primary"}`}
+                                title="Review the fix and accept or edit it"
+                              >
+                                <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded h-fit ${
+                                  done ? "bg-emerald-500/15 text-emerald-500"
+                                  : n.severity === "high" ? "bg-destructive/15 text-destructive"
+                                  : n.severity === "medium" ? "bg-amber-500/15 text-amber-600"
+                                  : "bg-muted text-muted-foreground"}`}>
+                                  {done ? "✓ " : ""}Slide {n.n}
+                                </span>
+                                <span className="text-[12px] flex-1">
+                                  <span className={done ? "text-emerald-600 dark:text-emerald-500 line-through/0" : "text-foreground"}>{n.issue}</span>
+                                  {n.suggestion && <span className="text-muted-foreground"> → {n.suggestion}</span>}
+                                  <span className="block text-[10px] text-primary mt-0.5">{done ? "Applied · tap to revisit" : "Tap to fix →"}</span>
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {Array.isArray(aiReview.improvements) && aiReview.improvements.length > 0 && (
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Top improvements</div>
+                        <ul className="space-y-1">
+                          {aiReview.improvements.map((s: string, i: number) => (
+                            <li key={i} className="flex gap-2 text-[13px]"><span className="text-primary shrink-0">{i + 1}.</span><span>{s}</span></li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
                 )}
-                {Array.isArray(aiReview.slideNotes) && aiReview.slideNotes.length > 0 && (
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Per-slide notes</div>
-                    <div className="space-y-1.5">
-                      {aiReview.slideNotes.map((n: any, i: number) => {
-                        const done = appliedNotes.includes(String(i));
-                        return (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => openCorrection(i, n)}
-                            className={`w-full text-left rounded-md border p-2 transition flex gap-2 ${
-                              done ? "border-emerald-500/50 bg-emerald-500/5" : "border-border hover:border-primary"}`}
-                            title="Review the fix and accept or edit it"
-                          >
-                            <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded h-fit ${
-                              done ? "bg-emerald-500/15 text-emerald-500"
-                              : n.severity === "high" ? "bg-destructive/15 text-destructive"
-                              : n.severity === "medium" ? "bg-amber-500/15 text-amber-600"
-                              : "bg-muted text-muted-foreground"}`}>
-                              {done ? "✓ " : ""}Slide {n.n}
-                            </span>
-                            <span className="text-[12px] flex-1">
-                              <span className={done ? "text-emerald-600 dark:text-emerald-500 line-through/0" : "text-foreground"}>{n.issue}</span>
-                              {n.suggestion && <span className="text-muted-foreground"> → {n.suggestion}</span>}
-                              <span className="block text-[10px] text-primary mt-0.5">{done ? "Applied · tap to revisit" : "Tap to fix →"}</span>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                {Array.isArray(aiReview.improvements) && aiReview.improvements.length > 0 && (
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Top improvements</div>
-                    <ul className="space-y-1">
-                      {aiReview.improvements.map((s: string, i: number) => (
-                        <li key={i} className="flex gap-2 text-[13px]"><span className="text-primary shrink-0">{i + 1}.</span><span>{s}</span></li>
-                      ))}
-                    </ul>
-                  </div>
+                {reviewTab === "visual" && (
+                  <>
+                    {Array.isArray(aiReview.designNotes) && aiReview.designNotes.length > 0 ? (
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Visual / Design issues</div>
+                        <div className="space-y-1.5">
+                          {(aiReview.designNotes as any[]).map((dn: any, i: number) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => {
+                                const slide = carouselData.slides?.[(dn.n ?? 1) - 1];
+                                setCorrection({
+                                  idx: -1,
+                                  note: { ...dn, issue: dn.issue, reason: dn.issue },
+                                  action: dn.fix?.action === "trim" ? "rewrite" : (dn.fix?.action ?? "rewrite"),
+                                  title: slide?.title ?? "",
+                                  body: dn.fix?.body ?? slide?.body ?? "",
+                                });
+                              }}
+                              className="w-full text-left rounded-md border border-sky-500/40 bg-sky-500/5 p-2 transition hover:border-sky-500 flex gap-2"
+                              title="Apply this visual fix"
+                            >
+                              <span className="shrink-0">
+                                <Ruler className="w-3.5 h-3.5 text-sky-500 mt-0.5" />
+                              </span>
+                              <span className="text-[12px] flex-1">
+                                <span className="text-foreground font-medium">Slide {dn.n} · {dn.type}</span>
+                                <span className="block text-muted-foreground">{dn.issue}</span>
+                                <span className="block text-[10px] text-sky-600 mt-0.5">Tap to fix →</span>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[13px] text-emerald-500 font-medium">✓ No visual issues detected</p>
+                    )}
+                  </>
                 )}
               </div>
               <div className="p-3 border-t border-border flex justify-between items-center gap-2">

@@ -1332,3 +1332,548 @@
 .canvas[data-theme="figma-template"] .carousel-compare-title { font-size: 44px; max-width: 90%; }
 .canvas[data-theme="figma-template"] .carousel-compare-col { padding: 24px 22px; }
 .canvas[data-theme="figma-template"] .carousel-compare-col li { font-size: 18px; line-height: 1.35; }
+
+/* =========================================================
+   NEW LAYOUT THEMES — genuinely different compositions
+   ========================================================= */
+
+/* Split Insight — prominent left accent border + right text content */
+.canvas[data-theme="split-insight"] {
+  background: linear-gradient(160deg, #0A1628 0%, #071020 100%);
+  --text-display: #FFFFFF;
+  --text-primary: #E8EDF5;
+  --text-secondary: #8A9BB5;
+  --text-muted: #4A5570;
+  --bg-card: #0F1E35;
+  --bg-card-elev: #162540;
+  --border-subtle: rgba(45,107,255,0.22);
+  --brand-coral: #2D6BFF;
+  --accent-coral: #2D6BFF;
+  --accent-amber: #FFB347;
+  --accent-teal: #00D4AA;
+  --accent-indigo: #7C5CFC;
+  --accent-plum: #E040FB;
+  --accent-sky: #29B6F6;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+
+.canvas[data-theme="split-insight"]::before { opacity: 0.04; }
+/* Left thick accent bar — turns the whole slide edge into a design element */
+.canvas[data-theme="split-insight"][data-format="carousel"] {
+  border-left: 8px solid var(--brand-coral);
+  padding-left: 8px;
+}
+.canvas[data-theme="split-insight"] .carousel-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--brand-coral);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: transparent;
+  margin-bottom: 16px;
+  padding-left: 2px;
+}
+.canvas[data-theme="split-insight"] .carousel-cover-title,
+.canvas[data-theme="split-insight"] .carousel-title {
+  font-size: 72px;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 0.97;
+  color: #FFFFFF;
+}
+.canvas[data-theme="split-insight"] .carousel-body p {
+  font-size: 22px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 82%;
+  margin-top: 20px;
+  border-top: 1px solid rgba(45,107,255,0.3);
+  padding-top: 16px;
+}
+.canvas[data-theme="split-insight"] .carousel-stat-value {
+  font-size: 200px;
+  color: var(--brand-coral);
+  letter-spacing: -0.05em;
+}
+.canvas[data-theme="split-insight"] .carousel-stat-label { font-size: 28px; }
+
+/* Minimal Line — white canvas, 6px left accent bar, generous space */
+.canvas[data-theme="minimal-line"] {
+  background: #FAFAFA;
+  --text-display: #111111;
+  --text-primary: #1A1A1A;
+  --text-secondary: #555555;
+  --text-muted: #999999;
+  --bg-card: #FFFFFF;
+  --bg-card-elev: #F0F0F0;
+  --border-subtle: rgba(0,0,0,0.08);
+  --brand-coral: #FF4D1C;
+  --accent-coral: #FF4D1C;
+  --accent-amber: #F59E0B;
+  --accent-teal: #0D9488;
+  --accent-indigo: #4F46E5;
+  --accent-plum: #9333EA;
+  --accent-olive: #65A30D;
+  --accent-sky: #0EA5E9;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+.canvas[data-theme="minimal-line"]::before { display: none; }
+/* The 6px left border IS the primary design element */
+.canvas[data-theme="minimal-line"][data-format="carousel"] {
+  border-left: 6px solid var(--brand-coral);
+}
+.canvas[data-theme="minimal-line"] .carousel-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--brand-coral);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  background: transparent;
+  margin-bottom: 24px;
+}
+.canvas[data-theme="minimal-line"] .carousel-cover-title,
+.canvas[data-theme="minimal-line"] .carousel-title {
+  font-size: 88px;
+  font-weight: 900;
+  color: var(--text-display);
+  letter-spacing: -0.04em;
+  line-height: 0.93;
+}
+.canvas[data-theme="minimal-line"] .carousel-body p {
+  font-size: 22px;
+  color: var(--text-secondary);
+  max-width: 74%;
+  line-height: 1.6;
+  margin-top: 28px;
+}
+.canvas[data-theme="minimal-line"] .cnv-sig-name { color: #111111; }
+.canvas[data-theme="minimal-line"] .cnv-sig-handle { color: #999999; }
+.canvas[data-theme="minimal-line"] .carousel-bullets-title { font-size: 52px; color: var(--text-display); }
+.canvas[data-theme="minimal-line"] .carousel-bullets-list li { font-size: 22px; color: var(--text-secondary); }
+.canvas[data-theme="minimal-line"] .carousel-stat-value { font-size: 220px; color: var(--brand-coral); letter-spacing: -0.04em; }
+.canvas[data-theme="minimal-line"] .carousel-quote-text { font-size: 54px; color: var(--text-display); font-style: italic; letter-spacing: -0.015em; }
+/* Divider line above footer */
+.canvas[data-theme="minimal-line"] .cnv-sig { border-top: 1px solid rgba(0,0,0,0.1); padding-top: 16px; }
+
+/* Big Statement — typography IS the design, massive hook text */
+.canvas[data-theme="big-statement"] {
+  background: #0D0D0D;
+  --text-display: #FFFFFF;
+  --text-primary: #F0F0F0;
+  --text-secondary: rgba(255,255,255,0.42);
+  --text-muted: rgba(255,255,255,0.22);
+  --bg-card: #151515;
+  --bg-card-elev: #1C1C1C;
+  --border-subtle: rgba(255,255,255,0.07);
+  --brand-coral: #FFFFFF;
+  --accent-coral: #E8654A;
+  --accent-amber: #F4C752;
+  --accent-teal: #2BA89C;
+  --accent-indigo: #6B7AE8;
+  --accent-plum: #B85A99;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+.canvas[data-theme="big-statement"]::before { opacity: 0.025; }
+.canvas[data-theme="big-statement"] .carousel-eyebrow {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.3);
+  text-transform: uppercase;
+  background: transparent;
+  margin-bottom: 12px;
+}
+/* Hook text fills ~70% of the slide */
+.canvas[data-theme="big-statement"] .carousel-cover-title,
+.canvas[data-theme="big-statement"] .carousel-title {
+  font-size: 124px;
+  font-weight: 900;
+  color: #FFFFFF;
+  letter-spacing: -0.05em;
+  line-height: 0.88;
+  max-width: 100%;
+}
+.canvas[data-theme="big-statement"] .carousel-body p {
+  font-size: 18px;
+  color: rgba(255,255,255,0.4);
+  max-width: 60%;
+  margin-top: 36px;
+  line-height: 1.55;
+}
+.canvas[data-theme="big-statement"] .carousel-stat-value {
+  font-size: 240px;
+  color: #FFFFFF;
+  letter-spacing: -0.05em;
+}
+.canvas[data-theme="big-statement"] .carousel-stat-label { font-size: 28px; color: rgba(255,255,255,0.45); }
+.canvas[data-theme="big-statement"] .carousel-quote-text {
+  font-size: 64px;
+  color: #FFFFFF;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+.canvas[data-theme="big-statement"] .carousel-bullets-title { font-size: 80px; letter-spacing: -0.04em; }
+.canvas[data-theme="big-statement"] .carousel-bullets-list li { font-size: 22px; color: rgba(255,255,255,0.55); }
+
+/* Quote Pull — giant decorative opening quote, centered composition */
+.canvas[data-theme="quote-pull"] {
+  background: #0F0F0F;
+  --text-display: #FFFFFF;
+  --text-primary: #F0F0F0;
+  --text-secondary: rgba(255,255,255,0.52);
+  --text-muted: rgba(255,255,255,0.28);
+  --bg-card: #161616;
+  --bg-card-elev: #1E1E1E;
+  --border-subtle: rgba(45,107,255,0.18);
+  --brand-coral: #2D6BFF;
+  --accent-coral: #2D6BFF;
+  --accent-amber: #F4C752;
+  --accent-teal: #00D4AA;
+  --accent-indigo: #7C5CFC;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+.canvas[data-theme="quote-pull"]::before { opacity: 0.035; }
+/* Giant decorative opening quote mark behind slide content */
+.canvas[data-theme="quote-pull"][data-format="carousel"]::after {
+  content: "\201C";
+  position: absolute;
+  top: -90px;
+  left: 20px;
+  font-size: 520px;
+  color: var(--brand-coral);
+  opacity: 0.07;
+  font-family: "Georgia", "Times New Roman", serif;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+}
+.canvas[data-theme="quote-pull"] .carousel-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brand-coral);
+  background: transparent;
+  text-align: center;
+  width: 100%;
+  margin-bottom: 20px;
+}
+.canvas[data-theme="quote-pull"] .carousel-cover-title,
+.canvas[data-theme="quote-pull"] .carousel-title {
+  font-size: 62px;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  text-align: center;
+  color: #FFFFFF;
+}
+.canvas[data-theme="quote-pull"] .carousel-body p {
+  font-size: 20px;
+  text-align: center;
+  color: var(--brand-coral);
+  max-width: 80%;
+  margin: 20px auto 0;
+  line-height: 1.5;
+}
+.canvas[data-theme="quote-pull"] .carousel-quote-text {
+  font-size: 60px;
+  font-style: italic;
+  text-align: center;
+  letter-spacing: -0.02em;
+  color: #FFFFFF;
+  line-height: 1.1;
+}
+.canvas[data-theme="quote-pull"] .carousel-stat-value { font-size: 200px; color: var(--brand-coral); text-align: center; }
+.canvas[data-theme="quote-pull"] .carousel-bullets-title { font-size: 54px; font-style: italic; text-align: center; }
+
+
+/* =========================================================
+   NEW LAYOUT THEMES — genuinely different compositions
+   ========================================================= */
+
+/* Split Insight — prominent left accent border + right text content */
+.canvas[data-theme="split-insight"] {
+  background: #0A1628;
+  --text-display: #FFFFFF;
+  --text-primary: #E8EDF5;
+  --text-secondary: #8A9BB5;
+  --text-muted: #4A5570;
+  --bg-card: #0F1E35;
+  --bg-card-elev: #162540;
+  --border-subtle: rgba(45,107,255,0.25);
+  --brand-coral: #2D6BFF;
+  --accent-coral: #2D6BFF;
+  --accent-amber: #FFB347;
+  --accent-teal: #00D4AA;
+  --accent-indigo: #2D6BFF;
+  --accent-plum: #A855F7;
+  --accent-olive: #84CC16;
+  --accent-sky: #38BDF8;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+.canvas[data-theme="split-insight"]::before { opacity: 0.03; }
+.canvas[data-theme="split-insight"][data-format="carousel"],
+.canvas[data-theme="split-insight"][data-format="carousel"][data-accent] {
+  --accent: #2D6BFF;
+  --accent-fg: #FFFFFF;
+  border-left: 8px solid #2D6BFF;
+}
+.canvas[data-theme="split-insight"] .carousel-eyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  color: #2D6BFF;
+  background: rgba(45,107,255,0.12);
+  border: 1px solid rgba(45,107,255,0.4);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.canvas[data-theme="split-insight"] .carousel-title {
+  font-size: 76px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.0;
+}
+.canvas[data-theme="split-insight"] .carousel-cover-title {
+  font-size: 88px;
+  letter-spacing: -0.04em;
+  line-height: 0.98;
+  font-weight: 900;
+}
+.canvas[data-theme="split-insight"] .carousel-body p {
+  font-size: 22px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  max-width: 85%;
+}
+.canvas[data-theme="split-insight"] .carousel-stat-value {
+  font-size: 260px;
+  color: #2D6BFF;
+}
+
+/* Minimal Line — white canvas, left vertical accent bar, generous whitespace */
+.canvas[data-theme="minimal-line"] {
+  background: #FAFAFA;
+  --text-display: #111111;
+  --text-primary: #1A1A1A;
+  --text-secondary: #555555;
+  --text-muted: #999999;
+  --bg-card: #FFFFFF;
+  --bg-card-elev: #F0F0F0;
+  --border-subtle: rgba(0,0,0,0.08);
+  --brand-coral: #FF4D1C;
+  --accent-coral: #FF4D1C;
+  --accent-amber: #F59E0B;
+  --accent-teal: #0D9488;
+  --accent-indigo: #4F46E5;
+  --accent-plum: #9333EA;
+  --accent-olive: #65A30D;
+  --accent-sky: #0EA5E9;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+.canvas[data-theme="minimal-line"]::before { display: none; }
+.canvas[data-theme="minimal-line"][data-format="carousel"],
+.canvas[data-theme="minimal-line"][data-format="carousel"][data-accent] {
+  --accent: #FF4D1C;
+  --accent-fg: #FFFFFF;
+  border-left: 6px solid #FF4D1C;
+}
+.canvas[data-theme="minimal-line"] .cnv-type-pill {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.12);
+  color: #555;
+}
+.canvas[data-theme="minimal-line"] .carousel-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  color: #FF4D1C;
+  background: transparent;
+  border: none;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0;
+}
+.canvas[data-theme="minimal-line"] .carousel-cover-title,
+.canvas[data-theme="minimal-line"] .carousel-title {
+  font-size: 86px;
+  font-weight: 900;
+  color: #111111;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+}
+.canvas[data-theme="minimal-line"] .carousel-body p {
+  font-size: 24px;
+  color: #555555;
+  max-width: 78%;
+  line-height: 1.55;
+}
+.canvas[data-theme="minimal-line"] .cnv-sig-name { color: #1A1A1A; }
+.canvas[data-theme="minimal-line"] .cnv-sig-handle { color: #FF4D1C; }
+.canvas[data-theme="minimal-line"] .cnv-footer {
+  border-top-color: rgba(0,0,0,0.10);
+}
+.canvas[data-theme="minimal-line"] .cnv-type-pill,
+.canvas[data-theme="minimal-line"] .cnv-footer .attribution { color: #999; }
+.canvas[data-theme="minimal-line"] .carousel-bullets-title { font-size: 56px; color: #111; letter-spacing: -0.03em; }
+.canvas[data-theme="minimal-line"] .carousel-bullets-list li { color: #1A1A1A; }
+.canvas[data-theme="minimal-line"] .carousel-quote-text { color: #111111; font-size: 54px; }
+.canvas[data-theme="minimal-line"] .carousel-stat-value { color: #FF4D1C; }
+.canvas[data-theme="minimal-line"] .carousel-stat-label { color: #1A1A1A; }
+
+/* Big Statement — typography IS the design, massive hook text */
+.canvas[data-theme="big-statement"] {
+  background: #0D0D0D;
+  --text-display: #FFFFFF;
+  --text-primary: #F0F0F0;
+  --text-secondary: rgba(255,255,255,0.45);
+  --text-muted: rgba(255,255,255,0.25);
+  --bg-card: #151515;
+  --bg-card-elev: #1C1C1C;
+  --border-subtle: rgba(255,255,255,0.07);
+  --brand-coral: #FFFFFF;
+  --accent-coral: #FFFFFF;
+  --accent-amber: #F4C752;
+  --accent-teal: #00D4AA;
+  --accent-indigo: #6EA8FF;
+  --accent-plum: #C084FC;
+  --accent-olive: #BEF264;
+  --accent-sky: #7DD3FC;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+.canvas[data-theme="big-statement"]::before { opacity: 0.025; }
+.canvas[data-theme="big-statement"][data-format="carousel"],
+.canvas[data-theme="big-statement"][data-format="carousel"][data-accent] {
+  --accent: #FFFFFF;
+  --accent-fg: #0D0D0D;
+}
+.canvas[data-theme="big-statement"] .carousel-eyebrow {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+.canvas[data-theme="big-statement"] .carousel-cover-title,
+.canvas[data-theme="big-statement"] .carousel-title {
+  font-size: 118px;
+  font-weight: 900;
+  color: #FFFFFF;
+  letter-spacing: -0.045em;
+  line-height: 0.9;
+  max-width: 100%;
+}
+.canvas[data-theme="big-statement"] .carousel-body p {
+  font-size: 20px;
+  color: rgba(255,255,255,0.48);
+  max-width: 68%;
+  line-height: 1.55;
+}
+.canvas[data-theme="big-statement"] .carousel-bullets-title {
+  font-size: 72px;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+}
+.canvas[data-theme="big-statement"] .carousel-stat-value {
+  font-size: 280px;
+  color: #FFFFFF;
+}
+.canvas[data-theme="big-statement"] .carousel-stat-label { font-size: 40px; color: rgba(255,255,255,0.7); }
+.canvas[data-theme="big-statement"] .cnv-sig-handle { color: rgba(255,255,255,0.35); }
+
+/* Quote Pull — giant decorative opening quote mark behind centered text */
+.canvas[data-theme="quote-pull"] {
+  background: #0F0F0F;
+  --text-display: #FFFFFF;
+  --text-primary: #F0F0F0;
+  --text-secondary: rgba(255,255,255,0.55);
+  --text-muted: rgba(255,255,255,0.3);
+  --bg-card: #161616;
+  --bg-card-elev: #1E1E1E;
+  --border-subtle: rgba(45,107,255,0.2);
+  --brand-coral: #2D6BFF;
+  --accent-coral: #2D6BFF;
+  --accent-amber: #F4C752;
+  --accent-teal: #00D4AA;
+  --accent-indigo: #2D6BFF;
+  --accent-plum: #A855F7;
+  --accent-olive: #84CC16;
+  --accent-sky: #38BDF8;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+.canvas[data-theme="quote-pull"]::before { opacity: 0.03; }
+.canvas[data-theme="quote-pull"][data-format="carousel"],
+.canvas[data-theme="quote-pull"][data-format="carousel"][data-accent] {
+  --accent: #2D6BFF;
+  --accent-fg: #FFFFFF;
+}
+/* Giant decorative opening quote mark — positioned via ::after to sit behind content */
+.canvas[data-theme="quote-pull"][data-format="carousel"]::after {
+  content: "\201C";
+  position: absolute;
+  top: -80px;
+  left: 20px;
+  font-size: 600px;
+  color: #2D6BFF;
+  opacity: 0.07;
+  font-family: "Georgia", "Times New Roman", serif;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+}
+.canvas[data-theme="quote-pull"] .carousel-body {
+  align-items: center;
+  text-align: center;
+}
+.canvas[data-theme="quote-pull"] .carousel-eyebrow {
+  align-self: center;
+  font-size: 12px;
+  color: #2D6BFF;
+  background: rgba(45,107,255,0.1);
+  border: 1px solid rgba(45,107,255,0.35);
+  letter-spacing: 0.1em;
+}
+.canvas[data-theme="quote-pull"] .carousel-title {
+  font-size: 62px;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-align: center;
+}
+.canvas[data-theme="quote-pull"] .carousel-cover-title {
+  font-size: 78px;
+  font-weight: 800;
+  font-style: italic;
+  text-align: center;
+  letter-spacing: -0.025em;
+}
+.canvas[data-theme="quote-pull"] .carousel-body p {
+  font-size: 22px;
+  text-align: center;
+  color: #2D6BFF;
+  max-width: 80%;
+  margin: 0 auto;
+}
+.canvas[data-theme="quote-pull"] .carousel-quote-text {
+  font-size: 58px;
+  font-style: italic;
+  text-align: center;
+  max-width: 92%;
+}
+.canvas[data-theme="quote-pull"] .carousel-quote-mark {
+  align-self: center;
+}
+.canvas[data-theme="quote-pull"] .cnv-sig-handle { color: #2D6BFF; }

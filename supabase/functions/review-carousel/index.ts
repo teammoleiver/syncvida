@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
     if (!user) return json({ error: "Unauthorized" }, 401);
 
-    const { slides, hook, body, author, memory, appliedFixes } = await req.json();
+    const { slides, hook, body, author, memory, appliedFixes, slidesMeta } = await req.json();
     if (!Array.isArray(slides) || slides.length === 0) return json({ error: "No slides provided" }, 400);
 
     const slideSummaries = slides.map((s: any, i: number) => ({
@@ -51,7 +51,12 @@ Deno.serve(async (req) => {
       ? `\n\nIMPORTANT: The following slide numbers have ALREADY been corrected by the user: [${fixedSlides.join(", ")}]. Do NOT flag these slides again in slideNotes. Acknowledge their improvement in your verdict/flow and adjust the score accordingly — a deck where all previously flagged slides were fixed should score 15-25 points higher than before.`
       : "";
 
-    const systemPrompt = `You are a senior LinkedIn content strategist reviewing a carousel for a B2B / GTM founder. Judge it like a viral-content expert against these rules: a strong scroll-stopping cover hook; ONE clear idea per slide (<=50 words); a logical flow (cover -> build-up -> payoff -> CTA); a closing slide that explicitly asks to FOLLOW and TURN ON THE BELL; consistent voice; no filler or near-empty slides.${memoryBlock}${fixedBlock}
+    const slidesMetaList: any[] = Array.isArray(slidesMeta) ? slidesMeta : [];
+    const slidesMetaBlock = slidesMetaList.length
+      ? `\n\nSLIDES META (visual/design data):\n${JSON.stringify(slidesMetaList)}`
+      : "";
+
+    const systemPrompt = `You are a senior LinkedIn content strategist reviewing a carousel for a B2B / GTM founder. Judge it like a viral-content expert against these rules: a strong scroll-stopping cover hook; ONE clear idea per slide (<=50 words); a logical flow (cover -> build-up -> payoff -> CTA); a closing slide that explicitly asks to FOLLOW and TURN ON THE BELL; consistent voice; no filler or near-empty slides.${memoryBlock}${fixedBlock}${slidesMetaBlock}
 
 Return ONLY valid JSON (no markdown) matching EXACTLY this schema:
 {
@@ -72,19 +77,34 @@ Return ONLY valid JSON (no markdown) matching EXACTLY this schema:
       }
     }
   ],
+  "designNotes": [
+    {
+      "n": <slide number>,
+      "type": "word-count | logo-clutter | empty-slide | weak-cta | missing-cover",
+      "issue": "<plain words>",
+      "fix": { "action": "trim | rewrite", "body": "<shortened version if trim>" }
+    }
+  ],
   "improvements": [ "<3-6 concrete, high-leverage improvements ordered by impact>" ]
 }
-Rules for "fix":
+Rules for slideNotes "fix":
 - PREFER "rewrite" — give concrete replacement title/body in the SAME voice, <=50 words for body. This is the default and should be used whenever the slide can be salvaged.
 - Use "remove" ONLY for a slide that is truly redundant/empty and adds no value (its content lives elsewhere).
 - Use "merge" when a slide should fold into the slide directly above it — provide the combined title/body.
-Every slideNote MUST include a "fix" with an "action" so the user can apply it in one click. Only include slideNotes for slides that genuinely need work. Be specific; never generic. No emojis in JSON values.`;
+Every slideNote MUST include a "fix" with an "action" so the user can apply it in one click. Only include slideNotes for slides that genuinely need work. Be specific; never generic. No emojis in JSON values.
+Also analyze the provided slidesMeta for visual/design issues and populate designNotes:
+- word-count: body word count > 40 — flag as too long, provide trimmed version in fix.body (<=40 words)
+- logo-clutter: overlayCount >= 4 — flag as too many logos/overlays
+- empty-slide: hasContent is false — flag as empty slide
+- weak-cta: last slide has no ctaAction or ctaPrompt and body is empty
+Do NOT add design notes for slides that pass all checks. Only flag real issues. If no design issues exist, return an empty designNotes array.`;
 
     const userPrompt = JSON.stringify({
       hook: hook || "",
       body: body || "",
       author: author || "",
       slides: slideSummaries,
+      slidesMeta: slidesMetaList.length ? slidesMetaList : undefined,
       appliedFixes: fixedSlides.length ? fixedSlides : undefined,
     });
 

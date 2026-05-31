@@ -396,63 +396,73 @@ export const SEED_CAROUSEL: CarouselData = {
   slides: [
     {
       layout: "cover",
-      eyebrow: "Hook",
-      title: "Stop CSV-exporting Clay. Plug it into your LLM.",
-      body: "A 4-slide field guide to MCP.",
+      eyebrow: "GTM ENGINEERING / HOT TAKE",
+      title: "Most GTM teams are querying dead data. Here's the fix.",
+      body: "MCP connects your LLM directly to Clay. No exports. No stale snapshots.",
       closer: "Swipe →",
       accent: "coral",
     },
     {
       layout: "stat",
-      eyebrow: "Why now",
-      title: "80% less research time",
+      eyebrow: "THE NUMBER",
+      title: "80% faster per-lead research",
       statValue: "80%",
-      statLabel: "Less research time, per lead.",
-      body: "Once Claude reads Clay live, the manual lookup loop dies.",
+      statLabel: "Faster per-lead research. No manual lookup loop.",
+      body: "When Claude reads Clay live, the tab-switching and copy-paste disappear. The analyst bottleneck moves to strategy, not data retrieval.",
       closer: "Swipe →",
       accent: "teal",
     },
     {
       layout: "comparison",
-      eyebrow: "The shift",
-      title: "Old workflow vs. MCP.",
-      leftLabel: "Old way",
+      eyebrow: "BEFORE THE FIX / AFTER THE FIX",
+      title: "Old CSV pipeline versus live MCP query.",
+      leftLabel: "Without MCP",
       leftItems: [
-        "Export Clay table to CSV",
-        "Paste into LLM chat",
-        "Re-export when data changes",
-        "Stale within hours",
+        "Export Clay table, wait for download",
+        "Paste raw CSV into LLM chat window",
+        "Re-export every time data refreshes",
+        "Context window fills up fast",
       ],
-      rightLabel: "MCP way",
+      rightLabel: "With MCP",
       rightItems: [
-        "LLM queries Clay live",
-        "One protocol, all tools",
-        "Always current",
-        "Zero context switching",
+        "LLM queries Clay table in real time",
+        "One command pulls structured, live data",
+        "Data is always current, zero re-exports",
+        "Full context left for reasoning and copy",
       ],
       closer: "Swipe →",
       accent: "amber",
     },
     {
       layout: "bullets",
-      eyebrow: "Setup",
-      title: "Three steps to wire it up.",
+      eyebrow: "THE SETUP",
+      title: "Wire Clay to your LLM in three moves.",
       bullets: [
-        "Install the Clay MCP server",
-        "Generate a table-read API key",
-        "Register it in your Claude client",
+        "Install the Clay MCP server via npm or hosted",
+        "Generate a Clay API key with table-read scope",
+        "Register the server in your Claude Desktop config",
       ],
       closer: "Swipe →",
       accent: "sky",
     },
     {
       layout: "quote",
-      eyebrow: "Takeaway",
+      eyebrow: "THE THESIS",
       quote: "Your LLM doesn't need your CSV. It needs your warehouse.",
-      quoteAuthor: "Saleh Seddik",
+      quoteAuthor: "Me, shipping GTM systems at 11 PM",
       closer: "Follow for more",
       accent: "indigo",
       title: "Your LLM doesn't need your CSV. It needs your warehouse.",
+    },
+    {
+      layout: "cta",
+      eyebrow: "LET'S TALK GTM SYSTEMS",
+      title: "Is your team still CSV-exporting enrichment data?",
+      ctaPrompt: "Is your team still CSV-exporting enrichment data?",
+      ctaAction: `Follow Saleh Seddik for more GTM systems\nTurn on the bell so you never miss a post`,
+      quoteAuthor: "Saleh Seddik",
+      closer: "Drop a comment · Follow + connect",
+      accent: "indigo",
     },
   ],
 };
@@ -508,10 +518,9 @@ export function buildCarouselFromPost(
     .map((p) => p.trim())
     .filter(Boolean);
 
-  // The design system targets ~12 slides (cover + ~10 body + closing). When the
-  // post has fewer paragraphs than that, split it into finer one-idea chunks by
-  // grouping sentences so the deck reaches a healthy, swipe-worthy slide count.
-  const TARGET_BODY = LINKEDIN_DESIGN_SYSTEM.carousel.targetSlides - 2; // ≈ 10
+  // Target 7 body chunks max — enough for an 8-10 slide deck (cover + 7 + CTA).
+  // Going higher creates too many thin one-idea slides that weaken the narrative arc.
+  const TARGET_BODY = Math.min(7, LINKEDIN_DESIGN_SYSTEM.carousel.targetSlides - 2);
   let chunks = paragraphs;
   if (chunks.length < TARGET_BODY && cleanBody) {
     const sents = cleanBody.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
@@ -526,6 +535,17 @@ export function buildCarouselFromPost(
   // Drop near-empty fragments (stray markers, lone punctuation) so we never
   // emit a blank/abnormal slide — every slide must carry a real idea.
   chunks = chunks.map((c) => stripSlideMarkers(c)).filter((c) => contentWordCount(c) >= 3);
+  // Merge adjacent tiny chunks (< 8 words) into the next to avoid one-sentence slides.
+  const mergedChunks: string[] = [];
+  for (let mi = 0; mi < chunks.length; mi++) {
+    if (contentWordCount(chunks[mi]) < 8 && mi + 1 < chunks.length) {
+      mergedChunks.push(chunks[mi] + " " + chunks[mi + 1]);
+      mi++; // skip next — already merged
+    } else {
+      mergedChunks.push(chunks[mi]);
+    }
+  }
+  chunks = mergedChunks;
   // Cap body chunks so the total stays within the 16-slide maximum.
   chunks = chunks.slice(0, LINKEDIN_DESIGN_SYSTEM.carousel.maxSlides - 2);
 
@@ -534,9 +554,16 @@ export function buildCarouselFromPost(
   // 1) Cover — title is the hook; subtitle is a SHORT promise of what's
   // inside the deck, never the same words as a body slide.
   const expectedSlideCount = Math.min(chunks.length + 2, LINKEDIN_DESIGN_SYSTEM.carousel.maxSlides);
+  // Build a meaningful cover subtitle that teases what's inside — never
+  // reflects back the user's own instructions or shows a raw slide count.
   const coverSub = (() => {
     if (chunks.length === 0) return "A quick read.";
-    return `${expectedSlideCount} slides. Save the ones that hit.`;
+    // Use the first sentence of body as a teaser if short enough, otherwise
+    // fall back to a generic but relevant call-to-action for the deck.
+    const firstChunk = (chunks[0] || "").trim();
+    const firstSentence = firstChunk.split(/(?<=[.!?])\s+/)[0] || firstChunk;
+    const teaser = clampWords(firstSentence.replace(/[.!?]+$/, ""), 10);
+    return teaser.length >= 10 ? teaser : "Read every slide before you skip.";
   })();
   slides.push({
     layout: "cover",
@@ -547,29 +574,58 @@ export function buildCarouselFromPost(
     accent: ACCENTS[0],
   });
 
+  // Pre-scan ALL chunks to find the single best "quote" candidate — the most
+  // standalone, insight-y sentence in the entire post. This is better than only
+  // looking at the last chunk. Criteria: 25–100 chars, doesn’t start with
+  // "I " / "We " (too personal for a pull quote), reads as a standalone truth.
+  const bestQuoteSentence = (() => {
+    for (const c of chunks) {
+      const sents = c.split(/(?<=[.!?])\s+/).filter(Boolean);
+      for (const s of sents) {
+        const t = s.trim();
+        if (t.length >= 25 && t.length <= 100 && !/^(I |We |My |Our )/i.test(t) && /[a-z]{3,}/i.test(t)) {
+          return t;
+        }
+      }
+    }
+    return null;
+  })();
+
   // 2..N-1) Body chunks
   let pickedQuote = false;
   chunks.forEach((chunk, i) => {
     const accent = ACCENTS[(i + 1) % ACCENTS.length];
-    // Eyebrow is a short topical tag — never a page counter (the footer already
-    // shows `01 / 06`). Cycle through neutral section labels so each body slide
-    // gets context without competing with the footer pagination.
-    const TAGS = ["The shift", "What I tried", "What worked", "The system", "The receipt", "Takeaway"];
-    const eyebrow = TAGS[i % TAGS.length];
+    // Content-aware eyebrow — reflects what this chunk is actually about.
+    // Never a page counter (the footer already shows ‘01 / 06’).
+    const eyebrow = (() => {
+      const c = chunk.toLowerCase();
+      if (/%|\$\d|\dx\b|\d+x\b/.test(c)) return "THE DATA";
+      if (/\bvs\.?\b|before[/ ]after|old way|new way/.test(c)) return "THE SHIFT";
+      if (/^(i |we |my |our )|\b(worked|tried|tested|built|launched|shipped)\b/.test(c)) return "REAL TALK";
+      if (/\b(step|checklist|process|system|workflow|framework|protocol)\b/.test(c)) return "THE SYSTEM";
+      if (/\?/.test(c)) return "THE QUESTION";
+      const fallbacks = ["THE INSIGHT", "WHAT CHANGED", "THE PLAYBOOK", "WHY IT WORKS", "THE PROOF", "FIELD NOTES"];
+      return fallbacks[i % fallbacks.length];
+    })();
 
-    // Bullets
+    // Bullets — only use this layout when we have genuine list items with
+    // real content (>= 4 words each). Single-word or abbreviation bullets
+    // make the slide look broken.
     const lines = chunk.split(/\n+/).map((l) => l.trim()).filter(Boolean);
     const bulletLines = lines.filter((l) => /^([-•*]|\d+[.)])\s+/.test(l));
-    if (bulletLines.length >= 2) {
+    const cleanBulletCandidates = bulletLines
+      .map((l) => l.replace(/^([-•*]|\d+[.)])\s+/, "").trim().slice(0, 90))
+      .filter((b) => contentWordCount(b) >= 4); // require ≥4 real words per bullet
+    if (cleanBulletCandidates.length >= 2) {
       const headerLine = lines.find((l) => !/^([-•*]|\d+[.)])\s+/.test(l));
-      const cleanBullets = bulletLines
-        .map((l) => l.replace(/^([-•*]|\d+[.)])\s+/, "").slice(0, 90))
-        .slice(0, 5);
+      const headerText = (headerLine || "").trim();
+      // Header must be a real phrase, not a stray number or abbreviation
+      const safeHeader = contentWordCount(headerText) >= 3 ? headerText : "Here's the playbook";
       slides.push({
         layout: "bullets",
         eyebrow,
-        title: (headerLine || "Here's the playbook").slice(0, 70),
-        bullets: cleanBullets,
+        title: safeHeader.slice(0, 70),
+        bullets: cleanBulletCandidates.slice(0, 5),
         closer: "Swipe →",
         accent,
       });
@@ -593,24 +649,32 @@ export function buildCarouselFromPost(
       return;
     }
 
-    // Stat — value is the number, label is a SHORT crisp descriptor (max 6
-    // words), body is OMITTED so the giant number isn't followed by a
-    // paragraph that repeats the same words in smaller font.
-    const statMatch = chunk.match(/\$?\d+(?:[.,]\d+)?[%xKMB+]?/);
-    if (statMatch && statMatch[0].length <= 8 && /[%xKMB$]|\d{2,}/.test(statMatch[0])) {
-      // Keep BOTH sides of the number so the label reads as a complete idea —
-      // not a truncated mid-sentence fragment like "we generated".
-      const fullSentence = (chunk.split(/(?<=[.!?])\s+/).find((s) => s.includes(statMatch[0])) || chunk)
-        .replace(statMatch[0], "___")
-        .replace(/\s{2,}/g, " ")
-        .trim();
-      let label = fullSentence.replace("___", statMatch[0]).replace(/[.!?]+$/, "");
+    // Stat — only use this layout when the number is unambiguous and meaningful:
+    // - Must have an explicit unit (%  x  K  M  B  $  +) — not a bare number
+    // - Must NOT be an abbreviation like "2B" from "B2B" (no letter immediately
+    //   before the digit in the source text)
+    // - Must be followed by a real label sentence (≥ 4 words) so the slide
+    //   isn't just a giant number floating in space
+    const statMatch = chunk.match(
+      /(?<![A-Za-z])(\$?\d+(?:[.,]\d+)?(?:%|x|[KMBT]\b|\+|\$))/
+    );
+    const statVal = statMatch?.[1] ?? "";
+    const hasExplicitUnit = /[%xKMBT$+]/.test(statVal);
+    const isAbbrev = statMatch ? /[A-Za-z]/.test(chunk[Math.max(0, statMatch.index! - 1)] ?? "") : false;
+    const statContext = statMatch
+      ? (chunk.split(/(?<=[.!?])\s+/).find((s) => s.includes(statVal)) || chunk).trim()
+      : "";
+    const statContextWords = contentWordCount(statContext.replace(statVal, ""));
+
+    if (statMatch && hasExplicitUnit && !isAbbrev && statContextWords >= 4 && statVal.length <= 8) {
+      // Build label from the full sentence containing the stat — keeps context
+      let label = statContext.replace(/[.!?]+$/, "");
       if (label.length > 80) label = label.slice(0, 77).replace(/[\s,;:.\-—]+$/, "") + "…";
       slides.push({
         layout: "stat",
         eyebrow,
-        title: statMatch[0],
-        statValue: statMatch[0],
+        title: statVal,
+        statValue: statVal,
         statLabel: label || "The number that matters.",
         body: "",
         closer: "Swipe →",
@@ -619,16 +683,19 @@ export function buildCarouselFromPost(
       return;
     }
 
-    // Quote (use the shortest punchy sentence once)
+    // Quote — use the best pre-selected sentence from any chunk (not just last).
+    // Falls back to last-chunk logic if no pre-selected quote was found.
     const sentences = chunk.split(/(?<=[.!?])\s+/).filter(Boolean);
+    const chunkHasBestQuote = bestQuoteSentence && chunk.includes(bestQuoteSentence);
     const punchy = sentences.find((s) => s.length > 20 && s.length < 110);
-    if (!pickedQuote && punchy && i === chunks.length - 1) {
+    if (!pickedQuote && (chunkHasBestQuote || (punchy && i === chunks.length - 1))) {
       pickedQuote = true;
+      const quoteText = chunkHasBestQuote ? bestQuoteSentence! : punchy!;
       slides.push({
         layout: "quote",
-        eyebrow: "Takeaway",
-        title: punchy,
-        quote: punchy,
+        eyebrow: "TAKEAWAY",
+        title: quoteText,
+        quote: quoteText,
         quoteAuthor: base.author ?? "",
         closer: "Follow for more",
         accent,
@@ -641,6 +708,14 @@ export function buildCarouselFromPost(
     const firstSentence = (sentences[0] || chunk).trim();
     const restSentences = sentences.slice(1).join(" ").trim();
     const titleText = firstSentence.replace(/[.!?]+$/, "").slice(0, 80);
+
+    // Quality guard: skip slides whose title is just a number, abbreviation,
+    // or fewer than 4 meaningful words — these are always parsing artifacts.
+    if (contentWordCount(titleText) < 4 && !restSentences) return;
+    // Also skip if title looks like a bare stat / abbreviation (1-4 chars,
+    // all digits+letters, no spaces) — e.g. "2B", "01", "GTM".
+    if (/^[A-Z0-9]{1,4}$/.test(titleText.trim()) && contentWordCount(restSentences) < 3) return;
+
     slides.push({
       layout: "text",
       eyebrow,
@@ -949,16 +1024,16 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
   );
   const comparison = current.slides?.find((s) => s.layout === "comparison");
   const leftItems = (comparison?.leftItems?.length ? comparison.leftItems : [
-    "Scattered manual research.",
-    "Generic copy for every lead.",
-    "Disconnected tools and notes.",
-    "No reusable workflow.",
+    "Manual research, one lead at a time.",
+    "Generic templates sent to everyone.",
+    "Tools that don't talk to each other.",
+    "No signal on what drives replies.",
   ]).slice(0, 4).map((item) => smartText(item, 52, "Manual work.", true));
   const rightItems = (comparison?.rightItems?.length ? comparison.rightItems : [
-    `${hook} becomes a system.`,
-    "Research turns into structured context.",
-    "Each step is reviewed before shipping.",
-    "The workflow improves every round.",
+    "AI-enriched context for every lead.",
+    "Personalized outreach at real scale.",
+    "One connected system, zero switching.",
+    "Clear data on what works and why.",
   ]).slice(0, 4).map((item) => smartText(item, 52, "Repeatable system.", true));
   const question = smartText(
     bodyThoughts.find((t) => /\?$/.test(t)) || "What would you add?",
@@ -967,59 +1042,52 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
   );
 
   const slides: CarouselSlide[] = [
-    // 01 — Cover · Hook
+    // 01 — Cover · Hook + curiosity-gap teaser
     {
       layout: "cover",
-      eyebrow: "GTM ENGINEERING / TACTIC",
+      eyebrow: "GTM ENGINEERING",
       title: hook,
-      body: "A practical field guide from the post.",
+      body: clampWords(firstInsight.replace(/[.!?]+$/, ""), 12) || "The system most teams miss.",
       closer: "Swipe →",
       accent: "teal",
     },
-    // 02 — Big Number (Part One section break, rendered as stat)
-    {
-      layout: "stat",
-      eyebrow: "PART ONE",
-      title: "01",
-      statValue: "01",
-      statLabel: firstInsight,
-      body: "",
-      closer: "Swipe →",
-      accent: "teal",
-    },
-    // 03 — Content paragraph
+    // 02 — Context / Problem framing — reader recognition moment
     {
       layout: "text",
-      eyebrow: "THE DIAGNOSIS",
+      eyebrow: "THE CONTEXT",
+      title: smartText(firstInsight, 78, "Here is what most teams get wrong."),
+      body: smartText(bodyThoughts[1] || secondInsight, 170, "The bottleneck is never the tool. It’s the system around the tool.", true),
+      closer: "Swipe →",
+      accent: "teal",
+    },
+    // 03 — The Insight / Diagnosis
+    {
+      layout: "text",
+      eyebrow: "WHY THIS MATTERS",
       title: smartText(bodyThoughts[1] || firstInsight, 78, "The real bottleneck is the system."),
       body: secondInsight,
       closer: "Swipe →",
       accent: "teal",
     },
-    // 04 — Numbered list (bullets)
+    // 04 — Numbered checklist
     {
       layout: "bullets",
-      eyebrow: "THE 5-STEP CHECKLIST",
-      title: "Turn the post into an operating checklist.",
+      eyebrow: "THE OPERATING CHECKLIST",
+      title: "Turn the idea into an operating checklist.",
       bullets: playbook,
       closer: "Swipe →",
       accent: "teal",
     },
-    // 05 — Code / Workflow (rendered as text body styled mono)
+    // 05 — The Proof — concrete result/example from the content
     {
       layout: "text",
-      eyebrow: "THE WORKFLOW",
-      title: "The workflow behind the idea.",
-      body: [
-        `01 ${smartText(playbook[0], 48, "Define the outcome.")}`,
-        `02 ${smartText(playbook[1], 48, "Collect the right context.")}`,
-        `03 ${smartText(playbook[2], 48, "Draft the asset.")}`,
-        `04 ${smartText(playbook[3], 48, "Review and publish.")}`,
-      ].join("\n"),
+      eyebrow: "THE PROOF",
+      title: smartText(bodyThoughts[2] || bodyThoughts[1] || "Here is what this looks like in practice.", 78, "Here is what this looks like in practice."),
+      body: smartText(bodyThoughts[3] || bodyThoughts[2] || "Apply the checklist to your next campaign. Review after each send and improve one step.", 170, "Apply the checklist to your next campaign. Review after each send and improve one step.", true),
       closer: "Swipe →",
       accent: "teal",
     },
-    // 06 — Big Number (Part Two)
+    // 06 — Quote / The Thesis
     {
       layout: "quote",
       eyebrow: "THE THESIS",
@@ -1029,11 +1097,11 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
       closer: "Swipe →",
       accent: "teal",
     },
-    // 07 — Comparison
+    // 07 — Comparison — Old Way vs New Way
     {
       layout: "comparison",
-      eyebrow: "WHAT MOST TEAMS DO / WHAT WORKS",
-      title: "Two ways to handle this idea.",
+      eyebrow: "OLD WAY / NEW WAY",
+      title: "Two ways to handle this.",
       leftLabel: comparison?.leftLabel || "Before",
       leftItems,
       rightLabel: comparison?.rightLabel || "After",
@@ -1041,7 +1109,7 @@ export function buildSalehFigmaCarousel(current: CarouselData): CarouselData {
       closer: "Swipe →",
       accent: "teal",
     },
-    // 08 — CTA (both follow + bell CTAs are required, AB-tested)
+    // 08 — CTA (follow + bell both required)
     {
       layout: "cta",
       eyebrow: "FOLLOW FOR MORE SYSTEMS",
