@@ -2296,6 +2296,51 @@ export type Database = {
         }
         Relationships: []
       }
+      social_scrape_memory: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          reason: string | null
+          signal: string
+          source: string
+          source_post_author: string | null
+          source_post_excerpt: string | null
+          source_post_id: string | null
+          tags: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          reason?: string | null
+          signal: string
+          source?: string
+          source_post_author?: string | null
+          source_post_excerpt?: string | null
+          source_post_id?: string | null
+          tags?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          reason?: string | null
+          signal?: string
+          source?: string
+          source_post_author?: string | null
+          source_post_excerpt?: string | null
+          source_post_id?: string | null
+          tags?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       social_scrape_runs: {
         Row: {
           actor_id: string | null
