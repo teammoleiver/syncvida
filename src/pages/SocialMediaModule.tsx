@@ -1599,6 +1599,9 @@ function PostsTab() {
                   <td className="px-3 py-2 text-right">
                     <div className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       {p.post_url && <a href={normalizeLinkedInUrl(p.post_url)} target="_blank" rel="noopener noreferrer" className="text-primary inline-flex p-1 hover:bg-muted rounded" title="Open on LinkedIn"><ArrowUpRight className="w-4 h-4" /></a>}
+                      <Button size="sm" variant="ghost" disabled={busy[p.id] || !!p.ignored_at} onClick={() => handleLike(p)} title="Relevant to me — AI will learn this topic IS my niche">
+                        <ThumbsUp className="w-3.5 h-3.5 text-emerald-500" />
+                      </Button>
                       {p.ignored_at ? (
                         <Button size="sm" variant="ghost" disabled={busy[p.id]} onClick={() => handleUnignore(p)} title="Restore">
                           <RefreshCw className="w-3.5 h-3.5" />
