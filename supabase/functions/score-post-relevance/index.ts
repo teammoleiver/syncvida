@@ -58,6 +58,15 @@ Deno.serve(async (req: Request) => {
       .order("ignored_at", { ascending: false })
       .limit(15);
 
+    // Long-term learned memory captured by the user when they accept/reject posts
+    const { data: memoryRows } = await admin
+      .from("social_scrape_memory")
+      .select("signal,tags,reason,source_post_author,source_post_excerpt,created_at")
+      .eq("user_id", user.id)
+      .eq("active", true)
+      .order("created_at", { ascending: false })
+      .limit(60);
+
     const persona = [
       settings?.headline && `Headline: ${settings.headline}`,
       settings?.industry && `Industry: ${settings.industry}`,
@@ -71,10 +80,25 @@ Deno.serve(async (req: Request) => {
       `#${i + 1} by ${p.author ?? "?"}${p.ignored_reason ? ` (reason: ${p.ignored_reason})` : ""}: ${String(p.post_text ?? "").slice(0, 300)}`
     ).join("\n");
 
+    const fmtMemory = (r: any) => {
+      const tagPart = Array.isArray(r.tags) && r.tags.length ? `[${r.tags.join(", ")}]` : "";
+      const reasonPart = r.reason ? ` ${r.reason}` : "";
+      const ctx = r.source_post_author ? ` (re: ${r.source_post_author})` : "";
+      return `- ${tagPart}${reasonPart}${ctx}`.trim();
+    };
+    const positiveMemory = (memoryRows ?? []).filter((r: any) => r.signal === "positive").map(fmtMemory).join("\n");
+    const negativeMemory = (memoryRows ?? []).filter((r: any) => r.signal === "negative").map(fmtMemory).join("\n");
+
     const prompt = `You score how relevant a LinkedIn post is for THIS user, based on their persona and the topics they've previously dismissed.
 
 USER PERSONA:
 ${persona || "(no persona configured — score generously based on professional value)"}
+
+LEARNED PREFERENCES (positive — topics/tones/angles the user has explicitly liked; score SIMILAR posts HIGHER):
+${positiveMemory || "(none yet)"}
+
+LEARNED PREFERENCES (negative — topics/tones/angles the user has explicitly disliked; score SIMILAR posts LOWER):
+${negativeMemory || "(none yet)"}
 
 POSTS THE USER PREVIOUSLY MARKED AS IRRELEVANT (do NOT score similar topics highly):
 ${negatives || "(none yet)"}
