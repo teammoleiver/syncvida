@@ -1,0 +1,1 @@
+CREATE POLICY "Users read own apify accounts" ON public.social_apify_accounts FOR SELECT TO authenticated USING (auth.uid() = user_id);
