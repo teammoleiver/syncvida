@@ -26,7 +26,10 @@ Deno.serve(async (req) => {
 
     const { email, redirectTo } = await req.json();
     const clean = String(email || "").trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) return json({ error: "Enter a valid email address" }, 400);
+    // Expected/user errors are returned as 200 with an `error` field so the
+    // client surfaces the real message (supabase.functions.invoke hides the
+    // body of any non-2xx response behind a generic "non-2xx" error).
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) return json({ error: "Enter a valid email address" }, 200);
 
     const admin = createClient(supabaseUrl, serviceKey);
     const redirect = (typeof redirectTo === "string" && redirectTo.startsWith("http"))
@@ -40,10 +43,10 @@ Deno.serve(async (req) => {
       options: { redirectTo: redirect },
     });
     if (error) {
-      const msg = /already.*regist|exists/i.test(error.message)
-        ? "That email is already registered."
+      const msg = /already.*regist|exists|been registered/i.test(error.message)
+        ? "That email is already registered — they can just sign in."
         : error.message;
-      return json({ error: msg }, 400);
+      return json({ error: msg }, 200);
     }
     const link = (data as any)?.properties?.action_link ?? null;
 
