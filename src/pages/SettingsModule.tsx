@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { User, Key, Globe, Bell, Download, Heart, Check, LogOut, Lock, Loader2, Camera, Sparkles, Pencil, Trash2, Plus, UserPlus, Mail, Copy, Send } from "lucide-react";
+import { User, Key, Globe, Bell, Download, Heart, Check, LogOut, Lock, Loader2, Camera, Sparkles, Pencil, Trash2, Plus, UserPlus, Mail, Copy, Send, RefreshCw } from "lucide-react";
 import { listDesignMemory, addDesignMemory, updateDesignMemory, deleteDesignMemory, type MemoryRow } from "@/lib/linkedin-ai-review";
 import { listWritingMemory, addWritingMemory, updateWritingMemory, deleteWritingMemory, type WritingMemoryRow } from "@/lib/linkedin-review";
 import { getUserProfile, getProfile, updateProfile } from "@/lib/supabase-queries";
