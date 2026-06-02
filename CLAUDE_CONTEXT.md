@@ -234,6 +234,22 @@ draft). Gating:
 - To rotate the secret: update `app_config.cron_secret` and re-run `cron.alter_job`
   for job 5 (inject the value with `format(..., %L)` so it's never printed).
 
+## Invite-only beta access — Jun 2026
+
+Public signup is closed (Auth.tsx shows a waitlist). Owners invite testers from
+**Settings → Invite people**:
+- `InvitePeopleSettings` (SettingsModule) → `invite-user` edge function
+  (verify_jwt; any authenticated caller) → `admin.generateLink({type:'invite'})`
+  creates the auth user and returns a one-time action link.
+- The owner copies the link and shares it (email/DM/etc). Invitee opens it →
+  redirected to `/reset-password` → sets a password → in. The existing
+  new-user trigger creates their profile.
+- Sent invites tracked in `public.invites` (RLS: `invited_by = auth.uid()`).
+- redirectTo = caller's `window.location.origin/reset-password`, so **send
+  invites from the deployed app** (not localhost) and ensure that origin is in
+  Supabase Auth → URL Configuration → Redirect URLs (the forgot-password flow
+  already uses it). To restrict who can invite, gate the edge function by email.
+
 ## Supabase Edge Functions
 
 Located in `supabase/functions/`:

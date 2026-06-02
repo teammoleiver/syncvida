@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { User, Key, Globe, Bell, Download, Heart, Check, LogOut, Lock, Loader2, Camera, Sparkles, Pencil, Trash2, Plus } from "lucide-react";
+import { User, Key, Globe, Bell, Download, Heart, Check, LogOut, Lock, Loader2, Camera, Sparkles, Pencil, Trash2, Plus, UserPlus, Mail, Copy, Send } from "lucide-react";
 import { listDesignMemory, addDesignMemory, updateDesignMemory, deleteDesignMemory, type MemoryRow } from "@/lib/linkedin-ai-review";
 import { listWritingMemory, addWritingMemory, updateWritingMemory, deleteWritingMemory, type WritingMemoryRow } from "@/lib/linkedin-review";
 import { getUserProfile, getProfile, updateProfile } from "@/lib/supabase-queries";
@@ -269,6 +269,7 @@ export default function SettingsModule() {
         </div>
       ))}
 
+      <InvitePeopleSettings />
       <LinkedInMemorySettings />
       <WritingMemorySettings />
 
@@ -441,6 +442,118 @@ function WritingMemorySettings() {
               <span className="shrink-0 text-[9px] uppercase tracking-wide text-muted-foreground px-1.5 py-0.5 rounded bg-muted">{r.source}</span>
               <button onClick={() => { setEditingId(r.id); setEditText(r.rule); }} title="Edit" className="shrink-0 text-muted-foreground hover:text-foreground"><Pencil className="w-3.5 h-3.5" /></button>
               <button onClick={() => remove(r)} title="Delete" className="shrink-0 text-muted-foreground hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type InviteRow = { id: string; email: string; status: string; created_at: string };
+
+/**
+ * Invite people into the closed beta. Creates their account and returns a
+ * one-time link to share by any channel — no public signup needed.
+ */
+function InvitePeopleSettings() {
+  const { toast } = useToast();
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [lastLink, setLastLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [rows, setRows] = useState<InviteRow[]>([]);
+
+  function load() {
+    supabase.from("invites" as any).select("id,email,status,created_at").order("created_at", { ascending: false })
+      .then(({ data }) => setRows((data as any) ?? []));
+  }
+  useEffect(() => { load(); }, []);
+
+  async function sendInvite() {
+    const e = email.trim();
+    if (!e) return;
+    setSending(true);
+    setLastLink(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-user", {
+        body: { email: e, redirectTo: `${window.location.origin}/reset-password` },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setLastLink((data as any)?.link ?? null);
+      setEmail("");
+      load();
+      toast({ title: "Invite created", description: `Share the link with ${e}.` });
+    } catch (err: any) {
+      toast({ title: "Couldn't invite", description: err?.message ?? "Failed", variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function copyLink() {
+    if (!lastLink) return;
+    await navigator.clipboard.writeText(lastLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <div className="glass-card rounded-xl p-5 space-y-3">
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <UserPlus className="w-4 h-4 text-primary" />
+        </div>
+        <div>
+          <h3 className="font-display font-semibold text-foreground">Invite people</h3>
+          <p className="text-xs text-muted-foreground">
+            Bring testers into the closed beta. We create their account and give you a one-time link to share — no public signup. They open it, set a password, and they're in.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") sendInvite(); }}
+            placeholder="person@email.com"
+            className="w-full pl-9 pr-3 py-2 rounded-lg bg-secondary border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary"
+          />
+        </div>
+        <button onClick={sendInvite} disabled={sending || !email.trim()}
+          className="text-xs px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition font-medium flex items-center gap-1 disabled:opacity-50">
+          {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Invite
+        </button>
+      </div>
+
+      {lastLink && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-2.5 space-y-1.5">
+          <div className="text-[11px] font-medium text-primary">Invite link — copy &amp; send it to them</div>
+          <div className="flex gap-2">
+            <input readOnly value={lastLink} onFocus={(e) => e.currentTarget.select()}
+              className="flex-1 px-2 py-1.5 rounded bg-background border border-border text-[11px] text-foreground outline-none" />
+            <button onClick={copyLink} className="text-xs px-2.5 py-1.5 rounded bg-primary text-primary-foreground font-medium flex items-center gap-1">
+              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />} {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground">One-time link. Send it however you like (email, WhatsApp, DM).</p>
+        </div>
+      )}
+
+      {rows.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground/70 font-semibold">Invited ({rows.length})</div>
+          {rows.map((r) => (
+            <div key={r.id} className="flex items-center gap-2 rounded-lg border border-border p-2 text-xs">
+              <Mail className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <span className="flex-1 truncate">{r.email}</span>
+              <span className="shrink-0 text-[9px] uppercase tracking-wide text-muted-foreground px-1.5 py-0.5 rounded bg-muted">{r.status}</span>
+              <span className="shrink-0 text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</span>
             </div>
           ))}
         </div>
