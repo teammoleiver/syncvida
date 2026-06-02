@@ -6,11 +6,21 @@ const corsHeaders = {
 };
 
 /**
- * Invite a new user into the closed beta. The signed-in owner calls this with
- * an email; we create the auth account (if new) and return a one-time invite
- * link they can share by any channel. Clicking it lands the invitee on
- * /reset-password where they set a password and are in — no public signup.
+ * Invite a tester into the closed beta. The signed-in owner calls this with an
+ * email; we create a confirmed account with a temporary password and return
+ * those credentials. The owner shares them; the invitee signs in normally at
+ * /auth and changes the password in Settings. No public signup, no magic-link
+ * expiry / redirect-allowlist issues — works on any URL.
  */
+function tempPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const arr = new Uint8Array(12);
+  crypto.getRandomValues(arr);
+  let s = "";
+  for (const n of arr) s += chars[n % chars.length];
+  return `${s}9!`; // satisfies length + complexity
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -24,35 +34,31 @@ Deno.serve(async (req) => {
     const { data: { user } } = await userClient.auth.getUser();
     if (!user) return json({ error: "Unauthorized" }, 401);
 
-    const { email, redirectTo } = await req.json();
+    const { email } = await req.json();
     const clean = String(email || "").trim().toLowerCase();
-    // Expected/user errors are returned as 200 with an `error` field so the
-    // client surfaces the real message (supabase.functions.invoke hides the
-    // body of any non-2xx response behind a generic "non-2xx" error).
+    // Expected/user errors return 200 + `error` so the client shows the real
+    // message (supabase.functions.invoke hides non-2xx bodies behind a generic
+    // "non-2xx" error).
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) return json({ error: "Enter a valid email address" }, 200);
 
     const admin = createClient(supabaseUrl, serviceKey);
-    const redirect = (typeof redirectTo === "string" && redirectTo.startsWith("http"))
-      ? redirectTo
-      : `${Deno.env.get("APP_BASE_URL") || "https://app.syncvida.com"}/reset-password`;
+    const password = tempPassword();
 
-    // Creates the auth user (if new) and returns a one-time invite action link.
-    const { data, error } = await admin.auth.admin.generateLink({
-      type: "invite",
+    const { error } = await admin.auth.admin.createUser({
       email: clean,
-      options: { redirectTo: redirect },
+      password,
+      email_confirm: true, // confirmed → they can sign in immediately
     });
     if (error) {
-      const msg = /already.*regist|exists|been registered/i.test(error.message)
+      const msg = /already.*regist|exists|been registered|duplicate/i.test(error.message)
         ? "That email is already registered — they can just sign in."
         : error.message;
       return json({ error: msg }, 200);
     }
-    const link = (data as any)?.properties?.action_link ?? null;
 
     await admin.from("invites").insert({ email: clean, invited_by: user.id, status: "invited" });
 
-    return json({ link, email: clean }, 200);
+    return json({ email: clean, password }, 200);
   } catch (e) {
     return json({ error: String((e as any)?.message || e) }, 500);
   }

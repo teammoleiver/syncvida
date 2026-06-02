@@ -460,7 +460,7 @@ function InvitePeopleSettings() {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
-  const [lastLink, setLastLink] = useState<string | null>(null);
+  const [lastInvite, setLastInvite] = useState<{ email: string; password: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [rows, setRows] = useState<InviteRow[]>([]);
 
@@ -470,21 +470,24 @@ function InvitePeopleSettings() {
   }
   useEffect(() => { load(); }, []);
 
+  const loginUrl = `${window.location.origin}/auth`;
+  const inviteMessage = lastInvite
+    ? `You're invited to Syncvida (closed beta).\n\nSign in here: ${loginUrl}\nEmail: ${lastInvite.email}\nTemporary password: ${lastInvite.password}\n\nAfter you log in, change your password in Settings.`
+    : "";
+
   async function sendInvite() {
     const e = email.trim();
     if (!e) return;
     setSending(true);
-    setLastLink(null);
+    setLastInvite(null);
     try {
-      const { data, error } = await supabase.functions.invoke("invite-user", {
-        body: { email: e, redirectTo: `${window.location.origin}/reset-password` },
-      });
+      const { data, error } = await supabase.functions.invoke("invite-user", { body: { email: e } });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      setLastLink((data as any)?.link ?? null);
+      if ((data as any)?.password) setLastInvite({ email: (data as any).email, password: (data as any).password });
       setEmail("");
       load();
-      toast({ title: "Invite created", description: `Share the link with ${e}.` });
+      toast({ title: "Account created", description: `Share the credentials with ${e}.` });
     } catch (err: any) {
       toast({ title: "Couldn't invite", description: err?.message ?? "Failed", variant: "destructive" });
     } finally {
@@ -492,9 +495,9 @@ function InvitePeopleSettings() {
     }
   }
 
-  async function copyLink() {
-    if (!lastLink) return;
-    await navigator.clipboard.writeText(lastLink);
+  async function copyMessage() {
+    if (!inviteMessage) return;
+    await navigator.clipboard.writeText(inviteMessage);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
@@ -508,7 +511,7 @@ function InvitePeopleSettings() {
         <div>
           <h3 className="font-display font-semibold text-foreground">Invite people</h3>
           <p className="text-xs text-muted-foreground">
-            Bring testers into the closed beta. We create their account and give you a one-time link to share — no public signup. They open it, set a password, and they're in.
+            Bring testers into the closed beta. We create their account and give you a temporary password to share — no public signup. They sign in and change it. (Use an email that isn't already a user.)
           </p>
         </div>
       </div>
@@ -531,17 +534,20 @@ function InvitePeopleSettings() {
         </button>
       </div>
 
-      {lastLink && (
-        <div className="rounded-lg border border-primary/30 bg-primary/5 p-2.5 space-y-1.5">
-          <div className="text-[11px] font-medium text-primary">Invite link — copy &amp; send it to them</div>
-          <div className="flex gap-2">
-            <input readOnly value={lastLink} onFocus={(e) => e.currentTarget.select()}
-              className="flex-1 px-2 py-1.5 rounded bg-background border border-border text-[11px] text-foreground outline-none" />
-            <button onClick={copyLink} className="text-xs px-2.5 py-1.5 rounded bg-primary text-primary-foreground font-medium flex items-center gap-1">
-              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />} {copied ? "Copied" : "Copy"}
+      {lastInvite && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-2.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] font-medium text-primary">Account created — send these credentials</div>
+            <button onClick={copyMessage} className="text-xs px-2.5 py-1 rounded bg-primary text-primary-foreground font-medium flex items-center gap-1">
+              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />} {copied ? "Copied" : "Copy message"}
             </button>
           </div>
-          <p className="text-[10px] text-muted-foreground">One-time link. Send it however you like (email, WhatsApp, DM).</p>
+          <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-[11px] bg-background rounded border border-border p-2">
+            <span className="text-muted-foreground">Sign in</span><span className="font-mono break-all">{loginUrl}</span>
+            <span className="text-muted-foreground">Email</span><span className="font-mono break-all">{lastInvite.email}</span>
+            <span className="text-muted-foreground">Temp password</span><span className="font-mono font-semibold">{lastInvite.password}</span>
+          </div>
+          <p className="text-[10px] text-muted-foreground">Send these however you like (email, WhatsApp, DM). They sign in and change the password in Settings.</p>
         </div>
       )}
 
