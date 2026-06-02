@@ -463,6 +463,7 @@ function InvitePeopleSettings() {
   const [lastInvite, setLastInvite] = useState<{ email: string; password: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [rows, setRows] = useState<InviteRow[]>([]);
+  const [busyEmail, setBusyEmail] = useState<string | null>(null);
 
   function load() {
     supabase.from("invites" as any).select("id,email,status,created_at").order("created_at", { ascending: false })
@@ -500,6 +501,39 @@ function InvitePeopleSettings() {
     await navigator.clipboard.writeText(inviteMessage);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function resendInvite(target: string) {
+    setBusyEmail(target);
+    setLastInvite(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-user", { body: { action: "resend", email: target } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      if ((data as any)?.password) setLastInvite({ email: (data as any).email, password: (data as any).password });
+      load();
+      toast({ title: "New password generated", description: `Share the new credentials with ${target}.` });
+    } catch (err: any) {
+      toast({ title: "Couldn't resend", description: err?.message ?? "Failed", variant: "destructive" });
+    } finally {
+      setBusyEmail(null);
+    }
+  }
+
+  async function removeInvite(target: string) {
+    if (!confirm(`Remove invitation for ${target}? Their account will be deleted.`)) return;
+    setBusyEmail(target);
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-user", { body: { action: "remove", email: target } });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      load();
+      toast({ title: "Invitation removed", description: `${target} no longer has access.` });
+    } catch (err: any) {
+      toast({ title: "Couldn't remove", description: err?.message ?? "Failed", variant: "destructive" });
+    } finally {
+      setBusyEmail(null);
+    }
   }
 
   return (
@@ -560,6 +594,22 @@ function InvitePeopleSettings() {
               <span className="flex-1 truncate">{r.email}</span>
               <span className="shrink-0 text-[9px] uppercase tracking-wide text-muted-foreground px-1.5 py-0.5 rounded bg-muted">{r.status}</span>
               <span className="shrink-0 text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</span>
+              <button
+                onClick={() => resendInvite(r.email)}
+                disabled={busyEmail === r.email}
+                title="Generate a new temporary password and resend"
+                className="shrink-0 p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition disabled:opacity-50"
+              >
+                {busyEmail === r.email ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                onClick={() => removeInvite(r.email)}
+                disabled={busyEmail === r.email}
+                title="Remove invitation and delete account"
+                className="shrink-0 p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           ))}
         </div>
