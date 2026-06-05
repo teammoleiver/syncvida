@@ -32,6 +32,7 @@ import { LINKEDIN_DESIGN_SYSTEM, validateCarousel, sanitizeCarouselFilename, typ
 import { getProfile } from "@/lib/supabase-queries";
 import { supabase } from "@/integrations/supabase/client";
 import { getAiReview, saveAiReview, getActiveMemoryRules, addDesignMemory } from "@/lib/linkedin-ai-review";
+import { aiFillCarouselTemplate, applyAiSlidesToCarousel, saveTemplateFillMemory } from "@/lib/linkedin-template-ai";
 import { Switch } from "@/components/ui/switch";
 import { removeWhiteBackground } from "@/lib/designer-utils";
 
