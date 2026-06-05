@@ -32,6 +32,7 @@ import { LINKEDIN_DESIGN_SYSTEM, validateCarousel, sanitizeCarouselFilename, typ
 import { getProfile } from "@/lib/supabase-queries";
 import { supabase } from "@/integrations/supabase/client";
 import { getAiReview, saveAiReview, getActiveMemoryRules, addDesignMemory } from "@/lib/linkedin-ai-review";
+import { aiFillCarouselTemplate, applyAiSlidesToCarousel, saveTemplateFillMemory } from "@/lib/linkedin-template-ai";
 import { Switch } from "@/components/ui/switch";
 import { removeWhiteBackground } from "@/lib/designer-utils";
 
@@ -142,6 +143,9 @@ export default function LinkedInTemplatesPage() {
   // Fix Everything auto-loop state.
   const [fixingAll, setFixingAll] = useState(false);
   const [fixRound, setFixRound] = useState(0);
+  // AI Auto-Fill state — uses the post + user memory to rewrite all slides.
+  const [aiFilling, setAiFilling] = useState(false);
+  const [lastAiFill, setLastAiFill] = useState<{ hook: string; body: string; slides: any[]; iconHints: (string | null)[] } | null>(null);
   // Active tab in review dialog: "copy" | "visual"
   const [reviewTab, setReviewTab] = useState<"copy" | "visual">("copy");
   // The user's real headshot — the design system makes a face photo MANDATORY
@@ -199,6 +203,40 @@ export default function LinkedInTemplatesPage() {
     setDirty(true);
     setSquareData((prev) => (typeof next === "function" ? (next as any)(prev) : next));
   };
+
+  /**
+   * AI Auto-Fill: ask the model to rewrite every slide so the copy actually
+   * fits the source post. Loads the user's accepted past runs as few-shot
+   * examples, so it gets better the more they use it.
+   */
+  async function runAiFill() {
+    const hook = planMeta?.hook ?? params.get("hook") ?? "";
+    const post = planMeta?.body ?? params.get("body") ?? "";
+    if (!hook && !post) { toast.error("Open this editor from a planner post to use AI Auto-Fill."); return; }
+    setAiFilling(true);
+    try {
+      const res = await aiFillCarouselTemplate({ hook, body: post, current: carouselData });
+      const next = applyAiSlidesToCarousel(carouselData, res);
+      editCarouselData(next);
+      setSlideIdx(0);
+      setLastAiFill({ hook, body: post, slides: res.slides, iconHints: res.iconHints });
+      toast.success(res.usedMemories > 0
+        ? `AI rewrote ${res.slides.length} slides (learned from ${res.usedMemories} past edits)`
+        : `AI rewrote ${res.slides.length} slides`);
+      // Drop matching logos + icons on the new slides.
+      void runAutoPlace(next, { markDirty: true });
+      // Persist as a memory row so the model keeps learning.
+      saveTemplateFillMemory({
+        hook, body: post, themeKey: carouselData.themeKey,
+        slides: res.slides, iconHints: res.iconHints, rating: 1,
+      }).catch(() => { /* non-blocking */ });
+    } catch (e: any) {
+      toast.error(e?.message ?? "AI Auto-Fill failed");
+    } finally {
+      setAiFilling(false);
+    }
+  }
+
   const editTitle = (v: string) => { setDirty(true); setTitle(v); };
   const editActive = (v: TemplateKey) => { setDirty(true); setActive(v); };
 
@@ -1332,25 +1370,36 @@ export default function LinkedInTemplatesPage() {
             {active === "carousel" && (
               <>
                 {(planMeta?.hook || planMeta?.body || params.get("hook") || params.get("body")) && (
-                  <Button
-                    type="button" size="sm" variant="outline" className="w-full mb-3"
-                    onClick={() => {
-                      const hook = planMeta?.hook ?? params.get("hook") ?? "";
-                      const body = planMeta?.body ?? params.get("body") ?? "";
-                      const regenerated = buildCarouselFromPost(hook, body, {
-                        author: carouselData.author, handleShort: carouselData.handleShort,
-                        avatarUrl: carouselData.avatarUrl, photoKey: carouselData.photoKey, themeKey: carouselData.themeKey,
-                      });
-                      const next = carouselData.themeKey === "figma-template" ? buildSalehFigmaCarousel(regenerated) : regenerated;
-                      editCarouselData(next);
-                      setSlideIdx(0);
-                      toast.success("Slides regenerated from post");
-                      // Re-decorate the fresh slides with matching logos + icons.
-                      void runAutoPlace(next, { markDirty: true });
-                    }}
-                  >
-                    <Sparkles className="w-3.5 h-3.5 mr-1" /> Regenerate slides from post
-                  </Button>
+                  <div className="grid grid-cols-1 gap-2 mb-3">
+                    <Button
+                      type="button" size="sm" className="w-full bg-gradient-to-r from-primary to-emerald-500 text-primary-foreground"
+                      disabled={aiFilling}
+                      onClick={runAiFill}
+                      title="Ask AI to rewrite every slide so the copy actually fits this post. Gets smarter every time you use it."
+                    >
+                      {aiFilling
+                        ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> AI is filling slides…</>
+                        : <><Wand2 className="w-3.5 h-3.5 mr-1" /> AI Auto-Fill from post</>}
+                    </Button>
+                    <Button
+                      type="button" size="sm" variant="outline" className="w-full"
+                      onClick={() => {
+                        const hook = planMeta?.hook ?? params.get("hook") ?? "";
+                        const body = planMeta?.body ?? params.get("body") ?? "";
+                        const regenerated = buildCarouselFromPost(hook, body, {
+                          author: carouselData.author, handleShort: carouselData.handleShort,
+                          avatarUrl: carouselData.avatarUrl, photoKey: carouselData.photoKey, themeKey: carouselData.themeKey,
+                        });
+                        const next = carouselData.themeKey === "figma-template" ? buildSalehFigmaCarousel(regenerated) : regenerated;
+                        editCarouselData(next);
+                        setSlideIdx(0);
+                        toast.success("Slides regenerated from post");
+                        void runAutoPlace(next, { markDirty: true });
+                      }}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 mr-1" /> Template-based regenerate
+                    </Button>
+                  </div>
                 )}
                 <CarouselForm data={carouselData} setData={editCarouselData} slideIdx={slideIdx} setSlideIdx={setSlideIdx} />
               </>
