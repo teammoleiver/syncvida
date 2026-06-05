@@ -802,18 +802,22 @@ export default function LinkedInTemplatesPage() {
     setFixRound(0);
     const startScore = aiReview.score ?? 0;
     let currentReview = aiReview;
-    let currentApplied: string[] = [...appliedNotes];
     let round = 0;
+    // Work on a local copy of slides so we (a) never end up with stale React
+    // state when re-running the review, and (b) can hard-cap how many slides
+    // get removed in a single round — preventing the "AI nuked my deck down
+    // to one empty slide" bug.
+    let workingSlides: any[] = (carouselData.slides ?? []).map((s) => ({ ...s }));
+    const originalCount = workingSlides.length;
+    const MIN_SLIDES = Math.max(4, Math.ceil(originalCount / 2));
 
     try {
       while (round < 3) {
         round++;
         setFixRound(round);
         const notes = (currentReview.slideNotes as any[]) ?? [];
-        const unapplied = notes.map((n: any, i: number) => ({ n, i }))
-          .filter(({ i }) => !currentApplied.includes(String(i)));
-
-        if (unapplied.length === 0) break;
+        if (notes.length === 0) break;
+        const unapplied = notes.map((n: any, i: number) => ({ n, i }));
 
         // Separate: rewrites first (safe batch), then structural (sorted reverse)
         const rewrites = unapplied.filter(({ n }) => n.fix?.action === "rewrite");
@@ -821,52 +825,59 @@ export default function LinkedInTemplatesPage() {
           .filter(({ n }) => n.fix?.action === "remove" || n.fix?.action === "merge")
           .sort((a, b) => (b.n.n ?? 0) - (a.n.n ?? 0)); // reverse order
 
-        // Apply all rewrites in one batch
-        if (rewrites.length > 0) {
-          editCarouselData((d) => {
-            const slides = [...(d.slides ?? [])];
-            for (const { n } of rewrites) {
-              const sIdx = (n.n ?? 1) - 1;
-              if (!slides[sIdx]) continue;
-              const t = n.fix?.title?.trim() || "";
-              const b = n.fix?.body?.trim() || n.suggestion || "";
-              slides[sIdx] = { ...slides[sIdx], ...(t ? { title: t } : {}), ...(b ? { body: b } : {}) };
-            }
-            return { ...d, slides };
-          });
-          for (const { n } of rewrites) {
-            if (n.reason) void addDesignMemory(n.reason, "ai_review");
-          }
-        }
-
-        // Apply structural notes one by one (already sorted in reverse)
-        for (const { n } of structural) {
-          editCarouselData((d) => {
-            const slides = [...(d.slides ?? [])];
-            const sIdx = (n.n ?? 1) - 1;
-            if (n.fix?.action === "remove" && slides.length > 1 && sIdx >= 0 && sIdx < slides.length) {
-              slides.splice(sIdx, 1);
-            } else if (n.fix?.action === "merge" && sIdx > 0 && slides[sIdx]) {
-              const prev = slides[sIdx - 1];
-              const mergedBody = [prev.body, n.fix?.body?.trim() || slides[sIdx].body].filter(Boolean).join(" ").trim().slice(0, 300);
-              slides[sIdx - 1] = { ...prev, title: n.fix?.title?.trim() || prev.title, body: mergedBody };
-              slides.splice(sIdx, 1);
-            }
-            return { ...d, slides };
-          });
+        // Apply all rewrites against our local working copy.
+        let appliedCount = 0;
+        for (const { n } of rewrites) {
+          const sIdx = (n.n ?? 1) - 1;
+          if (!workingSlides[sIdx]) continue;
+          const t = n.fix?.title?.trim() || "";
+          const b = n.fix?.body?.trim() || n.suggestion || "";
+          if (!t && !b) continue; // skip empty rewrites — never blank a slide
+          workingSlides[sIdx] = {
+            ...workingSlides[sIdx],
+            ...(t ? { title: t } : {}),
+            ...(b ? { body: b } : {}),
+          };
+          appliedCount++;
           if (n.reason) void addDesignMemory(n.reason, "ai_review");
         }
 
-        const allApplied = notes.map((_: any, i: number) => String(i));
-        setAppliedNotes(allApplied);
-        currentApplied = allApplied;
+        // Apply structural notes against the local copy, with a hard floor so
+        // the AI can never collapse the deck below MIN_SLIDES.
+        for (const { n } of structural) {
+          if (workingSlides.length <= MIN_SLIDES) break;
+          const sIdx = (n.n ?? 1) - 1;
+          if (sIdx < 0 || sIdx >= workingSlides.length) continue;
+          if (n.fix?.action === "remove") {
+            workingSlides.splice(sIdx, 1);
+            appliedCount++;
+          } else if (n.fix?.action === "merge" && sIdx > 0) {
+            const prev = workingSlides[sIdx - 1];
+            const mergedBody = [prev.body, n.fix?.body?.trim() || workingSlides[sIdx].body]
+              .filter(Boolean).join(" ").trim().slice(0, 300);
+            workingSlides[sIdx - 1] = {
+              ...prev,
+              title: n.fix?.title?.trim() || prev.title,
+              body: mergedBody,
+            };
+            workingSlides.splice(sIdx, 1);
+            appliedCount++;
+          }
+          if (n.reason) void addDesignMemory(n.reason, "ai_review");
+        }
 
-        toast(`Round ${round} — applied ${unapplied.length} fix${unapplied.length === 1 ? "" : "es"}, re-checking…`);
+        if (appliedCount === 0) break;
+
+        // Commit the round's changes to React state in ONE update.
+        editCarouselData((d) => ({ ...d, slides: workingSlides.map((s) => ({ ...s })) }));
+        setAppliedNotes([]);
+
+        toast(`Round ${round} — applied ${appliedCount} fix${appliedCount === 1 ? "" : "es"}, re-checking…`);
 
         // Re-run the review
         setAiReviewing(true);
         const memory = await getActiveMemoryRules().catch(() => [] as string[]);
-        const slidesMeta = (carouselData.slides ?? []).map((s, i) => ({
+        const slidesMeta = workingSlides.map((s, i) => ({
           n: i + 1,
           wordCount: (s.body ?? "").split(/\s+/).filter(Boolean).length,
           overlayCount: ((carouselData.overlays as any)?.[i] ?? []).length,
@@ -874,7 +885,7 @@ export default function LinkedInTemplatesPage() {
           hasContent: !!(s.title?.trim() || s.body?.trim() || s.quote?.trim() || (s.bullets ?? []).length),
         }));
         const { data, error } = await supabase.functions.invoke("review-carousel", {
-          body: { slides: carouselData.slides, hook: "", body: "", author: carouselData.author, memory, slidesMeta },
+          body: { slides: workingSlides, hook: "", body: "", author: carouselData.author, memory, slidesMeta },
         });
         setAiReviewing(false);
 
@@ -886,14 +897,17 @@ export default function LinkedInTemplatesPage() {
         setAppliedNotes([]);
         setStaleReview(false);
         currentReview = newReview;
-        currentApplied = [];
 
         if ((newReview.score ?? 0) >= 80 || !newReview.slideNotes?.length) break;
       }
 
       const endScore = currentReview.score ?? 0;
       const delta = endScore - startScore;
-      toast.success(`Done in ${round} round${round > 1 ? "s" : ""} — score ${delta >= 0 ? "+" : ""}${delta} (${endScore}/100)`);
+      const removed = originalCount - workingSlides.length;
+      toast.success(
+        `Done in ${round} round${round > 1 ? "s" : ""} — score ${delta >= 0 ? "+" : ""}${delta} (${endScore}/100)` +
+        (removed > 0 ? ` · ${removed} slide${removed === 1 ? "" : "s"} merged/removed` : ""),
+      );
     } finally {
       setFixingAll(false);
       setAiReviewOpen(true);
