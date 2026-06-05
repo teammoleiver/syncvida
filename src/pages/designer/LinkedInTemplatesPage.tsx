@@ -1370,25 +1370,36 @@ export default function LinkedInTemplatesPage() {
             {active === "carousel" && (
               <>
                 {(planMeta?.hook || planMeta?.body || params.get("hook") || params.get("body")) && (
-                  <Button
-                    type="button" size="sm" variant="outline" className="w-full mb-3"
-                    onClick={() => {
-                      const hook = planMeta?.hook ?? params.get("hook") ?? "";
-                      const body = planMeta?.body ?? params.get("body") ?? "";
-                      const regenerated = buildCarouselFromPost(hook, body, {
-                        author: carouselData.author, handleShort: carouselData.handleShort,
-                        avatarUrl: carouselData.avatarUrl, photoKey: carouselData.photoKey, themeKey: carouselData.themeKey,
-                      });
-                      const next = carouselData.themeKey === "figma-template" ? buildSalehFigmaCarousel(regenerated) : regenerated;
-                      editCarouselData(next);
-                      setSlideIdx(0);
-                      toast.success("Slides regenerated from post");
-                      // Re-decorate the fresh slides with matching logos + icons.
-                      void runAutoPlace(next, { markDirty: true });
-                    }}
-                  >
-                    <Sparkles className="w-3.5 h-3.5 mr-1" /> Regenerate slides from post
-                  </Button>
+                  <div className="grid grid-cols-1 gap-2 mb-3">
+                    <Button
+                      type="button" size="sm" className="w-full bg-gradient-to-r from-primary to-emerald-500 text-primary-foreground"
+                      disabled={aiFilling}
+                      onClick={runAiFill}
+                      title="Ask AI to rewrite every slide so the copy actually fits this post. Gets smarter every time you use it."
+                    >
+                      {aiFilling
+                        ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> AI is filling slides…</>
+                        : <><Wand2 className="w-3.5 h-3.5 mr-1" /> AI Auto-Fill from post</>}
+                    </Button>
+                    <Button
+                      type="button" size="sm" variant="outline" className="w-full"
+                      onClick={() => {
+                        const hook = planMeta?.hook ?? params.get("hook") ?? "";
+                        const body = planMeta?.body ?? params.get("body") ?? "";
+                        const regenerated = buildCarouselFromPost(hook, body, {
+                          author: carouselData.author, handleShort: carouselData.handleShort,
+                          avatarUrl: carouselData.avatarUrl, photoKey: carouselData.photoKey, themeKey: carouselData.themeKey,
+                        });
+                        const next = carouselData.themeKey === "figma-template" ? buildSalehFigmaCarousel(regenerated) : regenerated;
+                        editCarouselData(next);
+                        setSlideIdx(0);
+                        toast.success("Slides regenerated from post");
+                        void runAutoPlace(next, { markDirty: true });
+                      }}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 mr-1" /> Template-based regenerate
+                    </Button>
+                  </div>
                 )}
                 <CarouselForm data={carouselData} setData={editCarouselData} slideIdx={slideIdx} setSlideIdx={setSlideIdx} />
               </>
