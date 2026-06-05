@@ -143,6 +143,9 @@ export default function LinkedInTemplatesPage() {
   // Fix Everything auto-loop state.
   const [fixingAll, setFixingAll] = useState(false);
   const [fixRound, setFixRound] = useState(0);
+  // AI Auto-Fill state — uses the post + user memory to rewrite all slides.
+  const [aiFilling, setAiFilling] = useState(false);
+  const [lastAiFill, setLastAiFill] = useState<{ hook: string; body: string; slides: any[]; iconHints: (string | null)[] } | null>(null);
   // Active tab in review dialog: "copy" | "visual"
   const [reviewTab, setReviewTab] = useState<"copy" | "visual">("copy");
   // The user's real headshot — the design system makes a face photo MANDATORY
