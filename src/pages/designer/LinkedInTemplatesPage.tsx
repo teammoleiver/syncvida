@@ -202,6 +202,40 @@ export default function LinkedInTemplatesPage() {
   const editSquareData = (next: SquareData | ((d: SquareData) => SquareData)) => {
     setDirty(true);
     setSquareData((prev) => (typeof next === "function" ? (next as any)(prev) : next));
+
+  /**
+   * AI Auto-Fill: ask the model to rewrite every slide so the copy actually
+   * fits the source post. Loads the user's accepted past runs as few-shot
+   * examples, so it gets better the more they use it.
+   */
+  async function runAiFill() {
+    const hook = planMeta?.hook ?? params.get("hook") ?? "";
+    const post = planMeta?.body ?? params.get("body") ?? "";
+    if (!hook && !post) { toast.error("Open this editor from a planner post to use AI Auto-Fill."); return; }
+    setAiFilling(true);
+    try {
+      const res = await aiFillCarouselTemplate({ hook, body: post, current: carouselData });
+      const next = applyAiSlidesToCarousel(carouselData, res);
+      editCarouselData(next);
+      setSlideIdx(0);
+      setLastAiFill({ hook, body: post, slides: res.slides, iconHints: res.iconHints });
+      toast.success(res.usedMemories > 0
+        ? `AI rewrote ${res.slides.length} slides (learned from ${res.usedMemories} past edits)`
+        : `AI rewrote ${res.slides.length} slides`);
+      // Drop matching logos + icons on the new slides.
+      void runAutoPlace(next, { markDirty: true });
+      // Persist as a memory row so the model keeps learning.
+      saveTemplateFillMemory({
+        hook, body: post, themeKey: carouselData.themeKey,
+        slides: res.slides, iconHints: res.iconHints, rating: 1,
+      }).catch(() => { /* non-blocking */ });
+    } catch (e: any) {
+      toast.error(e?.message ?? "AI Auto-Fill failed");
+    } finally {
+      setAiFilling(false);
+    }
+  }
+
   };
   const editTitle = (v: string) => { setDirty(true); setTitle(v); };
   const editActive = (v: TemplateKey) => { setDirty(true); setActive(v); };
