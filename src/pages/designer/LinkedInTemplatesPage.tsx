@@ -202,6 +202,7 @@ export default function LinkedInTemplatesPage() {
   const editSquareData = (next: SquareData | ((d: SquareData) => SquareData)) => {
     setDirty(true);
     setSquareData((prev) => (typeof next === "function" ? (next as any)(prev) : next));
+  };
 
   /**
    * AI Auto-Fill: ask the model to rewrite every slide so the copy actually
@@ -236,7 +237,6 @@ export default function LinkedInTemplatesPage() {
     }
   }
 
-  };
   const editTitle = (v: string) => { setDirty(true); setTitle(v); };
   const editActive = (v: TemplateKey) => { setDirty(true); setActive(v); };
 
