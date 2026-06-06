@@ -203,6 +203,21 @@ export default function WebhookHistory() {
                     {!l.ok && l.error && (
                       <div className="text-[11px] text-red-400 truncate mt-0.5">↳ {l.error}</div>
                     )}
+                    {(() => {
+                      const li = linkedinUrlFromLog(l);
+                      return li ? (
+                        <a
+                          href={li.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-0.5"
+                        >
+                          <ExternalLink className="w-3 h-3" /> View on LinkedIn
+                          <span className="text-muted-foreground font-mono">({li.urn.slice(-12)})</span>
+                        </a>
+                      ) : null;
+                    })()}
                   </div>
                   <Button size="icon" variant="ghost" className="h-7 w-7"
                     onClick={(e) => { e.stopPropagation(); deleteOne(l.id); }}>
