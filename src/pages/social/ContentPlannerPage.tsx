@@ -1112,7 +1112,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
                 );
               })}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1.5">When status = scheduled and date/time arrives, the cron sends this to each platform's webhook (configured in Settings → Webhooks).</p>
+            <p className="text-[11px] text-muted-foreground mt-1.5">When status = scheduled and the date/time arrives, your post is published automatically to the selected platforms.</p>
           </div>
           {entry?.webhook_response && (
             <details className="text-xs"><summary className="cursor-pointer text-muted-foreground">Webhook response</summary>
