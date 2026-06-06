@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, ChevronDown, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon, Share2, CalendarClock, Layers } from "lucide-react";
+import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, ChevronDown, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon, Share2, CalendarClock, Layers, History as HistoryIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +29,8 @@ import { PostPreview } from "@/components/social/PostPreview";
 import { resolveAvatarUrl } from "@/lib/avatar";
 import PhotoStoryDialog from "@/components/social/PhotoStoryDialog";
 import ScheduleModal from "@/components/social/ScheduleModal";
+import WebhookHistory from "@/components/WebhookHistory";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 // The post lifecycle (Draft → Ready → Scheduled → Posted). A post can only be
 // scheduled once it's Ready — never straight from Draft.
