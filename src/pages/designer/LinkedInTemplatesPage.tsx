@@ -1483,6 +1483,19 @@ export default function LinkedInTemplatesPage() {
         onClose={() => setStylePickerOpen(false)}
       />
 
+      {aiPreview && (
+        <AiFillPreviewDialog
+          open={aiPreviewOpen}
+          onOpenChange={(o) => { setAiPreviewOpen(o); if (!o) setAiPreview(null); }}
+          slides={aiPreview.slides}
+          iconHints={aiPreview.iconHints}
+          rationale={aiPreview.rationale}
+          usedMemories={aiPreview.usedMemories}
+          applying={aiApplying}
+          onApply={applyAiPreview}
+        />
+      )}
+
       {aiReviewOpen && aiReview && (() => {
         const totalNotes = Array.isArray(aiReview.slideNotes) ? aiReview.slideNotes.length : 0;
         const doneCount = appliedNotes.filter((i) => Number(i) < totalNotes).length;
