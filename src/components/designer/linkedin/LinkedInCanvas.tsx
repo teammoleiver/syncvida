@@ -1,6 +1,7 @@
 import "./canvas.css";
 import { Fragment } from "react";
 import OverlayLayer from "./OverlayLayer";
+import { fitTitleFontSize } from "@/lib/linkedin-fill-validation";
 
 /**
  * Saleh Seddik LinkedIn brand canvases — ported from the standalone HTML
