@@ -28,6 +28,7 @@ import PlatformReview from "./PlatformReview";
 import { PostPreview } from "@/components/social/PostPreview";
 import { resolveAvatarUrl } from "@/lib/avatar";
 import PhotoStoryDialog from "@/components/social/PhotoStoryDialog";
+import ScheduleModal from "@/components/social/ScheduleModal";
 
 // The post lifecycle (Draft → Ready → Scheduled → Posted). A post can only be
 // scheduled once it's Ready — never straight from Draft.
