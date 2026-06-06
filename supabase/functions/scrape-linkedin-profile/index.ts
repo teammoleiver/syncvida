@@ -362,7 +362,10 @@ Deno.serve(async (req: Request) => {
 
         const insertErrors: string[] = [];
         for (const [index, item] of flat.slice(0, limit).entries()) {
-          const postUrl = firstString(item.url, item.postUrl, item.post_url, item.share_url, item.link, item.permalink, item.activity_url, item.activityUrl);
+          const postUrl = firstString(
+            item.linkedinUrl, item.linkedInUrl, item.linkedin_url, item.postLink, item.postUrl, item.url,
+            item.post_url, item.share_url, item.link, item.permalink, item.activity_url, item.activityUrl,
+          );
           const externalId = firstString(
             item.urn, item.id, item.postId, item.post_id, item.activityId, item.activity_id, item.shareUrn, item.share_urn,
             item.entity_urn, item.entityUrn, postUrl
@@ -397,16 +400,34 @@ Deno.serve(async (req: Request) => {
             apify_account_id: account.id ?? null,
             scraped_at: new Date().toISOString(),
           };
-          // Dedupe by (user_id, post_url): update metrics if it exists, otherwise insert.
-          if (postUrl) {
-            const { error: upErr } = await admin.from("social_posts")
-              .upsert(row, { onConflict: "user_id,post_url" });
-            if (!upErr) inserted++;
-            else insertErrors.push(upErr.message);
-          } else {
-            const { error: insErr } = await admin.from("social_posts").insert(row);
-            if (!insErr) inserted++;
-            else insertErrors.push(insErr.message);
+          // Dedupe by the stable post identity (user_id, profile_id, external_id).
+          // That index is partial (external_id IS NOT NULL), which supabase-js
+          // upsert can't target, so match explicitly: update the existing row if
+          // found — this also BACKFILLS post_url onto older rows scraped before
+          // we read the linkedinUrl field — otherwise fall back to a URL upsert
+          // / plain insert.
+          const hasRealExternalId = !!externalId && !externalId.startsWith(`${profile.id}-`);
+          let saved = false;
+          if (hasRealExternalId) {
+            const { data: existing } = await admin.from("social_posts")
+              .select("id").eq("user_id", user.id).eq("profile_id", profile.id).eq("external_id", externalId).maybeSingle();
+            if (existing?.id) {
+              const { error: updErr } = await admin.from("social_posts").update(row).eq("id", existing.id);
+              if (!updErr) { inserted++; saved = true; }
+              else insertErrors.push(updErr.message);
+            }
+          }
+          if (!saved) {
+            if (postUrl) {
+              const { error: upErr } = await admin.from("social_posts")
+                .upsert(row, { onConflict: "user_id,post_url" });
+              if (!upErr) inserted++;
+              else insertErrors.push(upErr.message);
+            } else {
+              const { error: insErr } = await admin.from("social_posts").insert(row);
+              if (!insErr) inserted++;
+              else insertErrors.push(insErr.message);
+            }
           }
         }
         polling.push({ t: new Date().toISOString(), step: "inserted", count: inserted - beforeInsert, errors: insertErrors.slice(0, 5) });

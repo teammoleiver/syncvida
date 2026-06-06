@@ -62,7 +62,8 @@ Deno.serve(async (req: Request) => {
         }
         const items: any[] = await apifyRes.json();
         for (const item of items.slice(0, 30)) {
-          const externalId = String(item.urn ?? item.id ?? item.postId ?? item.url ?? item.postUrl ?? "");
+          const postUrl = item.linkedinUrl ?? item.linkedInUrl ?? item.linkedin_url ?? item.postLink ?? item.url ?? item.postUrl ?? item.link ?? null;
+          const externalId = String(item.urn ?? item.id ?? item.postId ?? postUrl ?? "");
           const postText = item.text ?? item.postText ?? item.content ?? item.commentary ?? "";
           if (!externalId && !postText) continue;
           await admin.from("social_posts").upsert({
@@ -71,7 +72,7 @@ Deno.serve(async (req: Request) => {
             author: item.authorName ?? item.author ?? profile.display_name ?? profile.username,
             company: item.authorCompany ?? item.company ?? profile.company,
             post_text: postText, post_type: item.type ?? item.postType ?? "post",
-            post_url: item.url ?? item.postUrl ?? item.link ?? null,
+            post_url: postUrl,
             posted_at: (item.postedAt ?? item.publishedAt ?? item.date ?? item.timestamp) ? new Date(item.postedAt ?? item.publishedAt ?? item.date ?? item.timestamp).toISOString() : null,
             likes: Number(item.likes ?? item.numLikes ?? item.likeCount ?? 0),
             comments: Number(item.comments ?? item.numComments ?? item.commentCount ?? 0),
