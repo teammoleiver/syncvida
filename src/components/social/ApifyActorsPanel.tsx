@@ -134,8 +134,9 @@ export default function ApifyActorsPanel() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Register Apify scraper actors per platform. Mark one as default per kind — edge functions auto-pick it.
-        For example, set a default <code>youtube_channel</code> actor and the YouTube tab will use it on add and refresh.
+        <strong>Optional / advanced.</strong> Syncvida ships with built-in default actors for YouTube and LinkedIn,
+        so you only need to add an Apify <em>API account</em> above — no actor setup required. Add an actor here
+        only if you want to <em>override</em> the built-in default for a kind (e.g. a faster or cheaper scraper).
       </p>
 
       {showAdd && (
@@ -191,7 +192,8 @@ export default function ApifyActorsPanel() {
         <div className="text-sm text-muted-foreground">Loading…</div>
       ) : actors.length === 0 ? (
         <div className="text-sm text-muted-foreground italic">
-          No actors yet. Add one to override the project default. Until then, edge functions fall back to the global secret (<code>APIFY_YT_CHANNEL_ACTOR</code>, <code>APIFY_LINKEDIN_ACTOR_ID</code>, etc.).
+          Using Syncvida's built-in default actors (YouTube channel, YouTube transcript, LinkedIn profile). You don't need to add anything here —
+          just make sure you have an Apify API account above. Add an actor only to override a built-in default.
         </div>
       ) : (
         <div className="space-y-3">

@@ -23,8 +23,7 @@ Deno.serve(async (req) => {
 
     const clientId = Deno.env.get("LINKEDIN_CLIENT_ID");
     const clientSecret = Deno.env.get("LINKEDIN_CLIENT_SECRET");
-    const redirectUri = Deno.env.get("LINKEDIN_REDIRECT_URI");
-    if (!clientId || !clientSecret || !redirectUri) {
+    if (!clientId || !clientSecret) {
       return json({ error: "LinkedIn integration not configured" }, 500);
     }
 
@@ -36,6 +35,12 @@ Deno.serve(async (req) => {
       await admin.from("oauth_states").delete().eq("state", state);
       return json({ error: "State expired" }, 400);
     }
+
+    // Reuse the exact redirect_uri from the authorize step (OAuth requires the
+    // token-exchange redirect_uri to match byte-for-byte). Falls back to the env
+    // var for states created before this column existed.
+    const redirectUri = stateRow.redirect_uri ?? Deno.env.get("LINKEDIN_REDIRECT_URI");
+    if (!redirectUri) return json({ error: "Missing redirect_uri for this auth session" }, 400);
 
     // 2. Exchange code for tokens
     const form = new URLSearchParams();

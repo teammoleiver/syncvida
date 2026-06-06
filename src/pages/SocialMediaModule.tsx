@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle, Star, ListPlus, Tag, Folder, ChevronDown, BarChart3, Pin, PinOff, Search as SearchIcon, ThumbsUp, ThumbsDown, Brain } from "lucide-react";
+import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, EyeOff, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle, Star, ListPlus, Tag, Folder, ChevronDown, BarChart3, Pin, PinOff, Search as SearchIcon, ThumbsUp, ThumbsDown, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,6 +43,43 @@ import {
   addScrapeMemory, listScrapeMemory, updateScrapeMemory, deleteScrapeMemory,
   type ScrapeMemoryRow, type ScrapeMemorySignal, type ScrapeMemorySource,
 } from "@/lib/social-memory";
+
+/**
+ * Masked, reveal-toggle input for a user's own API key. When a key is already
+ * saved we don't pre-fill the raw value — we show a "Saved" state and only push
+ * a change when the user actually types a new key (typing clears the saved
+ * placeholder). Submitting empty leaves the existing key untouched.
+ */
+function ApiKeyInput({ label, placeholder, saved, onChange, hint }: {
+  label: string; placeholder: string; saved: boolean; onChange: (v: string) => void; hint?: string;
+}) {
+  const [reveal, setReveal] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [touched, setTouched] = useState(false);
+  return (
+    <div>
+      <label className="text-xs font-medium flex items-center gap-1.5">
+        {label}
+        {saved && !touched && <span className="inline-flex items-center gap-0.5 text-emerald-500"><Check className="w-3 h-3" /> Saved</span>}
+      </label>
+      <div className="relative">
+        <Input
+          type={reveal ? "text" : "password"}
+          value={draft}
+          autoComplete="off"
+          placeholder={saved && !touched ? "•••••••••••• (saved — type to replace)" : placeholder}
+          onChange={(e) => { setTouched(true); setDraft(e.target.value); onChange(e.target.value); }}
+          className="pr-9 font-mono text-xs"
+        />
+        <button type="button" onClick={() => setReveal((v) => !v)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+          {reveal ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
+      </div>
+      {hint && <p className="text-[10px] text-muted-foreground mt-1">{hint}</p>}
+    </div>
+  );
+}
 
 type Tab = "profiles" | "posts" | "engagement" | "analytics" | "topics" | "planner" | "settings";
 
@@ -2831,7 +2868,7 @@ function SettingsTab() {
 
       <Card className="p-5 space-y-4">
         <div className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-primary" /><h2 className="font-medium">AI provider</h2></div>
-        <p className="text-xs text-muted-foreground">Falls back automatically if the preferred provider fails. Anthropic & OpenAI keys are stored as Supabase secrets.</p>
+        <p className="text-xs text-muted-foreground">Falls back automatically if the preferred provider fails. Add your own API keys below to run AI on your own account — leave blank to use Syncvida's built-in keys.</p>
         <Select value={s.preferred_provider} onValueChange={(v) => setS({ ...s, preferred_provider: v })}>
           <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -2840,6 +2877,24 @@ function SettingsTab() {
             <SelectItem value="lovable">Lovable AI (default Gemini)</SelectItem>
           </SelectContent>
         </Select>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <ApiKeyInput
+            label="Your Anthropic API key"
+            placeholder="sk-ant-..."
+            saved={!!s.anthropic_api_key}
+            onChange={(v) => setS({ ...s, anthropic_api_key: v })}
+            hint="console.anthropic.com → API keys"
+          />
+          <ApiKeyInput
+            label="Your OpenAI API key"
+            placeholder="sk-..."
+            saved={!!s.openai_api_key}
+            onChange={(v) => setS({ ...s, openai_api_key: v })}
+            hint="platform.openai.com → API keys"
+          />
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div><label className="text-xs font-medium">Anthropic model</label><Input value={s.anthropic_model ?? ""} onChange={(e) => setS({ ...s, anthropic_model: e.target.value })} /></div>
           <div><label className="text-xs font-medium">OpenAI model</label><Input value={s.openai_model ?? ""} onChange={(e) => setS({ ...s, openai_model: e.target.value })} /></div>

@@ -55,7 +55,10 @@ async function callEdge<T>(fn: string, body: any): Promise<T> {
 }
 
 export async function startLinkedInAuth(redirectTo?: string): Promise<{ authorize_url: string; state: string }> {
-  return callEdge("linkedin-oauth-start", { redirect_to: redirectTo ?? null });
+  // Pass the current origin so the backend builds a redirect_uri that points
+  // back to THIS deployment (localhost in dev, syncvida.io in prod) instead of
+  // a single hardcoded URL.
+  return callEdge("linkedin-oauth-start", { redirect_to: redirectTo ?? null, origin: window.location.origin });
 }
 
 export async function exchangeLinkedInCode(code: string, state: string) {

@@ -111,8 +111,15 @@ serve(async (req) => {
       : "";
     const userMessage = `${userInstruction}${avoidBlock}\n\n--- ORIGINAL POST ---\n${postBody}`;
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    // Bring-your-own keys: prefer the user's own saved API keys, falling back to
+    // the platform secrets when they leave them blank.
+    const { data: aiSettings } = await userClient
+      .from("social_writer_settings")
+      .select("anthropic_api_key, openai_api_key")
+      .eq("user_id", userRes.user.id)
+      .maybeSingle();
+    const ANTHROPIC_API_KEY = (aiSettings?.anthropic_api_key || "").trim() || Deno.env.get("ANTHROPIC_API_KEY");
+    const OPENAI_API_KEY = (aiSettings?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
 
     let rewrite = "";
 

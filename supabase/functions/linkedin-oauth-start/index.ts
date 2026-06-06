@@ -7,6 +7,34 @@ const corsHeaders = {
 
 const SCOPES = "openid profile email w_member_social";
 
+// Origins allowed to drive the OAuth flow. Comma-separated OAUTH_ALLOWED_ORIGINS
+// overrides this; otherwise we fall back to prod + local dev. The redirect_uri
+// sent to LinkedIn is always derived from one of these — never from arbitrary
+// caller input — and must also be registered in the LinkedIn app's "Authorized
+// redirect URLs".
+function allowedOrigins(): string[] {
+  const fromEnv = (Deno.env.get("OAUTH_ALLOWED_ORIGINS") ?? "")
+    .split(",").map((s) => s.trim().replace(/\/$/, "")).filter(Boolean);
+  const defaults = [
+    "https://syncvida.io",
+    "https://www.syncvida.io",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+  ];
+  // Also trust the origin of the configured fallback redirect URI, if any.
+  const fallback = Deno.env.get("LINKEDIN_REDIRECT_URI");
+  if (fallback) { try { defaults.push(new URL(fallback).origin); } catch { /* ignore */ } }
+  return Array.from(new Set([...fromEnv, ...defaults]));
+}
+
+function resolveRedirectUri(origin: string | null): string | null {
+  const fallback = Deno.env.get("LINKEDIN_REDIRECT_URI") ?? null;
+  if (!origin) return fallback;
+  const clean = origin.replace(/\/$/, "");
+  if (!allowedOrigins().includes(clean)) return fallback;
+  return `${clean}/oauth/linkedin/callback`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -21,18 +49,19 @@ Deno.serve(async (req) => {
     if (!user) return json({ error: "Unauthorized" }, 401);
 
     const clientId = Deno.env.get("LINKEDIN_CLIENT_ID");
-    const redirectUri = Deno.env.get("LINKEDIN_REDIRECT_URI");
+    const body = await req.json().catch(() => ({}));
+    const redirectTo: string | null = body?.redirect_to ?? null;
+    const origin: string | null = body?.origin ?? null;
+    const redirectUri = resolveRedirectUri(origin);
     if (!clientId || !redirectUri) {
       return json({ error: "LinkedIn integration not configured. Set LINKEDIN_CLIENT_ID and LINKEDIN_REDIRECT_URI in edge function secrets." }, 500);
     }
 
-    const body = await req.json().catch(() => ({}));
-    const redirectTo: string | null = body?.redirect_to ?? null;
-
-    // Random state, persisted (so callback can validate)
+    // Random state, persisted (so callback can validate). Store the exact
+    // redirect_uri so the token exchange reuses the identical value.
     const state = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, "");
     await admin.from("oauth_states").insert({
-      state, user_id: user.id, provider: "linkedin", redirect_to: redirectTo,
+      state, user_id: user.id, provider: "linkedin", redirect_to: redirectTo, redirect_uri: redirectUri,
     });
 
     const url = new URL("https://www.linkedin.com/oauth/v2/authorization");

@@ -88,13 +88,18 @@ Deno.serve(async (req) => {
   }
 });
 
+// Built-in system default so users never have to register an actor themselves —
+// they only add their Apify API account (token). A user-registered default actor
+// still overrides this; env var overrides the constant.
+const DEFAULT_TRANSCRIPT_ACTOR = "faVsWy9VTSNVIhWpR";
+
 async function pickTranscriptActor(admin: any, userId: string): Promise<string | null> {
   const { data } = await admin.from("apify_actors")
     .select("actor_id")
     .eq("user_id", userId).eq("kind", "youtube_video_transcript").eq("is_default", true)
     .maybeSingle();
   if (data?.actor_id) return data.actor_id as string;
-  return Deno.env.get("APIFY_YT_TRANSCRIPT_ACTOR") ?? null;
+  return Deno.env.get("APIFY_YT_TRANSCRIPT_ACTOR") ?? DEFAULT_TRANSCRIPT_ACTOR;
 }
 
 function normalizeActorId(input?: string | null): string {

@@ -175,8 +175,7 @@ interface Inputs {
   wordLimit: number;
 }
 
-async function callAnthropic(systemPrompt: string, userPrompt: string, model: string) {
-  const key = Deno.env.get("ANTHROPIC_API_KEY");
+async function callAnthropic(systemPrompt: string, userPrompt: string, model: string, key?: string) {
   if (!key) throw new Error("anthropic_not_configured");
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -188,8 +187,7 @@ async function callAnthropic(systemPrompt: string, userPrompt: string, model: st
   return d.content?.[0]?.text ?? "";
 }
 
-async function callOpenAI(systemPrompt: string, userPrompt: string, model: string) {
-  const key = Deno.env.get("OPENAI_API_KEY");
+async function callOpenAI(systemPrompt: string, userPrompt: string, model: string, key?: string) {
   if (!key) throw new Error("openai_not_configured");
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -215,14 +213,18 @@ async function callLovable(systemPrompt: string, userPrompt: string, model: stri
 }
 
 async function callAIWithFallback(provider: string, settings: any, systemPrompt: string, userPrompt: string) {
+  // Prefer the user's own API key (BYO key from settings); fall back to the
+  // platform secret so users who leave it blank keep working.
+  const anthropicKey = (settings?.anthropic_api_key || "").trim() || Deno.env.get("ANTHROPIC_API_KEY");
+  const openaiKey = (settings?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
   const tryOrder = provider === "anthropic" ? ["anthropic", "openai", "lovable"]
     : provider === "openai" ? ["openai", "anthropic", "lovable"]
     : ["lovable", "anthropic", "openai"];
   let lastErr: any = null;
   for (const p of tryOrder) {
     try {
-      if (p === "anthropic") return { provider: p, text: await callAnthropic(systemPrompt, userPrompt, settings?.anthropic_model || "claude-sonnet-4-20250514") };
-      if (p === "openai") return { provider: p, text: await callOpenAI(systemPrompt, userPrompt, settings?.openai_model || "gpt-5-mini") };
+      if (p === "anthropic") return { provider: p, text: await callAnthropic(systemPrompt, userPrompt, settings?.anthropic_model || "claude-sonnet-4-20250514", anthropicKey) };
+      if (p === "openai") return { provider: p, text: await callOpenAI(systemPrompt, userPrompt, settings?.openai_model || "gpt-5-mini", openaiKey) };
       if (p === "lovable") return { provider: p, text: await callLovable(systemPrompt, userPrompt, settings?.lovable_model || "gpt-4o-mini") };
     } catch (e) { lastErr = e; }
   }
