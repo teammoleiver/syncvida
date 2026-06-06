@@ -1150,9 +1150,6 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={sendNow} disabled={busy} className="gap-2 cursor-pointer">
-                    <Send className="w-4 h-4" /> Webhook send
-                  </DropdownMenuItem>
                   {linkedinConn && (form.platforms ?? []).includes("linkedin") && (
                     <DropdownMenuItem onClick={postToLinkedInNow} disabled={postingToLinkedIn || busy} className="gap-2 cursor-pointer">
                       <Linkedin className="w-4 h-4" /> Post to LinkedIn
