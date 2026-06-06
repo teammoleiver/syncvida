@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, ChevronDown, Send, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon, Share2, CalendarClock, Layers } from "lucide-react";
+import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, ChevronDown, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon, Share2, CalendarClock, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +28,7 @@ import PlatformReview from "./PlatformReview";
 import { PostPreview } from "@/components/social/PostPreview";
 import { resolveAvatarUrl } from "@/lib/avatar";
 import PhotoStoryDialog from "@/components/social/PhotoStoryDialog";
+import ScheduleModal from "@/components/social/ScheduleModal";
 
 // The post lifecycle (Draft → Ready → Scheduled → Posted). A post can only be
 // scheduled once it's Ready — never straight from Draft.
@@ -586,6 +587,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
   const [postingToFacebook, setPostingToFacebook] = useState(false);
   const [postingToInstagram, setPostingToInstagram] = useState(false);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const navigate = useNavigate();
   const [figmaBrief, setFigmaBrief] = useState<string | null>(entry?.figma_brief ?? null);
   const [me, setMe] = useState<{ name?: string; linkedin_url?: string; style?: string } | null>(null);
@@ -761,14 +763,38 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
       toast.error("Mark the post as Ready first, then schedule it");
       return;
     }
-    if (!form.scheduled_date) { toast.error("Pick a date first"); return; }
-    if (!form.scheduled_time) { toast.error("Pick a time first"); return; }
     if (!(form.platforms ?? []).length) { toast.error("Pick at least one platform"); return; }
-    const utc = localDateTimeToUtcIso(form.scheduled_date, form.scheduled_time);
+    setScheduleModalOpen(true);
+  }
+
+  async function confirmScheduleFromModal(date: string, time: string) {
+    const utc = localDateTimeToUtcIso(date, time);
     if (!utc) { toast.error("Invalid date/time"); return; }
     if (new Date(utc).getTime() <= Date.now()) { toast.error("Pick a future date/time"); return; }
-    setForm({ ...form, status: "scheduled" });
-    save("scheduled");
+    setForm({ ...form, scheduled_date: date, scheduled_time: time, status: "scheduled" });
+    // Persist using the freshly-picked values (state update is async).
+    await saveWithSchedule(date, time);
+    setScheduleModalOpen(false);
+  }
+
+  async function saveWithSchedule(date: string, time: string) {
+    if (!form.hook?.trim()) { toast.error("Hook is required"); return; }
+    setBusy(true);
+    try {
+      const scheduled_at = localDateTimeToUtcIso(date, time);
+      const payload: any = {
+        hook: form.hook, body: form.body || null, image_url: form.image_url || null,
+        document_url: form.document_url || null, document_filename: form.document_filename || null,
+        scheduled_date: date, scheduled_time: time,
+        scheduled_at,
+        platforms: form.platforms ?? [], status: "scheduled",
+        figma_brief: figmaBrief ?? form.figma_brief ?? null,
+      };
+      if (isNew) await createPlannerPost(payload);
+      else await updatePlanEntry(entry.id, payload);
+      toast.success(`Scheduled for ${formatScheduled(scheduled_at)}`);
+      onSaved();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
   }
 
   function useDesignAsImage() {
@@ -1086,7 +1112,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
                 );
               })}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1.5">When status = scheduled and date/time arrives, the cron sends this to each platform's webhook (configured in Settings → Webhooks).</p>
+            <p className="text-[11px] text-muted-foreground mt-1.5">When status = scheduled and the date/time arrives, your post is published automatically to the selected platforms.</p>
           </div>
           {entry?.webhook_response && (
             <details className="text-xs"><summary className="cursor-pointer text-muted-foreground">Webhook response</summary>
@@ -1124,9 +1150,6 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={sendNow} disabled={busy} className="gap-2 cursor-pointer">
-                    <Send className="w-4 h-4" /> Webhook send
-                  </DropdownMenuItem>
                   {linkedinConn && (form.platforms ?? []).includes("linkedin") && (
                     <DropdownMenuItem onClick={postToLinkedInNow} disabled={postingToLinkedIn || busy} className="gap-2 cursor-pointer">
                       <Linkedin className="w-4 h-4" /> Post to LinkedIn
@@ -1180,6 +1203,15 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
           body={form.body ?? ""}
           planId={entry?.id ?? null}
           onGenerated={(image_url) => setForm({ ...form, image_url })}
+        />
+
+        <ScheduleModal
+          open={scheduleModalOpen}
+          onClose={() => setScheduleModalOpen(false)}
+          initialDate={form.scheduled_date || undefined}
+          initialTime={(form.scheduled_time || "").slice(0, 5) || undefined}
+          busy={busy}
+          onConfirm={confirmScheduleFromModal}
         />
       </DialogContent>
     </Dialog>
