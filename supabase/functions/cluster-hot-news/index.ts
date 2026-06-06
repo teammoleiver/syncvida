@@ -76,9 +76,10 @@ Return JSON: {"topics":[{...}]}
 ARTICLES:
 ${articlesForPrompt}`;
 
+    // BYO keys: prefer the user's saved keys, fall back to platform secrets.
     const lovableKey = Deno.env.get("OPENAI_API_KEY");
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    const anthropicKey = (settings?.anthropic_api_key || "").trim() || Deno.env.get("ANTHROPIC_API_KEY");
+    const openaiKey = (settings?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
     const provider = settings?.preferred_provider || "lovable";
     const tryOrder = provider === "anthropic" ? ["anthropic", "openai", "lovable"]
       : provider === "openai" ? ["openai", "anthropic", "lovable"]

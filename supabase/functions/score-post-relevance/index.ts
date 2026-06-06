@@ -18,8 +18,8 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) return jr({ error: "OPENAI_API_KEY not configured" }, 400);
+    // May be overridden below by the user's own saved OpenAI key once settings load.
+    let openaiKey = Deno.env.get("OPENAI_API_KEY") || "";
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
@@ -47,7 +47,10 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { data: settings } = await admin.from("social_writer_settings").select("about_me,career_summary,expertise,target_audience,headline,industry").eq("user_id", user.id).maybeSingle();
+    const { data: settings } = await admin.from("social_writer_settings").select("about_me,career_summary,expertise,target_audience,headline,industry,openai_api_key").eq("user_id", user.id).maybeSingle();
+    // BYO key: prefer the user's own OpenAI key, fall back to the platform secret.
+    openaiKey = ((settings as any)?.openai_api_key || "").trim() || openaiKey;
+    if (!openaiKey) return jr({ error: "No OpenAI key available. Add your own in Social Hub → Settings → AI provider." }, 400);
 
     // Negative examples — what the user has explicitly ignored
     const { data: ignoredSamples } = await admin

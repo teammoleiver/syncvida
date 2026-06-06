@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, EyeOff, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle, Star, ListPlus, Tag, Folder, ChevronDown, BarChart3, Pin, PinOff, Search as SearchIcon, ThumbsUp, ThumbsDown, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -50,33 +51,63 @@ import {
  * a change when the user actually types a new key (typing clears the saved
  * placeholder). Submitting empty leaves the existing key untouched.
  */
-function ApiKeyInput({ label, placeholder, saved, onChange, hint }: {
+function ApiKeyInput({ label, placeholder, saved, onChange, hint, provider }: {
   label: string; placeholder: string; saved: boolean; onChange: (v: string) => void; hint?: string;
+  provider: "openai" | "anthropic";
 }) {
   const [reveal, setReveal] = useState(false);
   const [draft, setDraft] = useState("");
   const [touched, setTouched] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  async function test() {
+    setTesting(true); setResult(null);
+    try {
+      // Test the freshly-typed key if present; otherwise the server tests the saved one.
+      const { data, error } = await supabase.functions.invoke("test-ai-key", {
+        body: { provider, key: touched && draft.trim() ? draft.trim() : undefined },
+      });
+      if (error) throw error;
+      const r = data as any;
+      setResult(r?.ok ? { ok: true, msg: r.detail || "Working" } : { ok: false, msg: r?.error || "Failed" });
+    } catch (e: any) {
+      setResult({ ok: false, msg: e?.message ?? "Test failed" });
+    } finally { setTesting(false); }
+  }
+
+  const canTest = (touched && draft.trim().length > 0) || saved;
   return (
     <div>
       <label className="text-xs font-medium flex items-center gap-1.5">
         {label}
         {saved && !touched && <span className="inline-flex items-center gap-0.5 text-emerald-500"><Check className="w-3 h-3" /> Saved</span>}
       </label>
-      <div className="relative">
-        <Input
-          type={reveal ? "text" : "password"}
-          value={draft}
-          autoComplete="off"
-          placeholder={saved && !touched ? "•••••••••••• (saved — type to replace)" : placeholder}
-          onChange={(e) => { setTouched(true); setDraft(e.target.value); onChange(e.target.value); }}
-          className="pr-9 font-mono text-xs"
-        />
-        <button type="button" onClick={() => setReveal((v) => !v)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
-          {reveal ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-        </button>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Input
+            type={reveal ? "text" : "password"}
+            value={draft}
+            autoComplete="off"
+            placeholder={saved && !touched ? "•••••••••••• (saved — type to replace)" : placeholder}
+            onChange={(e) => { setTouched(true); setDraft(e.target.value); onChange(e.target.value); setResult(null); }}
+            className="pr-9 font-mono text-xs"
+          />
+          <button type="button" onClick={() => setReveal((v) => !v)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
+            {reveal ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+        <Button type="button" size="sm" variant="outline" onClick={test} disabled={!canTest || testing} className="shrink-0">
+          {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Test"}
+        </Button>
       </div>
-      {hint && <p className="text-[10px] text-muted-foreground mt-1">{hint}</p>}
+      {result && (
+        <p className={`text-[11px] mt-1 flex items-center gap-1 ${result.ok ? "text-emerald-500" : "text-red-500"}`}>
+          {result.ok ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />} {result.ok ? "Connected — " : "Failed — "}{result.msg}
+        </p>
+      )}
+      {hint && !result && <p className="text-[10px] text-muted-foreground mt-1">{hint}</p>}
     </div>
   );
 }
@@ -2636,13 +2667,12 @@ function SettingsTab() {
 
   const analyzeMe = async () => {
     if (!s.linkedin_url?.trim()) { toast.error("Add your LinkedIn URL first"); return; }
-    if (!s.profile_actor_id?.trim()) { toast.error("Add the profile-info Apify actor ID"); return; }
+    // "Analyze my LinkedIn" runs on Linkup web search — no Apify actor needed.
+    // (Only "Scrape my last 50 posts" uses Apify.)
     setAnalyzing(true);
     try {
-      // Persist URL + actor first so analyze function reads them
-      await upsertWriterSettings({
-        linkedin_url: s.linkedin_url, profile_actor_id: s.profile_actor_id,
-      });
+      // Persist the URL first so the analyze function reads it.
+      await upsertWriterSettings({ linkedin_url: s.linkedin_url });
       const { data, error } = await analyzeSelfProfile(s.linkedin_url, s.profile_actor_id);
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -2880,6 +2910,7 @@ function SettingsTab() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <ApiKeyInput
+            provider="anthropic"
             label="Your Anthropic API key"
             placeholder="sk-ant-..."
             saved={!!s.anthropic_api_key}
@@ -2887,6 +2918,7 @@ function SettingsTab() {
             hint="console.anthropic.com → API keys"
           />
           <ApiKeyInput
+            provider="openai"
             label="Your OpenAI API key"
             placeholder="sk-..."
             saved={!!s.openai_api_key}
