@@ -32,7 +32,12 @@ You receive a long-form LinkedIn post (hook + body) and you must rewrite it as a
 
 Rules:
 - Match the author's voice from the post. Keep it specific, no buzzwords.
-- Every slide title ≤ 78 chars. Bodies ≤ 170 chars. Bullets ≤ 60 chars each.
+- EXACTLY 8 slides — never more, never fewer. NEVER add a hashtags slide, a "tags" slide, or any slide whose body is a list of #hashtags. Hashtags do not belong inside the carousel.
+- Titles ≤ 60 chars. They must be SHORT punchy phrases, not full sentences. Break a long thought into title + body — never let the title wrap more than 3 lines on a square canvas.
+- Bodies ≤ 140 chars, written as 1–2 short sentences. Bullets ≤ 48 chars each.
+- NARRATIVE CONTINUITY: slide N must build on slide N-1. Each slide picks up where the last left off — reference the prior idea, then advance it. The deck should read as ONE story, not 8 disconnected posters.
+- Cover hook must be punchy (≤ 60 chars), no period at the end.
+- The CTA slide is the ONLY place to mention follow/bell. No CTA copy in earlier slides.
 - For each slide, also pick ONE lucide-react icon name (PascalCase, like "Target", "Zap", "BarChart3") that visually summarizes the slide.
 - Pick ONE accent color key from: teal, coral, lavender, amber, mint.
 - Return ONLY valid JSON matching the schema. No prose.`;
@@ -170,8 +175,12 @@ Deno.serve(async (req) => {
 
     const rawSlides: any[] = Array.isArray(parsed.slides) ? parsed.slides : [];
     const accent = typeof parsed.accent === "string" ? parsed.accent : "teal";
-    const slides: Slide[] = rawSlides.map((s) => sanitizeSlide(s, author, handleShort, accent));
-    const iconHints = rawSlides.map((s) => (typeof s.icon === "string" ? s.icon : null));
+    // Drop any hashtag-only / tags slide the model might still emit.
+    const filtered = rawSlides.filter((s) => !isHashtagSlide(s));
+    // Hard-cap to 8 slides to match the template structure.
+    const trimmed = filtered.slice(0, 8);
+    const slides: Slide[] = trimmed.map((s) => sanitizeSlide(s, author, handleShort, accent));
+    const iconHints = trimmed.map((s) => (typeof s.icon === "string" ? s.icon : null));
 
     // Guard: if AI returned a degenerate deck, fall back to error.
     if (slides.length < 4) return json({ error: "AI returned too few slides — please try again." }, 500);
@@ -191,32 +200,47 @@ function clamp(str: unknown, max: number): string {
   return s.length <= max ? s : s.slice(0, max - 1).trimEnd() + "…";
 }
 
+function isHashtagSlide(s: any): boolean {
+  const title = String(s?.title ?? "");
+  const body = String(s?.body ?? "");
+  const eyebrow = String(s?.eyebrow ?? "").toLowerCase();
+  const hashCount = (title.match(/#/g)?.length ?? 0) + (body.match(/#/g)?.length ?? 0);
+  if (hashCount >= 3) return true;
+  if (/hashtag|tags/.test(eyebrow)) return true;
+  return false;
+}
+
 function sanitizeSlide(s: any, author: string, handle: string, accent: string): Slide {
   const layout = ["cover", "text", "bullets", "quote", "comparison", "cta"].includes(s.layout) ? s.layout : "text";
   const base: Slide = {
     layout,
     eyebrow: clamp(s.eyebrow, 40).toUpperCase() || undefined,
-    title: clamp(s.title, 100) || "Untitled",
-    body: s.body ? clamp(s.body, 220) : undefined,
+    title: stripHashtags(clamp(s.title, 70)) || "Untitled",
+    body: s.body ? stripHashtags(clamp(s.body, 160)) : undefined,
     closer: s.closer ? clamp(s.closer, 40) : "Swipe →",
   } as any;
   (base as any).accent = accent;
-  if (layout === "bullets") base.bullets = (Array.isArray(s.bullets) ? s.bullets : []).slice(0, 6).map((b: any) => clamp(b, 80));
+  if (layout === "bullets") base.bullets = (Array.isArray(s.bullets) ? s.bullets : []).slice(0, 5).map((b: any) => stripHashtags(clamp(b, 56)));
   if (layout === "quote") {
-    base.quote = clamp(s.quote ?? s.title, 160);
+    base.quote = stripHashtags(clamp(s.quote ?? s.title, 140));
     base.quoteAuthor = clamp(s.quoteAuthor ?? author, 40);
   }
   if (layout === "comparison") {
     base.leftLabel = clamp(s.leftLabel ?? "Before", 24);
     base.rightLabel = clamp(s.rightLabel ?? "After", 24);
-    base.leftItems = (Array.isArray(s.leftItems) ? s.leftItems : []).slice(0, 5).map((b: any) => clamp(b, 60));
-    base.rightItems = (Array.isArray(s.rightItems) ? s.rightItems : []).slice(0, 5).map((b: any) => clamp(b, 60));
+    base.leftItems = (Array.isArray(s.leftItems) ? s.leftItems : []).slice(0, 4).map((b: any) => stripHashtags(clamp(b, 48)));
+    base.rightItems = (Array.isArray(s.rightItems) ? s.rightItems : []).slice(0, 4).map((b: any) => stripHashtags(clamp(b, 48)));
   }
   if (layout === "cta") {
-    base.ctaPrompt = clamp(s.ctaPrompt ?? s.title, 80);
+    base.ctaPrompt = clamp(s.ctaPrompt ?? s.title, 60);
     base.ctaAction = clamp(s.ctaAction ?? `Follow @${handle} for more\nTurn on the bell so you never miss a post`, 200);
     base.quoteAuthor = author;
     base.closer = "DROP A COMMENT · FOLLOW + CONNECT";
   }
   return base;
+}
+
+function stripHashtags(s: string): string {
+  // Remove "#word" tokens but keep regular text intact.
+  return s.replace(/(^|\s)#[\p{L}\p{N}_]+/gu, "$1").replace(/\s{2,}/g, " ").trim();
 }
