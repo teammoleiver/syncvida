@@ -110,6 +110,11 @@ Deno.serve(async (req) => {
     // ── Safety guardrails ───────────────────────────────────────────────
     // These match (or undercut) LinkedIn's documented Marketing Developer
     // Platform throttles for /rest/posts so we never trip a spam flag.
+    // The strict same-text duplicate check is skipped when:
+    //  - the caller is the cron/service-role dispatcher (bearer === SERVICE), or
+    //  - the matching prior post is for the SAME plan_id (a retry of the same
+    //    scheduled entry, e.g. user clicks Post manually after scheduling).
+    const isServiceCall = bearer === SERVICE;
     {
       const now = Date.now();
       const oneMinuteAgo = new Date(now - 60_000).toISOString();
@@ -117,26 +122,33 @@ Deno.serve(async (req) => {
       const oneDayAgo = new Date(now - 24 * 60 * 60_000).toISOString();
       const sig = signature(text);
       const { data: recent } = await admin.from("webhook_logs")
-        .select("attempted_at, ok, response_body, request_payload")
+        .select("attempted_at, ok, response_body, request_payload, plan_id")
         .eq("user_id", user.id).eq("platform", "linkedin")
         .gte("attempted_at", oneDayAgo)
         .order("attempted_at", { ascending: false })
         .limit(50);
       const successes = (recent ?? []).filter((r: any) => r.ok);
-      // 1. minimum 30s between successful posts
-      const lastSuccessAt = successes[0] ? new Date(successes[0].attempted_at).getTime() : 0;
-      if (lastSuccessAt && now - lastSuccessAt < 30_000) {
-        const wait = Math.ceil((30_000 - (now - lastSuccessAt)) / 1000);
-        return json({ error: `Slow down — wait ${wait}s before posting again to avoid LinkedIn rate limits.` }, 429);
+      // 1. minimum 30s between successful posts (skipped for cron)
+      if (!isServiceCall) {
+        const lastSuccessAt = successes[0] ? new Date(successes[0].attempted_at).getTime() : 0;
+        if (lastSuccessAt && now - lastSuccessAt < 30_000) {
+          const wait = Math.ceil((30_000 - (now - lastSuccessAt)) / 1000);
+          return json({ error: `Slow down — wait ${wait}s before posting again to avoid LinkedIn rate limits.` }, 429);
+        }
       }
-      // 2. don't post the same text twice within 1 hour (LinkedIn flags duplicates)
-      const dupeWithinHour = successes.find((r: any) => {
-        if (new Date(r.attempted_at).getTime() < now - 60 * 60_000) return false;
-        const prevText = r.request_payload?.commentary;
-        return typeof prevText === "string" && signature(prevText) === sig;
-      });
-      if (dupeWithinHour) {
-        return json({ error: "This exact post was already published in the last hour. LinkedIn flags duplicates — change the text or wait." }, 429);
+      // 2. don't post the same text twice within 1 hour (LinkedIn flags duplicates).
+      //    Skip when the cron is dispatching, and ignore matches on the same plan_id
+    //    so a scheduled post that already partially attempted can still be retried.
+      if (!isServiceCall) {
+        const dupeWithinHour = successes.find((r: any) => {
+          if (new Date(r.attempted_at).getTime() < now - 60 * 60_000) return false;
+          if (planId && r.plan_id === planId) return false;
+          const prevText = r.request_payload?.commentary;
+          return typeof prevText === "string" && signature(prevText) === sig;
+        });
+        if (dupeWithinHour) {
+          return json({ error: "This exact post was already published in the last hour. LinkedIn flags duplicates — change the text or wait." }, 429);
+        }
       }
       // 3. soft daily cap — 25 successful posts / 24h is well under LinkedIn's spam threshold
       if (successes.length >= 25) {
