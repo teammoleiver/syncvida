@@ -436,11 +436,12 @@ function DonutChart({ items }: { items?: string[] }) {
   );
 }
 
-function SectionContent({ section }: { section: SheetSection }) {
+function SectionContent({ section, editItem }: { section: SheetSection; editItem?: (itemIdx: number, value: string) => void }) {
   const { kind, items, table, callout } = section;
   const itemList = safeStringArray(items);
   const tableHeaders = safeStringArray(table?.headers);
   const tableRows = safeRows(table?.rows);
+  const itEdit = (i: number) => editItem ? (v: string) => editItem(i, v) : undefined;
   return (
     <>
       {callout && callout.value ? (
@@ -452,19 +453,19 @@ function SectionContent({ section }: { section: SheetSection }) {
 
       {kind === "bullets" && (
         <ul className="cnv-bullets">
-          {itemList.map((it, i) => <li key={i}>{it}</li>)}
+          {itemList.map((it, i) => <EditableText key={i} tag="li" value={it} onChange={itEdit(i)} />)}
         </ul>
       )}
 
       {kind === "pills" && (
         <div className={`cnv-pills${itemList.length <= 3 ? " single" : ""}`}>
-          {itemList.map((it, i) => <div key={i} className="pill">{it}</div>)}
+          {itemList.map((it, i) => <EditableText key={i} tag="div" className="pill" value={it} onChange={itEdit(i)} />)}
         </div>
       )}
 
       {kind === "checklist" && (
         <ol className="cnv-checklist">
-          {itemList.map((it, i) => <li key={i}>{it}</li>)}
+          {itemList.map((it, i) => <EditableText key={i} tag="li" value={it} onChange={itEdit(i)} />)}
         </ol>
       )}
 
@@ -488,7 +489,7 @@ function SectionContent({ section }: { section: SheetSection }) {
       {kind === "flags" && (
         <ul className="cnv-flags">
           {itemList.map((it, i) => (
-            <li key={i}><span className="x">✗</span><span>{it}</span></li>
+            <li key={i}><span className="x">✗</span><EditableText tag="span" value={it} onChange={itEdit(i)} /></li>
           ))}
         </ul>
       )}
@@ -522,6 +523,7 @@ export function CheatSheetCanvas({
   data, idForExport = "canvas-export",
   editableOverlays = false, selectedOverlayId = null,
   onSelectOverlay, onChangeOverlays, zoom = 1, onPhotoClick, onEditField,
+  onEditSection, onEditSectionItem,
 }: {
   data: CheatSheetData; idForExport?: string;
   editableOverlays?: boolean; selectedOverlayId?: string | null;
@@ -530,6 +532,8 @@ export function CheatSheetCanvas({
   zoom?: number;
   onPhotoClick?: () => void;
   onEditField?: (field: string, value: string) => void;
+  onEditSection?: (idx: number, field: string, value: string) => void;
+  onEditSectionItem?: (idx: number, itemIdx: number, value: string) => void;
 }) {
   const accentOrder: AccentKey[] = ["coral", "amber", "teal", "indigo", "plum", "olive", "sky"];
   const sections = safeSections(data.sections);
@@ -547,17 +551,18 @@ export function CheatSheetCanvas({
         {sections.map((section, idx) => {
           const accent = section.accent || accentOrder[idx % accentOrder.length];
           const num = String(idx + 1).padStart(2, "0");
+          const sEdit = (field: string) => onEditSection ? (v: string) => onEditSection(idx, field, v) : undefined;
           return (
             <div key={idx} className="cnv-card" data-accent={accent}>
               <div className="meta-row">
-                <span className="cnv-tag">{section.tag}</span>
+                <EditableText tag="span" className="cnv-tag" value={section.tag} onChange={sEdit("tag")} />
                 <span className="cnv-num">{num}</span>
               </div>
               <div>
-                <h2>{section.title}</h2>
-                {section.subtitle && <p className="cap" style={{ marginTop: 8 }}>{section.subtitle}</p>}
+                <EditableText tag="h2" value={section.title} onChange={sEdit("title")} />
+                {(section.subtitle || onEditSection) && <EditableText tag="p" className="cap" style={{ marginTop: 8 }} value={section.subtitle} onChange={sEdit("subtitle")} />}
               </div>
-              <SectionContent section={section} />
+              <SectionContent section={section} editItem={onEditSectionItem ? (i, v) => onEditSectionItem(idx, i, v) : undefined} />
             </div>
           );
         })}

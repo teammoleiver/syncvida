@@ -1394,6 +1394,19 @@ export default function LinkedInTemplatesPage() {
                   zoom={zoom}
                   onPhotoClick={openPhotoPicker}
                   onEditField={(field, value) => editCheatData((d) => ({ ...d, [field]: value }))}
+                  onEditSection={(idx, field, value) => editCheatData((d) => ({
+                    ...d,
+                    sections: (d.sections ?? []).map((s, i) => i === idx ? { ...s, [field]: value } : s),
+                  }))}
+                  onEditSectionItem={(idx, itemIdx, value) => editCheatData((d) => ({
+                    ...d,
+                    sections: (d.sections ?? []).map((s, i) => {
+                      if (i !== idx) return s;
+                      const items = [...((s.items as string[]) ?? [])];
+                      items[itemIdx] = value;
+                      return { ...s, items };
+                    }),
+                  }))}
                 />
               )}
               {active === "carousel" && (
@@ -1418,6 +1431,7 @@ export default function LinkedInTemplatesPage() {
                   onChangeOverlays={(next) => editSquareData({ ...squareData, overlays: next })}
                   zoom={zoom}
                   onPhotoClick={openPhotoPicker}
+                  onEditField={(field, value) => editSquareData((d) => ({ ...d, [field]: value }))}
                 />
               )}
             </div>
