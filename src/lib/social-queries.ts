@@ -1012,8 +1012,31 @@ export type ProfileAudit = {
   diff: any;
 };
 
-export async function runProfileAudit() {
-  return supabase.functions.invoke("linkedin-profile-audit", { body: {} });
+export async function runProfileAudit(): Promise<{ data: any; error: { message: string } | null }> {
+  // Direct fetch (not functions.invoke) so we can surface the function's real
+  // error body — invoke collapses everything to "non-2xx status code".
+  const { data: { session } } = await supabase.auth.getSession();
+  const base = (import.meta as any).env.VITE_SUPABASE_URL ?? "https://vpsaonpsidmuzufhlbis.supabase.co";
+  try {
+    const res = await fetch(`${base}/functions/v1/linkedin-profile-audit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session?.access_token ?? ""}`,
+        apikey: (import.meta as any).env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+      },
+      body: JSON.stringify({}),
+    });
+    const text = await res.text();
+    let parsed: any = null;
+    try { parsed = text ? JSON.parse(text) : null; } catch { /* keep raw text */ }
+    if (!res.ok || parsed?.error) {
+      return { data: null, error: { message: parsed?.error || text || `HTTP ${res.status}` } };
+    }
+    return { data: parsed, error: null };
+  } catch (e: any) {
+    return { data: null, error: { message: e?.message ?? "Request failed" } };
+  }
 }
 
 export async function listProfileAudits(limit = 20): Promise<ProfileAudit[]> {
