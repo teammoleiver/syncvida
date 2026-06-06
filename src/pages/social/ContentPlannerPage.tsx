@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, ChevronDown, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon, Share2, CalendarClock, Layers } from "lucide-react";
+import { Plus, Trash2, Loader2, ChevronLeft, ChevronRight, ChevronDown, Linkedin, Facebook, Instagram, Twitter, Youtube, Image as ImageIcon, Calendar as CalendarIcon, Sparkles, Figma, Copy, Palette, Linkedin as LinkedinIcon, Share2, CalendarClock, Layers, History as HistoryIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +29,8 @@ import { PostPreview } from "@/components/social/PostPreview";
 import { resolveAvatarUrl } from "@/lib/avatar";
 import PhotoStoryDialog from "@/components/social/PhotoStoryDialog";
 import ScheduleModal from "@/components/social/ScheduleModal";
+import WebhookHistory from "@/components/WebhookHistory";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 // The post lifecycle (Draft → Ready → Scheduled → Posted). A post can only be
 // scheduled once it's Ready — never straight from Draft.
@@ -123,6 +125,7 @@ export default function ContentPlannerPage() {
   const [editing, setEditing] = useState<any | null>(null);
   const [creatingFor, setCreatingFor] = useState<string | null>(null);
   const [photoStoryOpen, setPhotoStoryOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   async function load() { setLoading(true); setEntries(await listContentPlan()); setLoading(false); }
   useEffect(() => { if (mode === "calendar") load(); }, [mode]);
@@ -147,7 +150,8 @@ export default function ContentPlannerPage() {
   return (
     <section className="space-y-4 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 max-w-[1400px] mx-auto w-full">
       {/* Mode switcher */}
-      <div className="flex items-center gap-1 bg-muted rounded-md p-0.5 w-fit flex-wrap">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-1 bg-muted rounded-md p-0.5 w-fit flex-wrap">
         {([
           { v: "calendar", l: "Calendar", icon: CalendarIcon, color: undefined },
           { v: "linkedin-review", l: "LinkedIn Review", icon: LinkedinIcon, color: PLATFORM_COLORS.linkedin.bg },
@@ -160,7 +164,26 @@ export default function ContentPlannerPage() {
             <Ic className="w-3.5 h-3.5" style={color ? { color } : undefined} /> {l}
           </button>
         ))}
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setHistoryOpen(true)}>
+          <HistoryIcon className="w-4 h-4 mr-1.5" /> Posting history
+        </Button>
       </div>
+
+      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Posting history</SheetTitle>
+            <SheetDescription>
+              Every publish + schedule attempt is logged here. Successful LinkedIn posts include a
+              "View on LinkedIn" link so you can verify the post is live on your profile.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4">
+            <WebhookHistory />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {mode === "linkedin-review" ? <LinkedInReview />
         : mode === "facebook-review" ? <PlatformReview platform="facebook" />

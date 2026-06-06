@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2, RefreshCw, Trash2, Check, X, Clock, Search,
-  Linkedin, Facebook, Instagram, Twitter, Youtube, ChevronDown, ChevronRight,
+  Linkedin, Facebook, Instagram, Twitter, Youtube, ChevronDown, ChevronRight, ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -42,6 +42,22 @@ function fmtAbs(iso: string): string {
     year: "numeric", month: "short", day: "numeric",
     hour: "2-digit", minute: "2-digit", second: "2-digit",
   });
+}
+
+/** Pull the LinkedIn post URN out of a webhook log and build a feed URL. */
+function linkedinUrlFromLog(l: WebhookLog): { url: string; urn: string } | null {
+  if (l.platform !== "linkedin" || !l.ok) return null;
+  const headers = (l.response_headers ?? {}) as Record<string, string>;
+  let urn: string | null = headers["x-restli-id"] ?? headers["X-RestLi-Id"] ?? headers["x-linkedin-id"] ?? null;
+  if (!urn && l.response_body) {
+    try {
+      const j = JSON.parse(l.response_body);
+      if (typeof j?.post_urn === "string") urn = j.post_urn;
+      else if (typeof j?.id === "string" && j.id.startsWith("urn:li:")) urn = j.id;
+    } catch { /* not JSON */ }
+  }
+  if (!urn || !urn.startsWith("urn:li:")) return null;
+  return { urn, url: `https://www.linkedin.com/feed/update/${encodeURIComponent(urn)}/` };
 }
 
 export default function WebhookHistory() {
@@ -187,6 +203,21 @@ export default function WebhookHistory() {
                     {!l.ok && l.error && (
                       <div className="text-[11px] text-red-400 truncate mt-0.5">↳ {l.error}</div>
                     )}
+                    {(() => {
+                      const li = linkedinUrlFromLog(l);
+                      return li ? (
+                        <a
+                          href={li.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline mt-0.5"
+                        >
+                          <ExternalLink className="w-3 h-3" /> View on LinkedIn
+                          <span className="text-muted-foreground font-mono">({li.urn.slice(-12)})</span>
+                        </a>
+                      ) : null;
+                    })()}
                   </div>
                   <Button size="icon" variant="ghost" className="h-7 w-7"
                     onClick={(e) => { e.stopPropagation(); deleteOne(l.id); }}>
