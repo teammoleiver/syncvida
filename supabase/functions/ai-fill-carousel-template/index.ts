@@ -74,6 +74,7 @@ Deno.serve(async (req) => {
     const author = String(body.author ?? "Saleh Seddik").trim();
     const handleShort = String(body.handleShort ?? "Salehseddik").trim();
     const themeKey = String(body.themeKey ?? "figma-template");
+    const hashtagFirst = Boolean(body.hashtagFirst);
     if (!hook && !post) return json({ error: "hook or body required" }, 400);
 
     // Pull recent accepted runs as few-shot examples (learning loop).
@@ -100,6 +101,9 @@ Deno.serve(async (req) => {
       `Author name: ${author}`,
       `Author handle: @${handleShort}`,
       `Theme: ${themeKey}`,
+      hashtagFirst
+        ? "STYLE: hashtag-first carousel. The reader expects 1 dedicated hashtag/tag slide near the end (slide 7 or 8). Keep it tasteful: max 6 hashtags, all on-topic."
+        : "STYLE: standard. Never produce a hashtag-only slide.",
       `POST HOOK: ${hook}`,
       `POST BODY: ${post}`,
       examples ? `\n${examples}` : "",
@@ -175,8 +179,9 @@ Deno.serve(async (req) => {
 
     const rawSlides: any[] = Array.isArray(parsed.slides) ? parsed.slides : [];
     const accent = typeof parsed.accent === "string" ? parsed.accent : "teal";
-    // Drop any hashtag-only / tags slide the model might still emit.
-    const filtered = rawSlides.filter((s) => !isHashtagSlide(s));
+    // Drop any hashtag-only / tags slide the model might still emit — unless
+    // the user opted in to the hashtag-first style.
+    const filtered = hashtagFirst ? rawSlides : rawSlides.filter((s) => !isHashtagSlide(s));
     // Hard-cap to 8 slides to match the template structure.
     const trimmed = filtered.slice(0, 8);
     const slides: Slide[] = trimmed.map((s) => sanitizeSlide(s, author, handleShort, accent));
