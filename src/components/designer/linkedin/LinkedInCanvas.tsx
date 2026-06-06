@@ -1,7 +1,7 @@
 import "./canvas.css";
 import { Fragment } from "react";
 import OverlayLayer from "./OverlayLayer";
-import { fitTitleFontSize } from "@/lib/linkedin-fill-validation";
+import { fitTitleFontSize, resolveFontSize } from "@/lib/linkedin-fill-validation";
 
 /**
  * Saleh Seddik LinkedIn brand canvases — ported from the standalone HTML
@@ -138,6 +138,10 @@ export type CarouselSlide = {
   // --- cta (closing slide with big author photo) ---
   ctaPrompt?: string;
   ctaAction?: string;
+  /** Per-slide font-size overrides (px). When set, the canvas uses these
+   *  instead of the auto-fit shrink. Wired from the slide editor's text sizer. */
+  titleSizePx?: number;
+  bodySizePx?: number;
 };
 
 export type CarouselData = {
@@ -611,9 +615,9 @@ function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?
           {onPhotoClick && <span className="cnv-photo-edit-badge export-hide" aria-hidden>✎ change</span>}
         </div>
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-        <h1 className="carousel-cover-title" style={fitTitleFontSize(clip(slide.title, 110), { base: 72, min: 44, breakpointChars: 60 })}>{clip(slide.title, 110)}</h1>
+        <h1 className="carousel-cover-title" style={resolveFontSize(clip(slide.title, 110), slide.titleSizePx, { base: 72, min: 44, breakpointChars: 60 })}>{clip(slide.title, 110)}</h1>
         {slide.body && !isSameContent(slide.title, slide.body) && (
-          <p className="carousel-cover-sub">{clip(slide.body, 120)}</p>
+          <p className="carousel-cover-sub" style={slide.bodySizePx ? { fontSize: `${slide.bodySizePx}px` } : undefined}>{clip(slide.body, 120)}</p>
         )}
       </div>
     );
@@ -648,10 +652,10 @@ function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?
     return (
       <div className="carousel-body carousel-bullets-layout">
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-        <h2 className="carousel-bullets-title" style={fitTitleFontSize(clip(slide.title, 92), { base: 56, min: 36, breakpointChars: 60 })}>{clip(slide.title, 92)}</h2>
+        <h2 className="carousel-bullets-title" style={resolveFontSize(clip(slide.title, 92), slide.titleSizePx, { base: 56, min: 36, breakpointChars: 60 })}>{clip(slide.title, 92)}</h2>
         <ul className="carousel-bullets-list">
           {items.slice(0, 5).map((b, i) => (
-            <li key={i}><span className="num">{String(i + 1).padStart(2, "0")}</span><span>{clip(b, BULLET_MAX)}</span></li>
+            <li key={i} style={slide.bodySizePx ? { fontSize: `${slide.bodySizePx}px` } : undefined}><span className="num">{String(i + 1).padStart(2, "0")}</span><span>{clip(b, BULLET_MAX)}</span></li>
           ))}
         </ul>
       </div>
@@ -664,7 +668,7 @@ function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?
     return (
       <div className="carousel-body carousel-compare-layout">
         {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-        <h2 className="carousel-compare-title" style={fitTitleFontSize(clip(slide.title, 76), { base: 52, min: 34, breakpointChars: 52 })}>{clip(slide.title, 76)}</h2>
+        <h2 className="carousel-compare-title" style={resolveFontSize(clip(slide.title, 76), slide.titleSizePx, { base: 52, min: 34, breakpointChars: 52 })}>{clip(slide.title, 76)}</h2>
         <div className="carousel-compare-grid">
           <div className="carousel-compare-col" data-side="left">
             <div className="lbl">{slide.leftLabel || "Before"}</div>
@@ -699,7 +703,7 @@ function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?
         </div>
         <div className="carousel-cta-name">{ctx?.author || slide.quoteAuthor || ""}</div>
         {ctx?.handleShort && <div className="carousel-cta-handle">@{ctx.handleShort}</div>}
-        <h2 className="carousel-cta-prompt" style={fitTitleFontSize(clip(slide.ctaPrompt || slide.title || "What would you add?", 80), { base: 44, min: 30, breakpointChars: 48 })}>{clip(slide.ctaPrompt || slide.title || "What would you add?", 80)}</h2>
+        <h2 className="carousel-cta-prompt" style={resolveFontSize(clip(slide.ctaPrompt || slide.title || "What would you add?", 80), slide.titleSizePx, { base: 44, min: 30, breakpointChars: 48 })}>{clip(slide.ctaPrompt || slide.title || "What would you add?", 80)}</h2>
         {slide.ctaAction && (
           <div className="carousel-cta-actions">
             {slide.ctaAction.split("\n").map((l) => l.trim()).filter(Boolean).map((line, i) => (
@@ -715,9 +719,9 @@ function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?
   return (
     <div className="carousel-body">
       {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-      <h1 className="carousel-title" style={fitTitleFontSize(clip(slide.title, 92), { base: 72, min: 42, breakpointChars: 56 })}>{clip(slide.title, 92)}</h1>
+      <h1 className="carousel-title" style={resolveFontSize(clip(slide.title, 92), slide.titleSizePx, { base: 72, min: 42, breakpointChars: 56 })}>{clip(slide.title, 92)}</h1>
       {slide.body && !isSameContent(slide.title, slide.body) && (
-        <p>{clip(slide.body, TEXT_BODY_MAX)}</p>
+        <p style={slide.bodySizePx ? { fontSize: `${slide.bodySizePx}px` } : undefined}>{clip(slide.body, TEXT_BODY_MAX)}</p>
       )}
     </div>
   );
