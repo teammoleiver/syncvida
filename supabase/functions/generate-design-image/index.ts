@@ -47,8 +47,10 @@ Deno.serve(async (req) => {
     const aspectStr = ["1:1", "4:5", "9:16"].includes(aspect) ? aspect : "1:1";
     const size = aspectStr === "1:1" ? "1024x1024" : aspectStr === "9:16" ? "1024x1536" : "1024x1536";
 
-    const apiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!apiKey) return json({ error: "OPENAI_API_KEY missing" }, 500);
+    // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+    const { data: __aikeys } = await supabase.from("social_writer_settings").select("openai_api_key").eq("user_id", user.id).maybeSingle();
+    const apiKey = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return json({ error: "No OpenAI key available. Add your own in Social Hub → Settings → AI provider." }, 500);
 
     // Optional: include reference images so the model can incorporate logos / personal photos.
     let refUrls: string[] = [];

@@ -56,8 +56,10 @@ Deno.serve(async (req) => {
       return `[${i + 1}] ${dt} · ${ch}: "${v.title}"${desc ? ` — ${desc}` : ""} (https://www.youtube.com/watch?v=${v.video_id})`;
     }).join("\n");
 
-    const apiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!apiKey) return json({ error: "OPENAI_API_KEY missing" }, 500);
+    // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+    const { data: __aikeys } = await admin.from("social_writer_settings").select("openai_api_key").eq("user_id", user.id).maybeSingle();
+    const apiKey = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return json({ error: "No OpenAI key available. Add your own in Social Hub → Settings → AI provider." }, 500);
 
     const systemPrompt = `You are an assistant for a content creator who tracks other YouTubers for inspiration.
 You will receive a list of recent videos (title + short description + URL + date) from creators they follow.

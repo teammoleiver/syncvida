@@ -37,8 +37,10 @@ Deno.serve(async (req) => {
       .select("title, handle").eq("user_id", user.id).eq("channel_id", vid.channel_id).maybeSingle();
     const channelTitle = (ch?.title || ch?.handle || vid.channel_id) as string;
 
-    const apiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!apiKey) return json({ error: "OPENAI_API_KEY missing" }, 500);
+    // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+    const { data: __aikeys } = await admin.from("social_writer_settings").select("openai_api_key").eq("user_id", user.id).maybeSingle();
+    const apiKey = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return json({ error: "No OpenAI key available. Add your own in Social Hub → Settings → AI provider." }, 500);
 
     const transcript = (vid.transcript ?? "").slice(0, 8000);
     const description = (vid.description ?? "").slice(0, 1500);

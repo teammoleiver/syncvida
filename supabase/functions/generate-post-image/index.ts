@@ -26,8 +26,10 @@ Deno.serve(async (req) => {
       body ?? {};
     if (!hook && !post_body) return json({ error: "hook or body required" }, 400);
 
-    const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_KEY) return json({ error: "OPENAI_API_KEY not configured" }, 500);
+    // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+    const { data: __aikeys } = await admin.from("social_writer_settings").select("openai_api_key").eq("user_id", user.id).maybeSingle();
+    const OPENAI_KEY = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_KEY) return json({ error: "No OpenAI key available. Add your own in Social Hub → Settings → AI provider." }, 500);
 
     // Pull style prompt from writer settings
     const { data: settings } = await admin

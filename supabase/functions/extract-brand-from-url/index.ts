@@ -64,8 +64,10 @@ Deno.serve(async (req) => {
     const html = await (await fetch(url, { redirect: "follow" })).text();
     const snippet = html.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<style[\s\S]*?<\/style>/g, "").slice(0, 12000);
 
-    const apiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!apiKey) return json({ error: "OPENAI_API_KEY missing" }, 500);
+    // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+    const { data: __aikeys } = await supabase.from("social_writer_settings").select("openai_api_key").eq("user_id", user.id).maybeSingle();
+    const apiKey = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return json({ error: "No OpenAI key available. Add your own in Social Hub → Settings → AI provider." }, 500);
 
     const ai = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",

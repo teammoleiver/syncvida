@@ -65,7 +65,10 @@ Deno.serve(async (req) => {
 
     // ── Optimize prompt only ──
     if (action === "optimize") {
-      const optimized = await optimizePrompt(body.query ?? "", body.outputType ?? "sourcedAnswer", body.depth ?? "auto");
+      // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+      const { data: __aikeys } = await supabase.from("social_writer_settings").select("openai_api_key").eq("user_id", user.id).maybeSingle();
+      const __openaiKey = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY") || "";
+      const optimized = await optimizePrompt(body.query ?? "", body.outputType ?? "sourcedAnswer", body.depth ?? "auto", __openaiKey);
       return json({ optimized });
     }
 
@@ -177,8 +180,7 @@ Deno.serve(async (req) => {
   }
 });
 
-async function optimizePrompt(query: string, outputType: string, depth: string): Promise<string> {
-  const apiKey = Deno.env.get("OPENAI_API_KEY");
+async function optimizePrompt(query: string, outputType: string, depth: string, apiKey: string): Promise<string> {
   if (!apiKey || !query.trim()) return query;
   try {
     const r = await fetch("https://api.openai.com/v1/chat/completions", {

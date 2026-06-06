@@ -48,14 +48,20 @@ Deno.serve(async (req) => {
       next ? `Next slide: ${JSON.stringify(next)}` : "",
     ].filter(Boolean).join("\n");
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) return json({ error: "LOVABLE_API_KEY not configured" }, 500);
+    // BYO key: if the user saved an OpenAI key, call OpenAI directly; otherwise
+    // use the platform Lovable gateway (Gemini). Both are OpenAI-compatible.
+    const { data: __aikeys } = await supabase.from("social_writer_settings").select("openai_api_key").eq("user_id", user.id).maybeSingle();
+    const __userOpenai = ((__aikeys as any)?.openai_api_key || "").trim();
+    const AI_ENDPOINT = __userOpenai ? "https://api.openai.com/v1/chat/completions" : "https://ai.gateway.lovable.dev/v1/chat/completions";
+    const AI_MODEL = __userOpenai ? "gpt-4o-mini" : "google/gemini-3-flash-preview";
+    const apiKey = __userOpenai || Deno.env.get("LOVABLE_API_KEY");
+    if (!apiKey) return json({ error: "No AI key available. Add your own in Social Hub → Settings → AI provider." }, 500);
 
-    const ai = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const ai = await fetch(AI_ENDPOINT, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: AI_MODEL,
         messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userPrompt }],
         tools: [{
           type: "function",

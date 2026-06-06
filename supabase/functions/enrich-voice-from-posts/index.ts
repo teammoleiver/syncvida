@@ -24,7 +24,7 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("OPENAI_API_KEY");
+    let lovableKey = Deno.env.get("OPENAI_API_KEY"); // overridden by the user's own key after settings load
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
@@ -53,6 +53,8 @@ Deno.serve(async (req: Request) => {
 
     // Load existing settings so we MERGE rather than overwrite
     const { data: settings } = await admin.from("social_writer_settings").select("*").eq("user_id", user.id).maybeSingle();
+    // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+    lovableKey = ((settings as any)?.openai_api_key || "").trim() || lovableKey;
 
     const sample = usable.slice(0, 25).map((p: any, i: number) =>
       `--- Post ${i + 1} (likes:${p.likes ?? 0} comments:${p.comments ?? 0}) ---\n${(p.post_text ?? "").slice(0, 1200)}`

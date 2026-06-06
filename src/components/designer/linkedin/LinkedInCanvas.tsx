@@ -321,7 +321,7 @@ function Signature({ data, size = "md", onPhotoClick }: { data: any; size?: "sm"
       </div>
       <div className="cnv-sig-meta">
         <div className="cnv-sig-name">{data.author}</div>
-        <div className="cnv-sig-handle">@{data.handleShort || "Salehseddik"}</div>
+        <div className="cnv-sig-handle">@{data.handleShort || (data.author || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase() || "handle"}</div>
       </div>
     </div>
   );
@@ -572,7 +572,7 @@ export function CheatSheetCanvas({
         <Signature data={data} size="md" onPhotoClick={onPhotoClick} />
         <div className="cnv-footer-right">
           {data.closer && <div className="closer">{data.closer}</div>}
-          <div className="attribution">{data.attribution || `saleh seddik // ${new Date().getFullYear()}`}</div>
+          <div className="attribution">{data.attribution || `${(data.author || "").toLowerCase()} // ${new Date().getFullYear()}`}</div>
         </div>
       </div>
       <OverlayLayer
@@ -850,7 +850,7 @@ export function SquareCanvas({
         <Signature data={data} size="lg" onPhotoClick={onPhotoClick} />
         <div className="cnv-footer-right">
           {(data.closer || onEditField) && <EditableText tag="div" className="closer" value={data.closer} onChange={edit("closer")} />}
-          <div className="attribution">{data.attribution || `saleh seddik // ${new Date().getFullYear()}`}</div>
+          <div className="attribution">{data.attribution || `${(data.author || "").toLowerCase()} // ${new Date().getFullYear()}`}</div>
         </div>
       </div>
       <OverlayLayer

@@ -74,7 +74,7 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("OPENAI_API_KEY");
+    let lovableKey = Deno.env.get("OPENAI_API_KEY"); // overridden by the user's own key after settings load
     const linkupKey = Deno.env.get("LINKUP_API_KEY");
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -90,6 +90,8 @@ Deno.serve(async (req: Request) => {
     const { linkedin_url } = body as { linkedin_url?: string };
 
     const { data: settings } = await admin.from("social_writer_settings").select("*").eq("user_id", user.id).maybeSingle();
+    // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+    lovableKey = ((settings as any)?.openai_api_key || "").trim() || lovableKey;
     const url = (linkedin_url || settings?.linkedin_url || "").trim();
     if (!url) return jr({ error: "LinkedIn URL required" }, 400);
 

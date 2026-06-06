@@ -106,14 +106,18 @@ function scrubAiTells(text: string): string {
   return t;
 }
 
-async function callAI(systemPrompt: string, userPrompt: string) {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-  const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+async function callAI(systemPrompt: string, userPrompt: string, openaiKey?: string) {
+  // BYO key: if the user saved an OpenAI key, call OpenAI directly; else use the platform Lovable gateway.
+  const userKey = (openaiKey || "").trim();
+  const endpoint = userKey ? "https://api.openai.com/v1/chat/completions" : "https://ai.gateway.lovable.dev/v1/chat/completions";
+  const model = userKey ? "gpt-4o-mini" : "google/gemini-2.5-flash";
+  const apiKey = userKey || Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) throw new Error("No AI key available. Add your own in Social Hub → Settings → AI provider.");
+  const r = await fetch(endpoint, {
     method: "POST",
-    headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -147,6 +151,7 @@ serve(async (req) => {
     const action = (body as any).action || "generate";
 
     const { data: settings } = await admin.from("social_writer_settings").select("*").eq("user_id", user.id).maybeSingle();
+    const __openaiKey = ((settings as any)?.openai_api_key || "").trim(); // BYO: routes callAI to the user's OpenAI when set
     const customTones: any[] = Array.isArray(settings?.comment_tones) ? settings!.comment_tones : [];
     // Merge: if user has custom tones, use them but fill missing max_words from defaults (or fall back to 30).
     const tones = (customTones.length ? customTones : DEFAULT_TONES).map((t: any) => {
@@ -179,7 +184,7 @@ serve(async (req) => {
       const list = tones.map((t: any) => `- ${t.id}: ${t.label} — ${t.description || ""}`).join("\n");
       const sys = `You pick the best LinkedIn comment tone for a given post. Return STRICT JSON only: {"tone_id":"<id>","reason":"<1 short sentence>"}. tone_id MUST be exactly one of the provided ids.`;
       const usr = `${personaBlock(settings)}\n\nAvailable tones:\n${list}\n\nPost to comment on:\n---\n${post_text}\n---\n\nReturn JSON only.`;
-      const text = await callAI(sys, usr);
+      const text = await callAI(sys, usr, __openaiKey);
       let parsed: any = {};
       try { parsed = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || "{}"); } catch { /* */ }
       const valid = tones.find((t: any) => t.id === parsed.tone_id) ? parsed.tone_id : tones[0].id;
@@ -195,7 +200,7 @@ serve(async (req) => {
         try {
           const sys = `${BASE_SYSTEM}\n\n${personaBlock(settings)}\n\nTONE INSTRUCTIONS:\n${t.prompt}\n\nHARD LIMIT: ${t.max_words} words maximum. If you exceed it, the output is rejected.`;
           const usr = `Write a LinkedIn comment for this post${author ? ` by ${author}` : ""}.\n\n--- POST ---\n${post_text}`;
-          let c = await callAI(sys, usr);
+          let c = await callAI(sys, usr, __openaiKey);
           c = c.replace(/^["“]|["”]$/g, "").trim();
           c = scrubAiTells(c);
           c = enforceWordLimit(c, t.max_words);
@@ -217,7 +222,7 @@ serve(async (req) => {
     const tone = tones.find((t: any) => t.id === tone_id) || tones[0];
     const sys = `${BASE_SYSTEM}\n\n${personaBlock(settings)}\n\nTONE INSTRUCTIONS:\n${tone.prompt}\n\nHARD LIMIT: ${tone.max_words} words maximum. Going over is a failure — count your words before responding.`;
     const usr = `Write a LinkedIn comment for this post${author ? ` by ${author}` : ""}.${instruction ? `\nExtra instruction: ${instruction}.` : ""}\n\n--- POST ---\n${post_text.slice(0, 4000)}`;
-    let comment = await callAI(sys, usr);
+    let comment = await callAI(sys, usr, __openaiKey);
     comment = comment.replace(/^["“]|["”]$/g, "").trim();
     comment = scrubAiTells(comment);
     comment = enforceWordLimit(comment, tone.max_words);

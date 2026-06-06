@@ -180,9 +180,8 @@ OUTPUT: Just the post — no preamble, no headers.`,
   },
 };
 
-async function callLovable(systemPrompt: string, userPrompt: string, model: string) {
-  const key = Deno.env.get("OPENAI_API_KEY");
-  if (!key) throw new Error("OPENAI_API_KEY not configured");
+async function callLovable(systemPrompt: string, userPrompt: string, model: string, key?: string) {
+  if (!key) throw new Error("No OpenAI key available. Add your own in Social Hub → Settings → AI provider.");
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -261,7 +260,9 @@ ${reference || "(no scraped posts yet)"}
 Return JSON ONLY:
 {"improved_prompt":"...","change_summary":"3-5 bullets explaining what you changed and why, grounded in the reference posts"}`;
 
-      const text = await callLovable(sysP, userP, settings?.lovable_model || "gpt-4o-mini");
+      // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+      const __openaiKey = ((settings as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
+      const text = await callLovable(sysP, userP, settings?.lovable_model || "gpt-4o-mini", __openaiKey);
       const match = text.match(/\{[\s\S]*\}/);
       let parsed: any = {};
       try { parsed = JSON.parse(match?.[0] ?? "{}"); } catch { /* */ }

@@ -47,7 +47,7 @@ Deno.serve(async (req: Request) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    let OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || ""; // overridden by the user's own key after settings load
 
     const userClient = createClient(SUPABASE_URL, ANON, {
       global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
@@ -71,8 +71,10 @@ Deno.serve(async (req: Request) => {
       .limit(25);
 
     const { data: settings } = await admin.from("social_writer_settings")
-      .select("about_me,career_summary,expertise,target_audience,writing_samples")
+      .select("about_me,career_summary,expertise,target_audience,writing_samples,openai_api_key")
       .eq("user_id", user.id).maybeSingle();
+    // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+    OPENAI_API_KEY = ((settings as any)?.openai_api_key || "").trim() || OPENAI_API_KEY;
 
     // Previous audit for comparison.
     const { data: prevAudit } = await admin.from("linkedin_profile_audits")

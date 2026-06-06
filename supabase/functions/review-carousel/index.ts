@@ -108,11 +108,14 @@ Do NOT add design notes for slides that pass all checks. Only flag real issues. 
       appliedFixes: fixedSlides.length ? fixedSlides : undefined,
     });
 
+    // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+    const { data: __aikeys } = await supabase.from("social_writer_settings").select("openai_api_key").eq("user_id", user.id).maybeSingle();
+    const __openaiKey = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${Deno.env.get("OPENAI_API_KEY")}`,
+        "Authorization": `Bearer ${__openaiKey}`,
       },
       body: JSON.stringify({
         model: "gpt-4o",

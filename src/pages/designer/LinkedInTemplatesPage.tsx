@@ -23,7 +23,7 @@ import {
   saveCanvasAsAsset, linkAssetToPlan, getPlanEntry,
   saveCarouselAsPdf, linkPdfToPlan, renderNodeToDataUrl,
   buildCarouselFromPost, buildCheatSheetFromPost, buildSquareFromPost,
-  buildSalehFigmaCarousel, autoFixCarousel,
+  buildSalehFigmaCarousel, autoFixCarousel, applyUserIdentity, handleFromName,
 } from "@/components/designer/linkedin/editorHelpers";
 import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, listProfileAssets, type DesignAsset } from "@/lib/designer-queries";
 import { detectMentionedLogos, type DetectedLogo } from "@/components/designer/linkedin/detectLogos";
@@ -392,6 +392,29 @@ export default function LinkedInTemplatesPage() {
     setCheatData((d) => (needsPhoto(d.avatarUrl) ? { ...d, avatarUrl: profileAvatar } : d));
     setSquareData((d) => (needsPhoto(d.avatarUrl) ? { ...d, avatarUrl: profileAvatar } : d));
   }, [profileAvatar, loadingExisting]);
+
+  // Author identity: replace the demo "Saleh Seddik" seed name/handle/signature
+  // with the signed-in user's real name. The seeds ship with the app author's
+  // identity; every real (incl. brand-new) account must see their own.
+  const [identity, setIdentity] = useState<{ author: string; handle: string } | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const [{ data: { user } }, prof] = await Promise.all([
+        supabase.auth.getUser(),
+        getProfile().catch(() => null),
+      ]);
+      const meta = ((user as any)?.user_metadata ?? {}) as Record<string, any>;
+      const author = ((prof as any)?.full_name || (prof as any)?.name || meta.full_name || meta.name
+        || (user?.email ? user.email.split("@")[0] : "")).trim();
+      if (author) setIdentity({ author, handle: handleFromName(author) });
+    })();
+  }, []);
+  useEffect(() => {
+    if (!identity?.author || loadingExisting) return;
+    setCarouselData((d) => applyUserIdentity(d, identity));
+    setCheatData((d) => applyUserIdentity(d, identity));
+    setSquareData((d) => applyUserIdentity(d, identity));
+  }, [identity, loadingExisting]);
 
   // Load any cached AI review for this design so it isn't re-run on every open.
   useEffect(() => {

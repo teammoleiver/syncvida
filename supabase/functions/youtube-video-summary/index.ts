@@ -34,8 +34,10 @@ Deno.serve(async (req) => {
       return json({ points: vid.summary_points, cached: true });
     }
 
-    const apiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!apiKey) return json({ error: "OPENAI_API_KEY missing. Add it in Supabase secrets." }, 500);
+    // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+    const { data: __aikeys } = await admin.from("social_writer_settings").select("openai_api_key").eq("user_id", user.id).maybeSingle();
+    const apiKey = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return json({ error: "No OpenAI key available. Add your own in Social Hub → Settings → AI provider." }, 500);
 
     const transcript = (vid.transcript ?? "").slice(0, 12000);
     const description = (vid.description ?? "").slice(0, 1500);

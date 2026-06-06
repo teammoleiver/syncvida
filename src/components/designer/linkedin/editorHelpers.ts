@@ -332,6 +332,48 @@ export async function renderNodeToDataUrl(nodeId: string): Promise<string> {
   });
 }
 
+// The demo seeds ship with the app author's identity. For real users we swap in
+// their own name/handle. These constants let us detect the un-customised default.
+const DEV_AUTHOR = "Saleh Seddik";
+const DEV_HANDLE = "Salehseddik";
+
+/** Turn a display name into a LinkedIn-style handle: "Leon Giese" → "leongiese". */
+export function handleFromName(name?: string): string {
+  return (name || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+}
+
+/**
+ * Overwrite the demo author identity with the signed-in user's real name/handle.
+ * Only replaces fields still holding the seed default (or empty), so a user who
+ * has deliberately set their own author is never clobbered. Also scrubs the dev
+ * name out of seed-generated slide CTAs / quote attributions.
+ */
+export function applyUserIdentity<T extends Record<string, any>>(
+  data: T,
+  id: { author: string; handle?: string },
+): T {
+  if (!id.author) return data;
+  const handle = id.handle || handleFromName(id.author);
+  const out: any = { ...data };
+  if (!out.author || out.author === DEV_AUTHOR) out.author = id.author;
+  if (!out.handleShort || out.handleShort === DEV_HANDLE) out.handleShort = handle;
+  if (!out.attribution || /^saleh seddik\b/i.test(out.attribution)) {
+    out.attribution = `${id.author.toLowerCase()} // ${new Date().getFullYear()}`;
+  }
+  if (Array.isArray(out.slides)) {
+    out.slides = out.slides.map((s: any) => {
+      const ns = { ...s };
+      for (const k of ["ctaAction", "quoteAuthor"]) {
+        if (typeof ns[k] === "string") {
+          ns[k] = ns[k].split(DEV_AUTHOR).join(id.author).split(DEV_HANDLE).join(handle);
+        }
+      }
+      return ns;
+    });
+  }
+  return out;
+}
+
 export const SEED_CHEAT_SHEET: CheatSheetData = {
   author: "Saleh Seddik",
   handleShort: "Salehseddik",

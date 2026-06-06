@@ -8,12 +8,12 @@ const corsHeaders = {
 const AI_URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = "gpt-4o-mini";
 
-async function callAI(messages: any[], tools?: any[], tool_choice?: any) {
+async function callAI(apiKey: string, messages: any[], tools?: any[], tool_choice?: any) {
   const body: any = { model: MODEL, messages };
   if (tools) { body.tools = tools; body.tool_choice = tool_choice ?? "auto"; }
   const r = await fetch(AI_URL, {
     method: "POST",
-    headers: { Authorization: `Bearer ${Deno.env.get("OPENAI_API_KEY")}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   if (r.status === 429) throw new Error("Rate limit reached. Try again in a moment.");
@@ -31,6 +31,10 @@ Deno.serve(async (req) => {
     const { data: { user } } = await userClient.auth.getUser();
     if (!user) return new Response(JSON.stringify({ error: "Not authenticated" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+    // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+    const { data: __aikeys } = await supa.from("social_writer_settings").select("openai_api_key").eq("user_id", user.id).maybeSingle();
+    const aiKey = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY") || "";
+
     const { action, message, item_ids, query } = await req.json();
 
     // Persist user message
@@ -46,7 +50,7 @@ Deno.serve(async (req) => {
     let payload: any = null;
 
     if (action === "nl_filter") {
-      const out = await callAI([
+      const out = await callAI(aiKey, [
         { role: "system", content: "You convert natural-language requests into a JSON filter for a content library. Return ONLY via the function call." },
         { role: "user", content: `User request: ${message}\n\nLibrary preview:\n${lib.slice(0, 4000)}` },
       ], [{
@@ -72,7 +76,7 @@ Deno.serve(async (req) => {
       assistantText = payload.explanation || "Filter applied.";
     }
     else if (action === "brainstorm") {
-      const out = await callAI([
+      const out = await callAI(aiKey, [
         { role: "system", content: "You are a content strategist for a creator making YouTube/LinkedIn/Instagram/Facebook videos about GTM automation, AI tools, and no-code building. Suggest 5-8 NEW video ideas that fill gaps in the existing library. Each idea: title, hook, target_platforms, why_now (1 line)." },
         { role: "user", content: `Brief: ${message || "Surprise me — fill the most valuable gaps."}\n\nExisting library:\n${lib.slice(0, 6000)}` },
       ], [{
@@ -109,7 +113,7 @@ Deno.serve(async (req) => {
       const ids = (item_ids ?? []) as string[];
       const { data: picked } = await supa.from("content_items").select("*").eq("user_id", user.id).in("id", ids);
       const ctx = (picked ?? []).map((p, i) => `[${i+1}] ${p.title} — ${p.key_topics ?? ""} (${p.duration ?? ""}) ${p.source_url ?? ""}`).join("\n");
-      const out = await callAI([
+      const out = await callAI(aiKey, [
         { role: "system", content: "You combine multiple lessons/videos into ONE original piece of content. Output: a punchy title, a 3-line hook, a structured outline (5-8 bullets), platform-specific captions for YouTube/LinkedIn/Instagram/Facebook, and 5 SEO tags." },
         { role: "user", content: `Goal: ${message || "Combine these into a single high-impact video."}\n\nSources:\n${ctx}` },
       ]);
@@ -128,7 +132,7 @@ Deno.serve(async (req) => {
       let data: any = {}; try { data = JSON.parse(txt); } catch { data = { raw: txt }; }
       if (!r.ok) throw new Error(`Linkup ${r.status}: ${txt}`);
       // Ask AI to convert results into 5-8 actionable video ideas
-      const out = await callAI([
+      const out = await callAI(aiKey, [
         { role: "system", content: "Convert web search results into 5-8 concrete content ideas the creator can film. Each idea: title, hook (1 line), key_topics, source_url (from results), suggested_category, target_platforms." },
         { role: "user", content: `Topic: ${query || message}\n\nWeb results (Linkup):\n${JSON.stringify(data).slice(0, 8000)}` },
       ], [{

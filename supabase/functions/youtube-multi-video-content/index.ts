@@ -70,9 +70,11 @@ Deno.serve(async (req) => {
       url: `https://www.youtube.com/watch?v=${v.video_id}`,
     }));
 
-    const openAiKey = Deno.env.get("OPENAI_API_KEY");
-    const lovableKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openAiKey && !lovableKey) return json({ error: "No AI provider key configured" }, 500);
+    // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+    const { data: __aikeys } = await admin.from("social_writer_settings").select("openai_api_key").eq("user_id", user.id).maybeSingle();
+    const openAiKey = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
+    const lovableKey = openAiKey;
+    if (!openAiKey && !lovableKey) return json({ error: "No OpenAI key available. Add your own in Social Hub → Settings → AI provider." }, 500);
 
     const wantIdeas = mode === "ideas" || mode === "both";
     const wantPosts = mode === "posts" || mode === "both";

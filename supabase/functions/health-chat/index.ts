@@ -29,8 +29,10 @@ Deno.serve(async (req) => {
     }
 
     const { messages, healthContext } = await req.json();
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured");
+    // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+    const { data: __aikeys } = await userClient.from("social_writer_settings").select("openai_api_key").eq("user_id", userRes.user.id).maybeSingle();
+    const OPENAI_API_KEY = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("No OpenAI key available. Add your own in Social Hub → Settings → AI provider.");
 
     const systemPrompt = `You are Syncvida — a personal AI health intelligence system. You have FULL ACCESS to the user's complete, real-time health data from ALL modules: sleep, nutrition, exercise, fasting, weight, blood tests, and daily habits. ALL these data points are interconnected — they form ONE health system. Syncvida (syncvida.io) is the unified health platform that synchronizes all health data.
 

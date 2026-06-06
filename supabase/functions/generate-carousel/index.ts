@@ -42,7 +42,10 @@ Deno.serve(async (req) => {
     .select().single();
   if (insertError) return json({ error: insertError.message }, 500);
 
-  processCarousel(supabase, row.id, posts, memoryRules).catch(async (err) => {
+  // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
+  const { data: __aikeys } = await supabase.from("social_writer_settings").select("openai_api_key").eq("user_id", user.id).maybeSingle();
+  const aiKey = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY") || "";
+  processCarousel(supabase, row.id, posts, memoryRules, aiKey).catch(async (err) => {
     console.error("processCarousel failed:", err);
     await supabase.from("carousels")
       .update({ status: "failed", error_message: String(err?.message || err) })
@@ -52,13 +55,13 @@ Deno.serve(async (req) => {
   return json({ id: row.id }, 200);
 });
 
-async function processCarousel(supabase: any, rowId: string, posts: string[], memoryRules: string[]) {
+async function processCarousel(supabase: any, rowId: string, posts: string[], memoryRules: string[], aiKey: string) {
   await update(supabase, rowId, { status: "writing_copy" });
-  const copy = await generateCopy(posts, memoryRules);
+  const copy = await generateCopy(posts, memoryRules, aiKey);
   await update(supabase, rowId, { status: "ready", copy });
 }
 
-async function generateCopy(posts: string[], memoryRules: string[]) {
+async function generateCopy(posts: string[], memoryRules: string[], aiKey: string) {
   const memoryBlock = memoryRules.length
     ? `\n\nCRITICAL — avoid these patterns flagged as weak in past carousels for this user:\n- ${memoryRules.join("\n- ")}\nWrite copy that is already free of these issues from the first word.`
     : "";
@@ -85,7 +88,7 @@ async function generateCopy(posts: string[], memoryRules: string[]) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${Deno.env.get("OPENAI_API_KEY")}`,
+      "Authorization": `Bearer ${aiKey}`,
     },
     body: JSON.stringify({
       model: "gpt-4o-mini",
