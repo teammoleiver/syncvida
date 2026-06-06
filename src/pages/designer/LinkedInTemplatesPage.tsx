@@ -35,6 +35,8 @@ import { getAiReview, saveAiReview, getActiveMemoryRules, addDesignMemory } from
 import { aiFillCarouselTemplate, applyAiSlidesToCarousel, saveTemplateFillMemory } from "@/lib/linkedin-template-ai";
 import { Switch } from "@/components/ui/switch";
 import { removeWhiteBackground } from "@/lib/designer-utils";
+import { AiFillPreviewDialog } from "@/components/designer/linkedin/AiFillPreviewDialog";
+import { validateAiFill } from "@/lib/linkedin-fill-validation";
 
 type TemplateKey = "cheatsheet" | "carousel" | "square";
 
@@ -146,6 +148,14 @@ export default function LinkedInTemplatesPage() {
   // AI Auto-Fill state — uses the post + user memory to rewrite all slides.
   const [aiFilling, setAiFilling] = useState(false);
   const [lastAiFill, setLastAiFill] = useState<{ hook: string; body: string; slides: any[]; iconHints: (string | null)[] } | null>(null);
+  // AI Preview mode — holds the generated plan until the user reviews + applies it.
+  const [aiPreview, setAiPreview] = useState<{
+    hook: string; body: string;
+    slides: any[]; iconHints: (string | null)[];
+    rationale: string | null; usedMemories: number;
+  } | null>(null);
+  const [aiPreviewOpen, setAiPreviewOpen] = useState(false);
+  const [aiApplying, setAiApplying] = useState(false);
   // Active tab in review dialog: "copy" | "visual"
   const [reviewTab, setReviewTab] = useState<"copy" | "visual">("copy");
   // The user's real headshot — the design system makes a face photo MANDATORY
@@ -216,24 +226,53 @@ export default function LinkedInTemplatesPage() {
     setAiFilling(true);
     try {
       const res = await aiFillCarouselTemplate({ hook, body: post, current: carouselData });
-      const next = applyAiSlidesToCarousel(carouselData, res);
-      editCarouselData(next);
-      setSlideIdx(0);
-      setLastAiFill({ hook, body: post, slides: res.slides, iconHints: res.iconHints });
-      toast.success(res.usedMemories > 0
-        ? `AI rewrote ${res.slides.length} slides (learned from ${res.usedMemories} past edits)`
-        : `AI rewrote ${res.slides.length} slides`);
-      // Drop matching logos + icons on the new slides.
-      void runAutoPlace(next, { markDirty: true });
-      // Persist as a memory row so the model keeps learning.
-      saveTemplateFillMemory({
-        hook, body: post, themeKey: carouselData.themeKey,
-        slides: res.slides, iconHints: res.iconHints, rating: 1,
-      }).catch(() => { /* non-blocking */ });
+      // AI Preview mode: surface the plan for review before mutating the canvas.
+      setAiPreview({
+        hook, body: post,
+        slides: res.slides, iconHints: res.iconHints,
+        rationale: res.rationale, usedMemories: res.usedMemories,
+      });
+      setAiPreviewOpen(true);
+      const v = validateAiFill(res.slides);
+      const errs = v.issues.filter((i) => i.severity === "error").length;
+      const warns = v.issues.filter((i) => i.severity === "warn").length;
+      toast.success(
+        errs > 0 ? `Plan ready — ${errs} issue${errs > 1 ? "s" : ""} flagged for review`
+        : warns > 0 ? `Plan ready — ${warns} suggestion${warns > 1 ? "s" : ""} to review`
+        : "Plan ready — looks premium",
+      );
     } catch (e: any) {
       toast.error(e?.message ?? "AI Auto-Fill failed");
     } finally {
       setAiFilling(false);
+    }
+  }
+
+  /**
+   * Apply the previewed AI plan to the actual canvas after the user confirms.
+   * Persist as a memory row so the model keeps learning from accepted runs.
+   */
+  async function applyAiPreview() {
+    if (!aiPreview) return;
+    setAiApplying(true);
+    try {
+      const next = applyAiSlidesToCarousel(carouselData, {
+        slides: aiPreview.slides, iconHints: aiPreview.iconHints,
+        rationale: aiPreview.rationale, usedMemories: aiPreview.usedMemories,
+      });
+      editCarouselData(next);
+      setSlideIdx(0);
+      setLastAiFill({ hook: aiPreview.hook, body: aiPreview.body, slides: aiPreview.slides, iconHints: aiPreview.iconHints });
+      void runAutoPlace(next, { markDirty: true });
+      saveTemplateFillMemory({
+        hook: aiPreview.hook, body: aiPreview.body, themeKey: carouselData.themeKey,
+        slides: aiPreview.slides, iconHints: aiPreview.iconHints, rating: 1,
+      }).catch(() => { /* non-blocking */ });
+      toast.success(`Applied ${aiPreview.slides.length} slides to carousel`);
+      setAiPreviewOpen(false);
+      setAiPreview(null);
+    } finally {
+      setAiApplying(false);
     }
   }
 
@@ -1443,6 +1482,19 @@ export default function LinkedInTemplatesPage() {
         onPick={applyTheme}
         onClose={() => setStylePickerOpen(false)}
       />
+
+      {aiPreview && (
+        <AiFillPreviewDialog
+          open={aiPreviewOpen}
+          onOpenChange={(o) => { setAiPreviewOpen(o); if (!o) setAiPreview(null); }}
+          slides={aiPreview.slides}
+          iconHints={aiPreview.iconHints}
+          rationale={aiPreview.rationale}
+          usedMemories={aiPreview.usedMemories}
+          applying={aiApplying}
+          onApply={applyAiPreview}
+        />
+      )}
 
       {aiReviewOpen && aiReview && (() => {
         const totalNotes = Array.isArray(aiReview.slideNotes) ? aiReview.slideNotes.length : 0;
