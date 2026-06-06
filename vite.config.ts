@@ -7,7 +7,12 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
+    // Pinned: the LinkedIn/Canva/Meta OAuth redirect URIs are registered for
+    // localhost:8080. If Vite silently falls back to another port the callback
+    // lands on a dead port (ERR_CONNECTION_REFUSED). strictPort makes startup
+    // fail loudly instead, so the redirect always matches.
     port: 8080,
+    strictPort: true,
     hmr: {
       overlay: false,
     },
