@@ -2170,6 +2170,50 @@ function CarouselForm({ data, setData, slideIdx, setSlideIdx }: { data: Carousel
 
 /* ---------- Square editor ---------- */
 
+/**
+ * Per-text font-size picker: H1/H2/H3/Body/Caption presets + numeric input.
+ * Writes a pixel value into the slide so the canvas overrides the auto-fit.
+ */
+function TextSizer({ label, value, onChange }: {
+  label: string; value: number | undefined | null;
+  onChange: (next: number | undefined) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-muted-foreground">{label}</label>
+        {value ? (
+          <button type="button" className="text-[10px] text-muted-foreground hover:text-foreground" onClick={() => onChange(undefined)}>auto</button>
+        ) : (
+          <span className="text-[10px] text-muted-foreground">auto</span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {(["H1","H2","H3","Body","Caption"] as const).map((k) => {
+          const px = TEXT_SIZE_PRESETS[k];
+          const active = value === px;
+          return (
+            <button
+              key={k} type="button"
+              onClick={() => onChange(active ? undefined : px)}
+              className={`px-2 h-7 rounded-md text-[11px] border ${active ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-accent border-border"}`}
+            >{k}</button>
+          );
+        })}
+        <Input
+          type="number" min={12} max={140} step={1}
+          value={value ?? ""} placeholder="px"
+          onChange={(e) => {
+            const n = e.target.value === "" ? undefined : Number(e.target.value);
+            onChange(Number.isFinite(n as number) ? (n as number) : undefined);
+          }}
+          className="h-7 w-16 text-[11px]"
+        />
+      </div>
+    </div>
+  );
+}
+
 function SquareForm({ data, setData }: { data: SquareData; setData: (d: SquareData) => void }) {
   const update = (patch: Partial<SquareData>) => setData({ ...data, ...patch });
   return (
