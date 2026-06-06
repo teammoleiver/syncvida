@@ -2151,6 +2151,16 @@ function CarouselForm({ data, setData, slideIdx, setSlideIdx }: { data: Carousel
                   <SelectContent>{ACCENT_KEYS.slice(0, 7).map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+              <TextSizer
+                label="Title size"
+                value={slide.titleSizePx}
+                onChange={(n) => updateSlide(slideIdx, { titleSizePx: n })}
+              />
+              <TextSizer
+                label="Body / bullet size"
+                value={slide.bodySizePx}
+                onChange={(n) => updateSlide(slideIdx, { bodySizePx: n })}
+              />
             </div>
           )}
         </Card>
