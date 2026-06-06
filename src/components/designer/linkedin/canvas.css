@@ -795,6 +795,13 @@
   color: var(--accent-fg, #fff);
 }
 
+/* Editor-only: inline-editable text. Hover/focus rings never show in exports
+   (html-to-image has no :hover/:focus state). */
+.cnv-editable { cursor: text; outline: none; border-radius: 4px; transition: box-shadow 0.12s; }
+.cnv-editable:hover { box-shadow: 0 0 0 1.5px var(--accent); }
+.cnv-editable:focus { box-shadow: 0 0 0 2px var(--accent); }
+.cnv-editable:empty::before { content: "Type here…"; opacity: 0.4; }
+
 /* Editor-only: clickable face photos open the asset picker to change them. */
 .cnv-photo-editable { cursor: pointer; position: relative; }
 .cnv-photo-editable:hover { outline: 3px solid var(--accent); outline-offset: 3px; }

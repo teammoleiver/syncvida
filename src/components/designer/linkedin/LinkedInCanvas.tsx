@@ -1,7 +1,42 @@
 import "./canvas.css";
-import { Fragment } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import OverlayLayer from "./OverlayLayer";
 import { fitTitleFontSize, resolveFontSize } from "@/lib/linkedin-fill-validation";
+
+/**
+ * Inline-editable text node. When `onChange` is provided the element becomes
+ * contentEditable (click to edit on the canvas) and commits on blur. The DOM
+ * content is only synced from `value` while not focused, so React re-renders
+ * (autosave, etc.) never clobber what the user is typing.
+ */
+function EditableText({
+  tag: Tag = "span", value = "", onChange, className, style,
+}: {
+  tag?: any; value?: string; onChange?: (v: string) => void;
+  className?: string; style?: React.CSSProperties;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el && document.activeElement !== el && el.innerText !== value) el.innerText = value;
+  }, [value]);
+  if (!onChange) return <Tag className={className} style={style}>{value}</Tag>;
+  return (
+    <Tag
+      ref={ref as any}
+      className={`${className ?? ""} cnv-editable`}
+      style={style}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck={false}
+      onMouseDown={(e: any) => e.stopPropagation()}
+      onBlur={(e: any) => {
+        const v = (e.currentTarget.innerText || "").replace(/\n$/, "");
+        if (v !== value) onChange(v);
+      }}
+    />
+  );
+}
 
 /**
  * Saleh Seddik LinkedIn brand canvases — ported from the standalone HTML
@@ -486,7 +521,7 @@ function SectionContent({ section }: { section: SheetSection }) {
 export function CheatSheetCanvas({
   data, idForExport = "canvas-export",
   editableOverlays = false, selectedOverlayId = null,
-  onSelectOverlay, onChangeOverlays, zoom = 1, onPhotoClick,
+  onSelectOverlay, onChangeOverlays, zoom = 1, onPhotoClick, onEditField,
 }: {
   data: CheatSheetData; idForExport?: string;
   editableOverlays?: boolean; selectedOverlayId?: string | null;
@@ -494,16 +529,18 @@ export function CheatSheetCanvas({
   onChangeOverlays?: (next: Overlay[]) => void;
   zoom?: number;
   onPhotoClick?: () => void;
+  onEditField?: (field: string, value: string) => void;
 }) {
   const accentOrder: AccentKey[] = ["coral", "amber", "teal", "indigo", "plum", "olive", "sky"];
   const sections = safeSections(data.sections);
+  const edit = (field: string) => onEditField ? (v: string) => onEditField(field, v) : undefined;
   return (
     <div className="canvas" data-format="cheatsheet" data-theme={data.themeKey || undefined} id={idForExport}>
       <TopChrome typeLabel={data.typeLabel || "Cheat Sheet"} />
       <div className="cnv-hero">
-        {data.eyebrow && <div className="eyebrow">{data.eyebrow}</div>}
-        <h1>{data.title}</h1>
-        {data.subtitle && <div className="sub">{data.subtitle}</div>}
+        {(data.eyebrow || onEditField) && <EditableText tag="div" className="eyebrow" value={data.eyebrow} onChange={edit("eyebrow")} />}
+        <EditableText tag="h1" value={data.title} onChange={edit("title")} />
+        {(data.subtitle || onEditField) && <EditableText tag="div" className="sub" value={data.subtitle} onChange={edit("subtitle")} />}
       </div>
       <div className="cnv-divider" />
       <div className="cnv-grid">
@@ -593,31 +630,34 @@ function isSameContent(a?: string, b?: string): boolean {
   return overlap / wordsB.length >= 0.6;
 }
 
-function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?: { author: string; handleShort?: string; avatarUrl?: string; photoKey?: AccentKey; }; onPhotoClick?: () => void }) {
+function CarouselBody({ slide, ctx, onPhotoClick, onEdit }: { slide: CarouselSlide; ctx?: { author: string; handleShort?: string; avatarUrl?: string; photoKey?: AccentKey; }; onPhotoClick?: () => void; onEdit?: (field: string, value: string) => void }) {
   const layout: CarouselLayout = slide.layout || "text";
+  const edit = (field: string) => onEdit ? (v: string) => onEdit(field, v) : undefined;
+  // Editable mode shows the FULL value (WYSIWYG); export/preview keeps it clipped.
+  const disp = (text: string | undefined, n: number) => onEdit ? (text ?? "") : clip(text, n);
+  const eyebrowEl = (slide.eyebrow || onEdit)
+    ? <EditableText tag="span" className="carousel-eyebrow" value={slide.eyebrow} onChange={edit("eyebrow")} />
+    : null;
 
   if (layout === "cover") {
-    // Face on the cover is mandatory — the single most effective scroll-stopper.
     const coverPhoto = ctx ? pickPhoto(ctx) : "";
     const coverInitial = (ctx?.author || "S").trim().charAt(0).toUpperCase();
+    const t = disp(slide.title, 110);
     return (
       <div className="carousel-body carousel-cover">
         <div
           className={`carousel-cover-face${onPhotoClick ? " cnv-photo-editable" : ""}`}
-          style={{
-            backgroundImage: coverPhoto ? `url(${coverPhoto})` : undefined,
-            backgroundColor: coverPhoto ? "var(--brand-coral)" : "var(--accent)",
-          }}
+          style={{ backgroundImage: coverPhoto ? `url(${coverPhoto})` : undefined, backgroundColor: coverPhoto ? "var(--brand-coral)" : "var(--accent)" }}
           onMouseDown={onPhotoClick ? (e) => { e.stopPropagation(); e.preventDefault(); onPhotoClick(); } : undefined}
           title={onPhotoClick ? "Click to change photo from your assets" : undefined}
         >
           {!coverPhoto && <span className="carousel-cover-face-initial">{coverInitial}</span>}
           {onPhotoClick && <span className="cnv-photo-edit-badge export-hide" aria-hidden>✎ change</span>}
         </div>
-        {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-        <h1 className="carousel-cover-title" style={resolveFontSize(clip(slide.title, 110), slide.titleSizePx, { base: 72, min: 44, breakpointChars: 60 })}>{clip(slide.title, 110)}</h1>
-        {slide.body && !isSameContent(slide.title, slide.body) && (
-          <p className="carousel-cover-sub" style={slide.bodySizePx ? { fontSize: `${slide.bodySizePx}px` } : undefined}>{clip(slide.body, 120)}</p>
+        {eyebrowEl}
+        <EditableText tag="h1" className="carousel-cover-title" value={t} onChange={edit("title")} style={resolveFontSize(t, slide.titleSizePx, { base: 72, min: 44, breakpointChars: 60 })} />
+        {(onEdit || (slide.body && !isSameContent(slide.title, slide.body))) && (
+          <EditableText tag="p" className="carousel-cover-sub" value={disp(slide.body, 120)} onChange={edit("body")} style={slide.bodySizePx ? { fontSize: `${slide.bodySizePx}px` } : undefined} />
         )}
       </div>
     );
@@ -626,11 +666,11 @@ function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?
   if (layout === "stat") {
     return (
       <div className="carousel-body carousel-stat">
-        {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-        <div className="carousel-stat-value">{slide.statValue || "—"}</div>
-        {slide.statLabel && <div className="carousel-stat-label">{clip(slide.statLabel, 90)}</div>}
-        {slide.body && !isSameContent(slide.statLabel, slide.body) && (
-          <p className="carousel-stat-body">{clip(slide.body, STAT_BODY_MAX)}</p>
+        {eyebrowEl}
+        <EditableText tag="div" className="carousel-stat-value" value={slide.statValue || (onEdit ? "" : "—")} onChange={edit("statValue")} />
+        {(slide.statLabel || onEdit) && <EditableText tag="div" className="carousel-stat-label" value={disp(slide.statLabel, 90)} onChange={edit("statLabel")} />}
+        {(onEdit || (slide.body && !isSameContent(slide.statLabel, slide.body))) && (
+          <EditableText tag="p" className="carousel-stat-body" value={disp(slide.body, STAT_BODY_MAX)} onChange={edit("body")} />
         )}
       </div>
     );
@@ -639,9 +679,9 @@ function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?
   if (layout === "quote") {
     return (
       <div className="carousel-body carousel-quote">
-        {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
+        {eyebrowEl}
         <div className="carousel-quote-mark" aria-hidden>“</div>
-        <blockquote className="carousel-quote-text">{clip(slide.quote || slide.title, QUOTE_MAX)}</blockquote>
+        <EditableText tag="blockquote" className="carousel-quote-text" value={disp(slide.quote || slide.title, QUOTE_MAX)} onChange={edit("quote")} />
         {slide.quoteAuthor && <div className="carousel-quote-author">— {slide.quoteAuthor}</div>}
       </div>
     );
@@ -649,10 +689,11 @@ function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?
 
   if (layout === "bullets") {
     const items = safeStringArray(slide.bullets);
+    const t = disp(slide.title, 92);
     return (
       <div className="carousel-body carousel-bullets-layout">
-        {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-        <h2 className="carousel-bullets-title" style={resolveFontSize(clip(slide.title, 92), slide.titleSizePx, { base: 56, min: 36, breakpointChars: 60 })}>{clip(slide.title, 92)}</h2>
+        {eyebrowEl}
+        <EditableText tag="h2" className="carousel-bullets-title" value={t} onChange={edit("title")} style={resolveFontSize(t, slide.titleSizePx, { base: 56, min: 36, breakpointChars: 60 })} />
         <ul className="carousel-bullets-list">
           {items.slice(0, 5).map((b, i) => (
             <li key={i} style={slide.bodySizePx ? { fontSize: `${slide.bodySizePx}px` } : undefined}><span className="num">{String(i + 1).padStart(2, "0")}</span><span>{clip(b, BULLET_MAX)}</span></li>
@@ -665,10 +706,11 @@ function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?
   if (layout === "comparison") {
     const left = safeStringArray(slide.leftItems);
     const right = safeStringArray(slide.rightItems);
+    const t = disp(slide.title, 76);
     return (
       <div className="carousel-body carousel-compare-layout">
-        {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-        <h2 className="carousel-compare-title" style={resolveFontSize(clip(slide.title, 76), slide.titleSizePx, { base: 52, min: 34, breakpointChars: 52 })}>{clip(slide.title, 76)}</h2>
+        {eyebrowEl}
+        <EditableText tag="h2" className="carousel-compare-title" value={t} onChange={edit("title")} style={resolveFontSize(t, slide.titleSizePx, { base: 52, min: 34, breakpointChars: 52 })} />
         <div className="carousel-compare-grid">
           <div className="carousel-compare-col" data-side="left">
             <div className="lbl">{slide.leftLabel || "Before"}</div>
@@ -686,15 +728,13 @@ function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?
   if (layout === "cta") {
     const photo = ctx ? pickPhoto(ctx) : "";
     const initial = (ctx?.author || "S").trim().charAt(0).toUpperCase();
+    const t = disp(slide.ctaPrompt || slide.title || "What would you add?", 80);
     return (
       <div className="carousel-body carousel-cta">
-        {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
+        {eyebrowEl}
         <div
           className={`carousel-cta-avatar${onPhotoClick ? " cnv-photo-editable" : ""}`}
-          style={{
-            backgroundImage: photo ? `url(${photo})` : undefined,
-            backgroundColor: photo ? "var(--brand-coral)" : "var(--brand-coral)",
-          }}
+          style={{ backgroundImage: photo ? `url(${photo})` : undefined, backgroundColor: "var(--brand-coral)" }}
           onMouseDown={onPhotoClick ? (e) => { e.stopPropagation(); e.preventDefault(); onPhotoClick(); } : undefined}
           title={onPhotoClick ? "Click to change photo from your assets" : undefined}
         >
@@ -703,7 +743,7 @@ function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?
         </div>
         <div className="carousel-cta-name">{ctx?.author || slide.quoteAuthor || ""}</div>
         {ctx?.handleShort && <div className="carousel-cta-handle">@{ctx.handleShort}</div>}
-        <h2 className="carousel-cta-prompt" style={resolveFontSize(clip(slide.ctaPrompt || slide.title || "What would you add?", 80), slide.titleSizePx, { base: 44, min: 30, breakpointChars: 48 })}>{clip(slide.ctaPrompt || slide.title || "What would you add?", 80)}</h2>
+        <EditableText tag="h2" className="carousel-cta-prompt" value={t} onChange={edit("ctaPrompt")} style={resolveFontSize(t, slide.titleSizePx, { base: 44, min: 30, breakpointChars: 48 })} />
         {slide.ctaAction && (
           <div className="carousel-cta-actions">
             {slide.ctaAction.split("\n").map((l) => l.trim()).filter(Boolean).map((line, i) => (
@@ -716,12 +756,13 @@ function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?
   }
 
   // text (default)
+  const t = disp(slide.title, 92);
   return (
     <div className="carousel-body">
-      {slide.eyebrow && <span className="carousel-eyebrow">{slide.eyebrow}</span>}
-      <h1 className="carousel-title" style={resolveFontSize(clip(slide.title, 92), slide.titleSizePx, { base: 72, min: 42, breakpointChars: 56 })}>{clip(slide.title, 92)}</h1>
-      {slide.body && !isSameContent(slide.title, slide.body) && (
-        <p style={slide.bodySizePx ? { fontSize: `${slide.bodySizePx}px` } : undefined}>{clip(slide.body, TEXT_BODY_MAX)}</p>
+      {eyebrowEl}
+      <EditableText tag="h1" className="carousel-title" value={t} onChange={edit("title")} style={resolveFontSize(t, slide.titleSizePx, { base: 72, min: 42, breakpointChars: 56 })} />
+      {(onEdit || (slide.body && !isSameContent(slide.title, slide.body))) && (
+        <EditableText tag="p" value={disp(slide.body, TEXT_BODY_MAX)} onChange={edit("body")} style={slide.bodySizePx ? { fontSize: `${slide.bodySizePx}px` } : undefined} />
       )}
     </div>
   );
@@ -730,7 +771,7 @@ function CarouselBody({ slide, ctx, onPhotoClick }: { slide: CarouselSlide; ctx?
 export function CarouselCanvas({
   data, slideIndex = 0, idForExport = "canvas-export",
   editableOverlays = false, selectedOverlayId = null,
-  onSelectOverlay, onChangeOverlays, zoom = 1, onPhotoClick,
+  onSelectOverlay, onChangeOverlays, zoom = 1, onPhotoClick, onEditSlide,
 }: {
   data: CarouselData; slideIndex?: number; idForExport?: string;
   editableOverlays?: boolean; selectedOverlayId?: string | null;
@@ -739,6 +780,8 @@ export function CarouselCanvas({
   zoom?: number;
   /** Editor-only: click the face photo to change it from the asset library. */
   onPhotoClick?: () => void;
+  /** Editor-only: inline edit a field on the current slide. */
+  onEditSlide?: (field: string, value: string) => void;
 }) {
   const slides = safeSlides(data.slides);
   const slide = slides[slideIndex] || slides[0] || ({ title: "" } as CarouselSlide);
@@ -747,7 +790,7 @@ export function CarouselCanvas({
   return (
     <div className="canvas" data-format="carousel" data-accent={accent} data-theme={data.themeKey || undefined} id={idForExport}>
       <TopChrome typeLabel={data.typeLabel || "Carousel"} />
-      <CarouselBody slide={slide} ctx={{ author: data.author, handleShort: data.handleShort, avatarUrl: data.avatarUrl, photoKey: data.photoKey }} onPhotoClick={onPhotoClick} />
+      <CarouselBody slide={slide} ctx={{ author: data.author, handleShort: data.handleShort, avatarUrl: data.avatarUrl, photoKey: data.photoKey }} onPhotoClick={onPhotoClick} onEdit={onEditSlide} />
       <div className="cnv-footer cnv-footer-sig">
         <Signature data={data} size="md" onPhotoClick={onPhotoClick} />
         <div className="cnv-footer-right">
@@ -770,7 +813,7 @@ export function CarouselCanvas({
 export function SquareCanvas({
   data, idForExport = "canvas-export",
   editableOverlays = false, selectedOverlayId = null,
-  onSelectOverlay, onChangeOverlays, zoom = 1, onPhotoClick,
+  onSelectOverlay, onChangeOverlays, zoom = 1, onPhotoClick, onEditField,
 }: {
   data: SquareData; idForExport?: string;
   editableOverlays?: boolean; selectedOverlayId?: string | null;
@@ -778,7 +821,9 @@ export function SquareCanvas({
   onChangeOverlays?: (next: Overlay[]) => void;
   zoom?: number;
   onPhotoClick?: () => void;
+  onEditField?: (field: string, value: string) => void;
 }) {
+  const edit = (field: string) => onEditField ? (v: string) => onEditField(field, v) : undefined;
   const renderStatement = (text: string) => {
     const parts = String(text || "").split(/(\*[^*]+\*)/g);
     return parts.map((p, i) => {
@@ -790,14 +835,16 @@ export function SquareCanvas({
     <div className="canvas" data-format="square" data-theme={data.themeKey || undefined} id={idForExport}>
       <TopChrome typeLabel={data.typeLabel || "Hot Take"} />
       <div className="square-body">
-        {data.eyebrow && <span className="square-eyebrow">{data.eyebrow}</span>}
-        <h1 className="square-statement">{renderStatement(data.statement)}</h1>
-        {data.support && <p className="square-support">{data.support}</p>}
+        {(data.eyebrow || onEditField) && <EditableText tag="span" className="square-eyebrow" value={data.eyebrow} onChange={edit("eyebrow")} />}
+        {onEditField
+          ? <EditableText tag="h1" className="square-statement" value={data.statement} onChange={edit("statement")} />
+          : <h1 className="square-statement">{renderStatement(data.statement)}</h1>}
+        {(data.support || onEditField) && <EditableText tag="p" className="square-support" value={data.support} onChange={edit("support")} />}
       </div>
       <div className="cnv-footer cnv-footer-sig">
         <Signature data={data} size="lg" onPhotoClick={onPhotoClick} />
         <div className="cnv-footer-right">
-          {data.closer && <div className="closer">{data.closer}</div>}
+          {(data.closer || onEditField) && <EditableText tag="div" className="closer" value={data.closer} onChange={edit("closer")} />}
           <div className="attribution">{data.attribution || `saleh seddik // ${new Date().getFullYear()}`}</div>
         </div>
       </div>

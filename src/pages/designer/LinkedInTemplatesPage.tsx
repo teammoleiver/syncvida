@@ -1393,6 +1393,7 @@ export default function LinkedInTemplatesPage() {
                   onChangeOverlays={(next) => editCheatData({ ...cheatData, overlays: next })}
                   zoom={zoom}
                   onPhotoClick={openPhotoPicker}
+                  onEditField={(field, value) => editCheatData((d) => ({ ...d, [field]: value }))}
                 />
               )}
               {active === "carousel" && (
@@ -1405,6 +1406,7 @@ export default function LinkedInTemplatesPage() {
                   onChangeOverlays={(next) => editCarouselData({ ...carouselData, overlays: { ...(carouselData.overlays ?? {}), [slideIdx]: next } })}
                   zoom={zoom}
                   onPhotoClick={openPhotoPicker}
+                  onEditSlide={(field, value) => editCarouselData((d) => ({ ...d, slides: (d.slides ?? []).map((s, i) => i === slideIdx ? { ...s, [field]: value } : s) }))}
                 />
               )}
               {active === "square" && (

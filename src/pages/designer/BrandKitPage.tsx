@@ -1,13 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Loader2, Sparkles, Upload } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, Upload, ImagePlus, X, Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { extractBrandFromUrl, getBrandKit, upsertBrandKit, uploadBrandFile, type BrandKit } from "@/lib/designer-queries";
+import {
+  extractBrandFromUrl, getBrandKit, upsertBrandKit, uploadBrandFile,
+  uploadAsset, listProfileAssets, setAssetProfile, deleteAsset,
+  type BrandKit, type DesignAsset,
+} from "@/lib/designer-queries";
+import { resolveAvatarUrl } from "@/lib/avatar";
+import { getProfile } from "@/lib/supabase-queries";
+import { supabase } from "@/integrations/supabase/client";
 
 const FONT_OPTIONS = ["Inter", "Manrope", "Playfair Display", "Space Grotesk", "DM Sans", "Lora", "Source Serif 4", "Poppins", "Bebas Neue"];
 
@@ -143,8 +150,141 @@ export default function BrandKitPage() {
             return <FileSlot key={slot} label={label} url={url} onPick={(file) => uploadFile(slot, file)} />;
           })}
         </div>
+        <p className="text-xs text-muted-foreground">Logos here are for your company brand. For your own face in posts, use Profile photos below.</p>
       </Card>
+
+      <ProfilePhotosSection />
     </section>
+  );
+}
+
+/**
+ * Profile photos = the user's own headshots used as the author face in designs.
+ * Distinct from the company logos above. Pulls the photo from Settings as the
+ * first option, and lets the user add as many of their own as they like — any
+ * of which the generator can pick from at random.
+ */
+function ProfilePhotosSection() {
+  const [assets, setAssets] = useState<DesignAsset[]>([]);
+  const [settingsAvatar, setSettingsAvatar] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function reload() {
+    setAssets(await listProfileAssets().catch(() => []));
+  }
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: { user } }, prof] = await Promise.all([
+        supabase.auth.getUser(),
+        getProfile().catch(() => null),
+      ]);
+      const oauth = (user as any)?.user_metadata?.avatar_url || null;
+      const resolved = await resolveAvatarUrl({
+        userId: user?.id,
+        storedAvatar: (prof as any)?.avatar_url,
+        oauthAvatarUrl: oauth,
+      }).catch(() => null);
+      setSettingsAvatar(resolved ?? (prof as any)?.avatar_url ?? oauth ?? null);
+      await reload();
+      setLoading(false);
+    })();
+  }, []);
+
+  // Has the Settings photo already been added to the profile-photo library?
+  const settingsAdded = !!settingsAvatar && assets.some(
+    (a) => a.public_url && settingsAvatar.split("?")[0].includes(a.storage_path.split("/").pop() || "\0"),
+  );
+
+  async function addSettingsPhoto() {
+    if (!settingsAvatar) return;
+    setBusy(true);
+    try {
+      const res = await fetch(settingsAvatar);
+      if (!res.ok) throw new Error("Could not fetch your settings photo");
+      const blob = await res.blob();
+      const file = new File([blob], "profile-photo.jpg", { type: blob.type || "image/jpeg" });
+      const asset = await uploadAsset(file);
+      await setAssetProfile(asset.id, true);
+      await reload();
+      toast.success("Added your settings photo");
+    } catch (e: any) { toast.error(e?.message ?? "Could not add photo"); } finally { setBusy(false); }
+  }
+
+  async function addFiles(files: FileList) {
+    setBusy(true);
+    try {
+      for (const file of Array.from(files)) {
+        const asset = await uploadAsset(file);
+        await setAssetProfile(asset.id, true);
+      }
+      await reload();
+      toast.success(files.length > 1 ? `Added ${files.length} photos` : "Photo added");
+    } catch (e: any) { toast.error(e?.message ?? "Upload failed"); } finally { setBusy(false); }
+  }
+
+  async function remove(a: DesignAsset) {
+    setBusy(true);
+    try { await deleteAsset(a); await reload(); toast.success("Removed"); }
+    catch (e: any) { toast.error(e?.message ?? "Could not remove"); } finally { setBusy(false); }
+  }
+
+  return (
+    <Card className="p-5 space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <Label>Profile photos</Label>
+          <p className="text-xs text-muted-foreground mt-1">Your own headshots. Designs use one of these as the author face — never the company logo.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <input ref={fileRef} type="file" accept="image/*" multiple className="hidden"
+            onChange={(e) => { if (e.target.files?.length) addFiles(e.target.files); e.currentTarget.value = ""; }} />
+          <Button size="sm" onClick={() => fileRef.current?.click()} disabled={busy}>
+            {busy ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ImagePlus className="w-4 h-4 mr-1" />}
+            Add photos
+          </Button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-sm text-muted-foreground py-4">Loading…</div>
+      ) : (
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+          {settingsAvatar && !settingsAdded && (
+            <div className="space-y-1">
+              <div className="aspect-square rounded-md overflow-hidden border border-dashed border-border bg-muted/30 relative group">
+                <img src={settingsAvatar} alt="Settings photo" className="w-full h-full object-cover opacity-80" />
+                <button onClick={addSettingsPhoto} disabled={busy}
+                  className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium">
+                  <Check className="w-4 h-4 mr-1" /> Use this
+                </button>
+              </div>
+              <div className="text-[10px] text-center text-muted-foreground">From Settings</div>
+            </div>
+          )}
+          {assets.map((a) => (
+            <div key={a.id} className="space-y-1">
+              <div className="aspect-square rounded-md overflow-hidden border border-border bg-muted/30 relative group">
+                <img src={a.public_url} alt={a.name ?? "Profile photo"} className="w-full h-full object-cover" />
+                <button onClick={() => remove(a)} disabled={busy} title="Remove"
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+          {!assets.length && (!settingsAvatar || settingsAdded) && (
+            <button onClick={() => fileRef.current?.click()}
+              className="aspect-square rounded-md border border-dashed border-border flex flex-col items-center justify-center bg-muted/30 text-muted-foreground hover:bg-muted/50 transition-colors">
+              <ImagePlus className="w-6 h-6 mb-1" />
+              <span className="text-[10px]">Add</span>
+            </button>
+          )}
+        </div>
+      )}
+    </Card>
   );
 }
 
