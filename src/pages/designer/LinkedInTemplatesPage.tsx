@@ -1518,6 +1518,13 @@ export default function LinkedInTemplatesPage() {
           usedMemories={aiPreview.usedMemories}
           applying={aiApplying}
           onApply={applyAiPreview}
+          hashtagFirst={hashtagFirst}
+          onHashtagFirstChange={setHashtagFirst}
+          hook={aiPreview.hook}
+          body={aiPreview.body}
+          onSlidesChange={(slides, iconHints) =>
+            setAiPreview((p) => (p ? { ...p, slides, iconHints } : p))
+          }
         />
       )}
 
