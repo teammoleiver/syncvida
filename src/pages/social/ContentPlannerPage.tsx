@@ -763,14 +763,38 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
       toast.error("Mark the post as Ready first, then schedule it");
       return;
     }
-    if (!form.scheduled_date) { toast.error("Pick a date first"); return; }
-    if (!form.scheduled_time) { toast.error("Pick a time first"); return; }
     if (!(form.platforms ?? []).length) { toast.error("Pick at least one platform"); return; }
-    const utc = localDateTimeToUtcIso(form.scheduled_date, form.scheduled_time);
+    setScheduleModalOpen(true);
+  }
+
+  async function confirmScheduleFromModal(date: string, time: string) {
+    const utc = localDateTimeToUtcIso(date, time);
     if (!utc) { toast.error("Invalid date/time"); return; }
     if (new Date(utc).getTime() <= Date.now()) { toast.error("Pick a future date/time"); return; }
-    setForm({ ...form, status: "scheduled" });
-    save("scheduled");
+    setForm({ ...form, scheduled_date: date, scheduled_time: time, status: "scheduled" });
+    // Persist using the freshly-picked values (state update is async).
+    await saveWithSchedule(date, time);
+    setScheduleModalOpen(false);
+  }
+
+  async function saveWithSchedule(date: string, time: string) {
+    if (!form.hook?.trim()) { toast.error("Hook is required"); return; }
+    setBusy(true);
+    try {
+      const scheduled_at = localDateTimeToUtcIso(date, time);
+      const payload: any = {
+        hook: form.hook, body: form.body || null, image_url: form.image_url || null,
+        document_url: form.document_url || null, document_filename: form.document_filename || null,
+        scheduled_date: date, scheduled_time: time,
+        scheduled_at,
+        platforms: form.platforms ?? [], status: "scheduled",
+        figma_brief: figmaBrief ?? form.figma_brief ?? null,
+      };
+      if (isNew) await createPlannerPost(payload);
+      else await updatePlanEntry(entry.id, payload);
+      toast.success(`Scheduled for ${formatScheduled(scheduled_at)}`);
+      onSaved();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
   }
 
   function useDesignAsImage() {
