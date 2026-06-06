@@ -587,6 +587,7 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
   const [postingToFacebook, setPostingToFacebook] = useState(false);
   const [postingToInstagram, setPostingToInstagram] = useState(false);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const navigate = useNavigate();
   const [figmaBrief, setFigmaBrief] = useState<string | null>(entry?.figma_brief ?? null);
   const [me, setMe] = useState<{ name?: string; linkedin_url?: string; style?: string } | null>(null);
