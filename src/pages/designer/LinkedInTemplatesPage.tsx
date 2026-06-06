@@ -32,11 +32,11 @@ import { LINKEDIN_DESIGN_SYSTEM, validateCarousel, sanitizeCarouselFilename, typ
 import { getProfile } from "@/lib/supabase-queries";
 import { supabase } from "@/integrations/supabase/client";
 import { getAiReview, saveAiReview, getActiveMemoryRules, addDesignMemory } from "@/lib/linkedin-ai-review";
-import { aiFillCarouselTemplate, applyAiSlidesToCarousel, saveTemplateFillMemory } from "@/lib/linkedin-template-ai";
+import { aiFillCarouselTemplate, applyAiSlidesToCarousel, saveTemplateFillMemory, saveFillHistory, markFillHistoryApplied } from "@/lib/linkedin-template-ai";
 import { Switch } from "@/components/ui/switch";
 import { removeWhiteBackground } from "@/lib/designer-utils";
 import { AiFillPreviewDialog } from "@/components/designer/linkedin/AiFillPreviewDialog";
-import { validateAiFill } from "@/lib/linkedin-fill-validation";
+import { validateAiFill, TEXT_SIZE_PRESETS } from "@/lib/linkedin-fill-validation";
 
 type TemplateKey = "cheatsheet" | "carousel" | "square";
 
@@ -153,9 +153,14 @@ export default function LinkedInTemplatesPage() {
     hook: string; body: string;
     slides: any[]; iconHints: (string | null)[];
     rationale: string | null; usedMemories: number;
+    historyId?: string | null;
   } | null>(null);
   const [aiPreviewOpen, setAiPreviewOpen] = useState(false);
   const [aiApplying, setAiApplying] = useState(false);
+  // Hashtag-first style toggle — when true, hashtag/tag slides are allowed.
+  const [hashtagFirst, setHashtagFirst] = useState(false);
+  // Snapshot of the previous carousel state for one-click undo after Apply.
+  const [undoSnapshot, setUndoSnapshot] = useState<CarouselData | null>(null);
   // Active tab in review dialog: "copy" | "visual"
   const [reviewTab, setReviewTab] = useState<"copy" | "visual">("copy");
   // The user's real headshot — the design system makes a face photo MANDATORY
@@ -225,17 +230,23 @@ export default function LinkedInTemplatesPage() {
     if (!hook && !post) { toast.error("Open this editor from a planner post to use AI Auto-Fill."); return; }
     setAiFilling(true);
     try {
-      const res = await aiFillCarouselTemplate({ hook, body: post, current: carouselData });
+      const res = await aiFillCarouselTemplate({ hook, body: post, current: carouselData, hashtagFirst });
       // AI Preview mode: surface the plan for review before mutating the canvas.
+      const v = validateAiFill(res.slides, { hashtagFirst });
+      const errs = v.issues.filter((i) => i.severity === "error").length;
+      const warns = v.issues.filter((i) => i.severity === "warn").length;
+      const historyId = await saveFillHistory({
+        hook, body: post, themeKey: carouselData.themeKey, hashtagFirst,
+        slides: res.slides, iconHints: res.iconHints,
+        score: v.score, errors: errs, warnings: warns, applied: false,
+      }).catch(() => null);
       setAiPreview({
         hook, body: post,
         slides: res.slides, iconHints: res.iconHints,
         rationale: res.rationale, usedMemories: res.usedMemories,
+        historyId,
       });
       setAiPreviewOpen(true);
-      const v = validateAiFill(res.slides);
-      const errs = v.issues.filter((i) => i.severity === "error").length;
-      const warns = v.issues.filter((i) => i.severity === "warn").length;
       toast.success(
         errs > 0 ? `Plan ready — ${errs} issue${errs > 1 ? "s" : ""} flagged for review`
         : warns > 0 ? `Plan ready — ${warns} suggestion${warns > 1 ? "s" : ""} to review`
@@ -256,6 +267,9 @@ export default function LinkedInTemplatesPage() {
     if (!aiPreview) return;
     setAiApplying(true);
     try {
+      // Snapshot for undo BEFORE mutating.
+      const prev = structuredClone(carouselData);
+      setUndoSnapshot(prev);
       const next = applyAiSlidesToCarousel(carouselData, {
         slides: aiPreview.slides, iconHints: aiPreview.iconHints,
         rationale: aiPreview.rationale, usedMemories: aiPreview.usedMemories,
@@ -268,7 +282,18 @@ export default function LinkedInTemplatesPage() {
         hook: aiPreview.hook, body: aiPreview.body, themeKey: carouselData.themeKey,
         slides: aiPreview.slides, iconHints: aiPreview.iconHints, rating: 1,
       }).catch(() => { /* non-blocking */ });
-      toast.success(`Applied ${aiPreview.slides.length} slides to carousel`);
+      if (aiPreview.historyId) markFillHistoryApplied(aiPreview.historyId).catch(() => {});
+      toast.success(`Applied ${aiPreview.slides.length} slides to carousel`, {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            editCarouselData(prev);
+            setUndoSnapshot(null);
+            toast.success("Reverted to previous carousel");
+          },
+        },
+        duration: 12000,
+      });
       setAiPreviewOpen(false);
       setAiPreview(null);
     } finally {
