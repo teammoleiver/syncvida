@@ -9,13 +9,16 @@ const BELL_CTA = "Turn on the bell so you never miss a post";
 
 /**
  * Strip slide-reference markers a writer may leave in the copy — "[S2]",
- * "[Slide 3]", "(slide 4)", "P2:" — so they don't become garbage slide titles.
+ * "[Slide 3]", "(slide 4)", "P2:" — plus hashtags. Hashtags belong in the post
+ * text, never on a slide, so a "#SalesReports #AI #..." block must not become a
+ * slide of its own.
  */
 function stripSlideMarkers(s: string): string {
   return (s || "")
     .replace(/\[\s*(?:s|slide|p|page)\s*\d+\s*\]/gi, " ")
     .replace(/\(\s*(?:slide|page)\s*\d+\s*\)/gi, " ")
     .replace(/^\s*(?:slide|page)\s*\d+\s*[:.\-—]\s*/gim, " ")
+    .replace(/#[\p{L}\p{N}_]+/gu, " ") // drop hashtags — they live in the post, not slides
     .replace(/[ \t]{2,}/g, " ")
     .trim();
 }
@@ -783,8 +786,8 @@ export function buildCheatSheetFromPost(
 ): CheatSheetData {
   const ACCENTS: AccentKey[] = ["coral", "amber", "teal", "sky", "indigo", "olive"];
   const TAGS = ["The Shift", "Definition", "Setup", "The Stack", "Playbook", "Insight"];
-  const cleanHook = (hook || "").trim();
-  const cleanBody = (body || "").trim();
+  const cleanHook = stripSlideMarkers((hook || "").trim());
+  const cleanBody = stripSlideMarkers((body || "").trim());
 
   const paragraphs = cleanBody.split(/\n\s*\n+/).map((p) => p.trim()).filter(Boolean);
   let chunks = paragraphs;
@@ -795,50 +798,52 @@ export function buildCheatSheetFromPost(
       chunks.push(sents.slice(i, i + 2).join(" "));
     }
   }
-  chunks = chunks.slice(0, 6);
+  // Drop near-empty fragments so a section is never one stray word ("The loops.").
+  chunks = chunks.map((c) => stripSlideMarkers(c)).filter((c) => contentWordCount(c) >= 4).slice(0, 6);
+
+  // A "strong" stat has a unit (%, $, x, K/M/B) or 2+ digits — never a bare
+  // single digit (which would grab the "8" from "n8n" or "2" from "2 nights").
+  const STRONG_STAT = /\$\d[\d.,]*|\d[\d.,]*\s?%|\b\d[\d.,]*x\b|\b\d[\d.,]*\s?[KMB]\b|\b\d{2,}\b/gi;
 
   const sections: SheetSection[] = chunks.map((chunk, i) => {
     const accent = ACCENTS[i % ACCENTS.length];
     const tag = TAGS[i % TAGS.length];
     const lines = chunk.split(/\n+/).map((l) => l.trim()).filter(Boolean);
     const bulletLines = lines.filter((l) => /^([-•*]|\d+[.)])\s+/.test(l));
-    const sentences = chunk.split(/(?<=[.!?])\s+/).filter(Boolean);
+    const sentences = chunk.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
     const title = (lines[0] || sentences[0] || `Point ${i + 1}`)
       .replace(/^([-•*]|\d+[.)])\s+/, "")
       .slice(0, 70);
 
-    // Stats heuristic — chunk loaded with %, $, x numbers
-    const statMatches = chunk.match(/[\$<]?\d+(?:\.\d+)?[%xKMB+]?/g) || [];
-    if (statMatches.length >= 2 && bulletLines.length === 0) {
-      const items = statMatches.slice(0, 4).map((m) => {
-        const ctx = chunk.split(m)[1]?.split(/[.!?\n]/)[0]?.trim() || "";
-        return `${m} :: ${ctx.slice(0, 28) || "metric"} :: ${ctx.slice(0, 60) || ""}`;
-      });
-      return { tag, accent, title, kind: "stats", items };
-    }
-
+    // Explicit bullet / numbered list.
     if (bulletLines.length >= 2) {
       const items = bulletLines
         .map((l) => l.replace(/^([-•*]|\d+[.)])\s+/, "").slice(0, 110))
         .slice(0, 5);
-      const isOrdered = /^\d+[.)]/.test(bulletLines[0]);
-      return { tag, accent, title, kind: isOrdered ? "checklist" : "bullets", items };
+      return { tag, accent, title, kind: /^\d+[.)]/.test(bulletLines[0]) ? "checklist" : "bullets", items };
     }
 
-    // Default: split sentences into bullets
+    // Strong-stat section — only when there are ≥2 real metrics with a clean label.
+    const stats = chunk.match(STRONG_STAT) || [];
+    if (stats.length >= 2) {
+      const items = stats.slice(0, 4).map((m) => {
+        const sent = sentences.find((s) => s.includes(m)) || "";
+        const label = sent.replace(m, "").replace(/\s{2,}/g, " ").replace(/[.!?]+$/, "").trim().slice(0, 44) || "metric";
+        return `${m} :: ${label}`;
+      });
+      return { tag, accent, title, kind: "stats", items };
+    }
+
+    // Default: clean bullets from the remaining sentences — never repeat the title.
     const items = sentences
-      .filter((s) => s.length > 8)
+      .filter((s) => s.length > 12 && s.toLowerCase() !== title.toLowerCase())
       .slice(0, 4)
-      .map((s) => s.trim().slice(0, 120));
-    if (items.length >= 2) {
+      .map((s) => s.replace(/[.!?]+$/, "").slice(0, 120));
+    if (items.length >= 1) {
       return { tag, accent, title, kind: "bullets", items };
     }
-    // Tiny chunk → render as pills (single thoughts)
-    return {
-      tag, accent, title,
-      kind: "pills",
-      items: [chunk.slice(0, 80)],
-    };
+    // The whole chunk is essentially the title — render it as one clean pill.
+    return { tag, accent, title, kind: "pills", items: [chunk.replace(/[.!?]+$/, "").slice(0, 90)] };
   });
 
   // Always end with a single "Takeaway" closing card if room.

@@ -234,7 +234,7 @@ function LogoDetailPanel({
 }
 
 export default function AssetPickerDialog({
-  open, onClose, onPick, onUsePhoto, photoMode = false, defaultAspect = "1:1", canvasSize,
+  open, onClose, onPick, onUsePhoto, photoMode = false, profilePhoto, profileAssets, defaultAspect = "1:1", canvasSize,
 }: {
   open: boolean;
   onClose: () => void;
@@ -243,6 +243,10 @@ export default function AssetPickerDialog({
   onUsePhoto?: (a: DesignAsset) => void;
   /** When true, the dialog opened to choose a face photo — picking sets the photo. */
   photoMode?: boolean;
+  /** The user's Profile photo — offered as the FIRST, recommended choice in photo mode. */
+  profilePhoto?: string;
+  /** The user's designated profile headshots (Asset library) — shown first in photo mode. */
+  profileAssets?: DesignAsset[];
   defaultAspect?: AspectKey;
   canvasSize?: CanvasSize;
 }) {
@@ -447,11 +451,42 @@ export default function AssetPickerDialog({
           </div>
         )}
 
-        {/* Photo-mode hint */}
+        {/* Photo-mode hint + your Profile photo as the recommended first choice */}
         {stage === "browse" && photoMode && (
-          <div className="px-3 sm:px-4 py-2 bg-primary/5 border-b border-border text-[11px] text-muted-foreground flex items-center gap-1.5">
-            <User className="w-3.5 h-3.5 text-primary shrink-0" />
-            Pick a photo to use as your <strong className="text-foreground">cover &amp; footer headshot</strong>. Upload a new one if you don't see it.
+          <div className="border-b border-border">
+            <div className="px-3 sm:px-4 py-2 bg-primary/5 text-[11px] text-muted-foreground flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-primary shrink-0" />
+              Pick the photo for your <strong className="text-foreground">cover &amp; footer headshot</strong>. Upload a new one if you don't see it.
+            </div>
+            {(profileAssets?.length ?? 0) > 0 && onUsePhoto ? (
+              <div className="px-3 sm:px-4 py-2.5 border-t border-border">
+                <div className="text-[10px] uppercase tracking-wide text-primary font-semibold mb-1.5 flex items-center gap-1">
+                  <User className="w-3 h-3" /> Your profile photos
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {profileAssets!.map((a) => (
+                    <button key={a.id} type="button" onClick={() => onUsePhoto(a)} title={a.name ?? "Use this photo"}
+                      className="w-14 h-14 rounded-full overflow-hidden border-2 border-primary/60 hover:border-primary transition shrink-0">
+                      <img src={a.public_url} alt={a.name ?? ""} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1.5">Manage these in the Asset library — mark headshots with the person icon.</p>
+              </div>
+            ) : profilePhoto && onUsePhoto && (
+              <button
+                type="button"
+                onClick={() => onUsePhoto({ id: "profile", name: "Profile photo", public_url: profilePhoto } as any)}
+                className="w-full flex items-center gap-3 px-3 sm:px-4 py-2.5 hover:bg-primary/5 transition text-left border-t border-border"
+              >
+                <img src={profilePhoto} alt="Your profile photo" className="w-11 h-11 rounded-full object-cover border-2 border-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold">Use your profile photo</div>
+                  <div className="text-[11px] text-muted-foreground">From your Profile — recommended</div>
+                </div>
+                <span className="text-[11px] font-semibold text-primary shrink-0">Use</span>
+              </button>
+            )}
           </div>
         )}
 

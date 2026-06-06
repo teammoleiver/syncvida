@@ -96,6 +96,8 @@ export type DesignAsset = {
   parent_asset_id: string | null; width: number | null; height: number | null;
   mime: string | null; created_at: string;
   name?: string | null;
+  /** True when the user designated this asset as one of their profile headshots. */
+  is_profile?: boolean | null;
 };
 
 export type DesignTemplate = {
@@ -177,6 +179,20 @@ export async function listAssets(): Promise<DesignAsset[]> {
   const u = await uid();
   const { data } = await supabase.from("design_assets" as any).select("*").eq("user_id", u).order("created_at", { ascending: false });
   return (data as any) ?? [];
+}
+
+/** The user's personal headshots — the LinkedIn carousel face is drawn from these. */
+export async function listProfileAssets(): Promise<DesignAsset[]> {
+  const u = await uid();
+  const { data } = await supabase.from("design_assets" as any)
+    .select("*").eq("user_id", u).eq("is_profile", true).order("created_at", { ascending: false });
+  return (data as any) ?? [];
+}
+
+/** Mark / unmark an asset as one of the user's profile headshots. */
+export async function setAssetProfile(asset_id: string, is_profile: boolean): Promise<void> {
+  const { error } = await supabase.from("design_assets" as any).update({ is_profile } as any).eq("id", asset_id);
+  if (error) throw error;
 }
 /**
  * Upload a design's rendered PNG thumbnail to the (public) design-exports bucket

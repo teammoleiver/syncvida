@@ -149,6 +149,7 @@
   color: var(--text-display);
   margin: 0;
   text-wrap: balance;
+  white-space: pre-line; /* honor manual line breaks */
 }
 .cnv-hero .sub {
   font-size: 18px;
@@ -251,6 +252,7 @@
   color: var(--text-display);
   margin: 0;
   text-wrap: balance;
+  white-space: pre-line; /* honor manual line breaks */
 }
 .cnv-card .cap {
   font-size: 14px;
@@ -754,6 +756,7 @@
   color: var(--text-display);
   margin: 0;
   text-wrap: balance;
+  white-space: pre-line; /* honor manual line breaks */
 }
 .carousel-body p {
   font-size: 22px;
@@ -819,6 +822,7 @@
   color: var(--text-display);
   margin: 0;
   text-wrap: balance;
+  white-space: pre-line; /* honor manual line breaks the user adds */
 }
 .carousel-cover-sub {
   font-size: 22px;
@@ -1127,13 +1131,15 @@
   gap: 12px;
   margin-top: 22px;
 }
-/* Each CTA (follow / bell) reads as a button — the action is the content. */
+/* Each CTA (follow / bell) reads as a button — the action is the content.
+   The primary (follow) pill inverts the canvas so its text always contrasts,
+   regardless of the theme's accent color (some accents are near-white). */
 .carousel-cta-action {
   font-family: var(--font-mono);
   font-size: 22px;
   font-weight: 700;
-  color: var(--accent-fg, #04201D);
-  background: var(--accent);
+  color: var(--bg-canvas, #0B0F1A);
+  background: var(--text-display, #F5F1E8);
   letter-spacing: 0.02em;
   padding: 14px 26px;
   border-radius: 999px;

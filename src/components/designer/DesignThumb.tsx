@@ -14,6 +14,9 @@ import { CheatSheetCanvas, CarouselCanvas, SquareCanvas } from "@/components/des
 export default function DesignThumb({ design, className = "" }: { design: Design; className?: string }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.2);
+  // Only mount the (heavy) live canvas once the card is near the viewport.
+  // Rendering every design's full canvas at once is what made the grid crawl.
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -25,34 +28,43 @@ export default function DesignThumb({ design, className = "" }: { design: Design
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    return () => ro.disconnect();
+    const io = new IntersectionObserver(
+      (entries) => { for (const e of entries) if (e.isIntersecting) { setVisible(true); io.disconnect(); } },
+      { rootMargin: "300px" },
+    );
+    io.observe(el);
+    return () => { ro.disconnect(); io.disconnect(); };
   }, [design.width]);
 
-  // LinkedIn template kinds render via their dedicated canvas components,
-  // scaled identically to canvas designs so the grid stays uniform.
   const td = (design as any).template_data;
-  const linkedInWrap = (
-    <div
-      ref={wrapRef}
-      className={`relative w-full overflow-hidden ${className}`}
-      style={{ aspectRatio: `${design.width} / ${design.height}` }}
-    >
+  const isLinkedIn = design.kind && design.kind !== "canvas" && td;
+
+  // LinkedIn template kinds render via their dedicated canvas components.
+  if (isLinkedIn) {
+    return (
       <div
-        className="absolute top-0 left-0 origin-top-left"
-        style={{ width: design.width, height: design.height, transform: `scale(${scale})` }}
+        ref={wrapRef}
+        className={`relative w-full overflow-hidden bg-muted ${className}`}
+        style={{ aspectRatio: `${design.width} / ${design.height}` }}
       >
-        {design.kind === "linkedin_cheatsheet" && td && <CheatSheetCanvas data={td} idForExport={`thumb-${design.id}`} />}
-        {design.kind === "linkedin_carousel" && td && <CarouselCanvas data={td} idForExport={`thumb-${design.id}`} />}
-        {design.kind === "linkedin_square" && td && <SquareCanvas data={td} idForExport={`thumb-${design.id}`} />}
+        {visible && (
+          <div
+            className="absolute top-0 left-0 origin-top-left"
+            style={{ width: design.width, height: design.height, transform: `scale(${scale})` }}
+          >
+            {design.kind === "linkedin_cheatsheet" && <CheatSheetCanvas data={td} idForExport={`thumb-${design.id}`} />}
+            {design.kind === "linkedin_carousel" && <CarouselCanvas data={td} idForExport={`thumb-${design.id}`} />}
+            {design.kind === "linkedin_square" && <SquareCanvas data={td} idForExport={`thumb-${design.id}`} />}
+          </div>
+        )}
       </div>
-    </div>
-  );
-  if (design.kind && design.kind !== "canvas" && td) return linkedInWrap;
+    );
+  }
 
   const slide = Array.isArray(design.slides) ? design.slides[0] : undefined;
   const elements = Array.isArray(slide?.elements) ? slide!.elements : [];
   if (!slide) {
-    return <div className={`w-full h-full bg-muted ${className}`} />;
+    return <div ref={wrapRef} className={`w-full h-full bg-muted ${className}`} />;
   }
 
   return (
@@ -70,7 +82,7 @@ export default function DesignThumb({ design, className = "" }: { design: Design
           transform: `scale(${scale})`,
         }}
       >
-        {elements.map((el) => (el.hidden ? null : <ElementView key={el.id} el={el} />))}
+        {visible && elements.map((el) => (el.hidden ? null : <ElementView key={el.id} el={el} />))}
       </div>
     </div>
   );

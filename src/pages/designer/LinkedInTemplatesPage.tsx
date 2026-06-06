@@ -25,11 +25,12 @@ import {
   buildCarouselFromPost, buildCheatSheetFromPost, buildSquareFromPost,
   buildSalehFigmaCarousel, autoFixCarousel,
 } from "@/components/designer/linkedin/editorHelpers";
-import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, getBrandKit, type DesignAsset } from "@/lib/designer-queries";
+import { createLinkedInTemplate, updateLinkedInTemplate, getDesign, listProfileAssets, type DesignAsset } from "@/lib/designer-queries";
 import { detectMentionedLogos, type DetectedLogo } from "@/components/designer/linkedin/detectLogos";
 import { autoPlaceSlideAssets, mergeAutoOverlays, countDecoratedSlides } from "@/components/designer/linkedin/autoDecorate";
 import { LINKEDIN_DESIGN_SYSTEM, validateCarousel, sanitizeCarouselFilename, type ValidationResult } from "@/lib/linkedin-design-system";
 import { getProfile } from "@/lib/supabase-queries";
+import { resolveAvatarUrl } from "@/lib/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { getAiReview, saveAiReview, getActiveMemoryRules, addDesignMemory } from "@/lib/linkedin-ai-review";
 import { aiFillCarouselTemplate, applyAiSlidesToCarousel, saveTemplateFillMemory, saveFillHistory, markFillHistoryApplied } from "@/lib/linkedin-template-ai";
@@ -166,6 +167,9 @@ export default function LinkedInTemplatesPage() {
   // The user's real headshot — the design system makes a face photo MANDATORY
   // on the carousel cover (a logo does not stop the scroll).
   const [profileAvatar, setProfileAvatar] = useState<string | undefined>(undefined);
+  // The user's designated profile headshots (Asset library). The carousel face
+  // is drawn from these; the picker offers them first.
+  const [profileAssets, setProfileAssets] = useState<DesignAsset[]>([]);
 
   /**
    * Auto art-director: read each carousel slide and drop the brand logo(s) it
@@ -315,41 +319,64 @@ export default function LinkedInTemplatesPage() {
         if (!d) { setLoadingExisting(false); return; }
         setTitle(d.title || "");
         const data = (d as any).template_data;
+        // Brand basis carried into the two derived formats so they stay consistent.
+        const base = (src: any) => ({
+          author: src?.author, handleShort: src?.handleShort,
+          avatarUrl: src?.avatarUrl, photoKey: src?.photoKey, themeKey: src?.themeKey,
+        });
         if (d.kind === "linkedin_cheatsheet" && data) {
-          setCheatData({
-            ...SEED_CHEAT_SHEET,
-            ...data,
-            sections: Array.isArray(data.sections) ? data.sections : SEED_CHEAT_SHEET.sections,
-            overlays: Array.isArray(data.overlays) ? data.overlays : [],
-          });
+          const cheat = { ...SEED_CHEAT_SHEET, ...data, sections: Array.isArray(data.sections) ? data.sections : SEED_CHEAT_SHEET.sections, overlays: Array.isArray(data.overlays) ? data.overlays : [] };
+          setCheatData(cheat);
           setActive("cheatsheet");
+          const hook = cheat.title || "";
+          const body = (cheat.sections ?? []).map((s: any) => [s.title, s.subtitle, ...(s.items ?? [])].filter(Boolean).join(" ")).join("\n\n");
+          setCarouselData(buildCarouselFromPost(hook, body, base(cheat)));
+          setSquareData(buildSquareFromPost(hook, body, base(cheat)));
         } else if (d.kind === "linkedin_carousel" && data) {
-          setCarouselData({
-            ...SEED_CAROUSEL,
-            ...data,
-            slides: Array.isArray(data.slides) ? data.slides : SEED_CAROUSEL.slides,
-            overlays: Array.isArray(data.overlays) ? data.overlays : [],
-          });
+          const carousel = { ...SEED_CAROUSEL, ...data, slides: Array.isArray(data.slides) ? data.slides : SEED_CAROUSEL.slides, overlays: Array.isArray(data.overlays) ? data.overlays : [] };
+          setCarouselData(carousel);
           setActive("carousel");
+          const hook = carousel.slides?.find((s: any) => s.layout === "cover")?.title || carousel.slides?.[0]?.title || "";
+          const body = (carousel.slides ?? []).filter((s: any) => s.layout !== "cover" && s.layout !== "cta").map((s: any) => [s.title, s.body, ...(s.bullets ?? []), ...(s.leftItems ?? []), ...(s.rightItems ?? [])].filter(Boolean).join(" ")).join("\n\n");
+          setCheatData(buildCheatSheetFromPost(hook, body, base(carousel)));
+          setSquareData(buildSquareFromPost(hook, body, base(carousel)));
         } else if (d.kind === "linkedin_square" && data) {
-          setSquareData({ ...SEED_SQUARE, ...data });
+          const square = { ...SEED_SQUARE, ...data };
+          setSquareData(square);
           setActive("square");
+          const hook = (square.statement || "").replace(/\*/g, "");
+          const body = square.support || "";
+          setCarouselData(buildCarouselFromPost(hook, body, base(square)));
+          setCheatData(buildCheatSheetFromPost(hook, body, base(square)));
         }
       } finally { setLoadingExisting(false); }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [designIdFromUrl]);
 
-  // Load the user's real headshot once. Prefer the PROFILE photo (a real human
-  // headshot) over the brand-kit "avatar", which is often a logo — the cover
-  // face must be a face, not a logo. Only use a URL that actually loads.
+  // Resolve the carousel face. Priority: a designated PROFILE photo from the
+  // Asset library (picked at random) → the Profile-setting photo → OAuth photo.
+  // NEVER the brand-kit logo. The avatar bucket is private, so the profile photo
+  // is resolved to a signed URL.
   useEffect(() => {
     void (async () => {
-      const [prof, kit] = await Promise.all([
+      const assets = await listProfileAssets().catch(() => [] as DesignAsset[]);
+      setProfileAssets(assets);
+      if (assets.length) {
+        const chosen = assets[Math.floor(Math.random() * assets.length)];
+        if (chosen?.public_url && await imageLoads(chosen.public_url)) { setProfileAvatar(chosen.public_url); return; }
+      }
+      const [{ data: { user } }, prof] = await Promise.all([
+        supabase.auth.getUser(),
         getProfile().catch(() => null),
-        getBrandKit().catch(() => null),
       ]);
-      const candidates = [(prof as any)?.avatar_url, (kit as any)?.avatar_url].filter(Boolean) as string[];
+      const oauth = (user as any)?.user_metadata?.avatar_url || null;
+      const resolved = await resolveAvatarUrl({
+        userId: user?.id,
+        storedAvatar: (prof as any)?.avatar_url,
+        oauthAvatarUrl: oauth,
+      }).catch(() => null);
+      const candidates = [resolved, (prof as any)?.avatar_url, oauth].filter(Boolean) as string[];
       for (const url of candidates) {
         if (await imageLoads(url)) { setProfileAvatar(url); return; }
       }
@@ -357,9 +384,13 @@ export default function LinkedInTemplatesPage() {
   }, []);
   useEffect(() => {
     if (!profileAvatar || loadingExisting) return;
-    setCarouselData((d) => (d.avatarUrl ? d : { ...d, avatarUrl: profileAvatar }));
-    setCheatData((d) => (d.avatarUrl ? d : { ...d, avatarUrl: profileAvatar }));
-    setSquareData((d) => (d.avatarUrl ? d : { ...d, avatarUrl: profileAvatar }));
+    // Set the headshot when none is set, AND replace a brand-kit logo that a
+    // previous version may have baked in (those are /brand-assets/ URLs).
+    // Genuine user-picked photos (design-assets uploads) are left untouched.
+    const needsPhoto = (u?: string) => !u || u.includes("/brand-assets/");
+    setCarouselData((d) => (needsPhoto(d.avatarUrl) ? { ...d, avatarUrl: profileAvatar } : d));
+    setCheatData((d) => (needsPhoto(d.avatarUrl) ? { ...d, avatarUrl: profileAvatar } : d));
+    setSquareData((d) => (needsPhoto(d.avatarUrl) ? { ...d, avatarUrl: profileAvatar } : d));
   }, [profileAvatar, loadingExisting]);
 
   // Load any cached AI review for this design so it isn't re-run on every open.
@@ -1498,6 +1529,8 @@ export default function LinkedInTemplatesPage() {
         onPick={(a) => { addImageFromAsset(a as any); closeAssetPicker(); }}
         onUsePhoto={useAssetAsPhoto}
         photoMode={photoPickMode}
+        profilePhoto={profileAvatar}
+        profileAssets={profileAssets}
         defaultAspect={active === "square" ? "1:1" : "4:5"}
         canvasSize={DIMENSIONS[active]}
       />
@@ -1927,7 +1960,7 @@ function CheatSheetForm({ data, setData }: { data: CheatSheetData; setData: (d: 
                   </Select>
                 </div>
               </div>
-              <FieldText label="Title" value={s.title} onChange={(v) => updateSection(i, { title: v })} />
+              <FieldText label="Title" value={s.title} onChange={(v) => updateSection(i, { title: v })} multiline />
               <FieldText label="Subtitle" value={s.subtitle ?? ""} onChange={(v) => updateSection(i, { subtitle: v })} multiline />
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Kind</label>

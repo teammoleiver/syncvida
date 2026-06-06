@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Upload, Sparkles, Wand2, Loader2, Trash2, LinkIcon, Pencil, Eraser, Check, X } from "lucide-react";
+import { ArrowLeft, Upload, Sparkles, Wand2, Loader2, Trash2, LinkIcon, Pencil, Eraser, Check, X, User } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import {
   listAssets, uploadAsset, generateAssetImageWithRefs, editAssetImage, deleteAsset,
-  importAssetFromUrl, suggestAssetName, removeAssetBackground, renameAsset,
+  importAssetFromUrl, suggestAssetName, removeAssetBackground, renameAsset, setAssetProfile,
   type DesignAsset,
 } from "@/lib/designer-queries";
 
@@ -46,7 +46,7 @@ export default function AssetLibraryPage() {
         </div>
       </header>
       <p className="text-xs text-muted-foreground -mt-2">
-        Tip: assets here can be used as references when you generate new images — perfect for logos, brand marks, or your personal photo.
+        Tip: upload several headshots and mark them with the <User className="w-3 h-3 inline -mt-0.5" /> button as <strong>Profile photos</strong> — your LinkedIn carousel face is picked from those. Other assets are references for AI image generation.
       </p>
 
       {loading ? <p className="text-muted-foreground">Loading…</p>
@@ -72,6 +72,7 @@ export default function AssetLibraryPage() {
 
 function AssetCard({ asset, onEdit, onRename, onChanged }: { asset: DesignAsset; onEdit: () => void; onRename: () => void; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
+  const isProfile = !!asset.is_profile;
 
   async function aiName() {
     setBusy(true);
@@ -83,8 +84,17 @@ function AssetCard({ asset, onEdit, onRename, onChanged }: { asset: DesignAsset;
     } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
   }
 
+  async function toggleProfile() {
+    setBusy(true);
+    try {
+      await setAssetProfile(asset.id, !isProfile);
+      toast.success(isProfile ? "Removed from profile photos" : "Marked as a profile photo");
+      onChanged();
+    } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setBusy(false); }
+  }
+
   return (
-    <Card className="overflow-hidden group relative">
+    <Card className={`overflow-hidden group relative ${isProfile ? "ring-2 ring-primary" : ""}`}>
       <img src={asset.public_url} alt={asset.name ?? ""} className="w-full aspect-square object-cover bg-muted" />
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 flex justify-between gap-1">
         <Button size="sm" variant="secondary" onClick={onEdit}><Wand2 className="w-3.5 h-3.5 mr-1" /> Edit</Button>
@@ -93,11 +103,20 @@ function AssetCard({ asset, onEdit, onRename, onChanged }: { asset: DesignAsset;
         </Button>
       </div>
       <div className="absolute top-1 left-1 text-[10px] uppercase bg-background/80 px-1.5 py-0.5 rounded">{asset.kind.replace("_", " ")}</div>
+      {isProfile && (
+        <div className="absolute top-1 right-1 text-[9px] uppercase font-bold tracking-wide bg-primary text-primary-foreground px-1.5 py-0.5 rounded flex items-center gap-0.5">
+          <User className="w-2.5 h-2.5" /> Profile
+        </div>
+      )}
       <div className="p-2 border-t border-border flex items-center gap-1">
         <button className="text-xs truncate text-left flex-1 hover:underline flex items-center gap-1"
           title={`${asset.name ?? "Untitled"} — click to rename`} onClick={onRename}>
           <span className="truncate">{asset.name || <span className="text-muted-foreground italic">Untitled</span>}</span>
         </button>
+        <Button size="icon" variant="ghost" className={`h-6 w-6 shrink-0 ${isProfile ? "text-primary" : ""}`}
+          title={isProfile ? "Remove from profile photos" : "Use as a profile photo (carousel face)"} onClick={toggleProfile} disabled={busy}>
+          <User className="w-3 h-3" />
+        </Button>
         <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" title="Rename" onClick={onRename}>
           <Pencil className="w-3 h-3" />
         </Button>
