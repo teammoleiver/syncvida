@@ -1204,6 +1204,15 @@ function PostEditor({ entry, isNew, onClose, onSaved }: { entry: any; isNew?: bo
           planId={entry?.id ?? null}
           onGenerated={(image_url) => setForm({ ...form, image_url })}
         />
+
+        <ScheduleModal
+          open={scheduleModalOpen}
+          onClose={() => setScheduleModalOpen(false)}
+          initialDate={form.scheduled_date || undefined}
+          initialTime={(form.scheduled_time || "").slice(0, 5) || undefined}
+          busy={busy}
+          onConfirm={confirmScheduleFromModal}
+        />
       </DialogContent>
     </Dialog>
   );
