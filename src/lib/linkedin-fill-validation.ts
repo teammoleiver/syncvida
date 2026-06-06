@@ -84,7 +84,10 @@ function isHashtagHeavy(s: CarouselSlide): boolean {
   return hashes >= 3;
 }
 
-export function validateAiFill(slides: CarouselSlide[]): ValidationResult {
+export function validateAiFill(
+  slides: CarouselSlide[],
+  opts: { hashtagFirst?: boolean } = {},
+): ValidationResult {
   const issues: SlideIssue[] = [];
   if (!Array.isArray(slides) || slides.length === 0) {
     return { ok: false, score: 0, issues: [{ slideIndex: 0, severity: "error", code: "title-empty", message: "AI returned no slides." }] };
@@ -133,7 +136,7 @@ export function validateAiFill(slides: CarouselSlide[]): ValidationResult {
         }
       }
     }
-    if (isHashtagHeavy(s)) {
+    if (isHashtagHeavy(s) && !opts.hashtagFirst) {
       issues.push({
         slideIndex: i, severity: "error", code: "hashtag-slide",
         message: `Slide ${i + 1} reads as a hashtag dump — these belong in the post caption, not the carousel.`,
@@ -196,3 +199,36 @@ export function fitTitleFontSize(text: string, opts: {
   const size = Math.round(opts.base * scale);
   return { fontSize: `${size}px`, lineHeight: 1.05 };
 }
+
+/**
+ * Resolve final inline font-size for a text element.
+ *  1. If the slide has an explicit per-element override (px), use it.
+ *  2. Otherwise, run the auto-fit shrink based on character length.
+ * This lets the user manually pin a size from the slide editor while
+ * still getting smart auto-reflow when nothing is overridden.
+ */
+export function resolveFontSize(
+  text: string,
+  overridePx: number | null | undefined,
+  fit: { base: number; min: number; breakpointChars: number },
+): React.CSSProperties {
+  if (typeof overridePx === "number" && overridePx > 0) {
+    return { fontSize: `${overridePx}px`, lineHeight: 1.1 };
+  }
+  return fitTitleFontSize(text, fit);
+}
+
+/** True when the slide is essentially a list of hashtags. */
+export function isHashtagOnlySlide(s: CarouselSlide): boolean {
+  const text = `${s.title ?? ""} ${s.body ?? ""}`.trim();
+  if (!text) return false;
+  const tokens = text.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return false;
+  const hashTokens = tokens.filter((t) => t.startsWith("#"));
+  return hashTokens.length / tokens.length >= 0.6;
+}
+
+/** Heading presets for the per-text size picker in the slide editor. */
+export const TEXT_SIZE_PRESETS: Record<"H1" | "H2" | "H3" | "Body" | "Caption", number> = {
+  H1: 72, H2: 56, H3: 44, Body: 32, Caption: 24,
+};
