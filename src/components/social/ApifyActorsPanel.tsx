@@ -4,13 +4,61 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, Star, Pencil, Check, X, Bot } from "lucide-react";
+import { Loader2, Plus, Trash2, Star, Pencil, Check, X, Bot, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   listApifyActors, createApifyActor, updateApifyActor, deleteApifyActor, setDefaultApifyActor,
   parseApifyActorId,
   type ApifyActor, type ApifyActorKind,
 } from "@/lib/social-queries";
+
+// The actors Syncvida actually runs by default across the system. Shown so you
+// can see (and test) exactly what's scraping, even before registering your own.
+const BUILTIN_ACTORS = [
+  { label: "LinkedIn posts scraper", actor_id: "94SdiE9JwTx0RNyfS", usedBy: "LinkedIn → scrape posts (daily cron + on-demand)" },
+  { label: "LinkedIn profile scraper", actor_id: "apivault_labs/linkedin-profile-scraper", usedBy: "LinkedIn → Analyze my profile" },
+  { label: "YouTube channel scraper", actor_id: "67Q6fmd8iedTVcCwY", usedBy: "YouTube → fetch videos" },
+  { label: "YouTube transcript scraper", actor_id: "faVsWy9VTSNVIhWpR", usedBy: "YouTube → video transcripts" },
+];
+
+// Build an Apify link from an id ("abc123" → console) or owner/name ("a/b" → store).
+function actorUrl(id: string): string {
+  const norm = id.replace("~", "/");
+  if (norm.includes("/")) {
+    const [owner, name] = norm.split("/");
+    return `https://apify.com/${owner}/${name}`;
+  }
+  return `https://console.apify.com/actors/${id}`;
+}
+
+/** Tests an actor via the test-apify-actor function (GET only — no run cost). */
+function ActorTestButton({ actorId }: { actorId: string }) {
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  async function test() {
+    setTesting(true); setResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("test-apify-actor", { body: { actor_id: actorId } });
+      if (error) throw error;
+      const r = data as any;
+      setResult(r?.ok ? { ok: true, msg: r.title || r.name || "Working" } : { ok: false, msg: r?.error || "Failed" });
+    } catch (e: any) { setResult({ ok: false, msg: e?.message ?? "Test failed" }); }
+    finally { setTesting(false); }
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <Button size="sm" variant="outline" className="h-7" onClick={test} disabled={testing}>
+        {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Test"}
+      </Button>
+      {result && (
+        <span className={`text-[11px] ${result.ok ? "text-emerald-600" : "text-red-500"}`} title={result.msg}>
+          {result.ok ? "✓ " : "✗ "}{result.msg.slice(0, 30)}
+        </span>
+      )}
+    </span>
+  );
+}
 
 const KIND_LABELS: Record<ApifyActorKind, string> = {
   youtube_channel: "YouTube channel",
@@ -134,10 +182,29 @@ export default function ApifyActorsPanel() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        <strong>Optional / advanced.</strong> Syncvida ships with built-in default actors for YouTube and LinkedIn,
-        so you only need to add an Apify <em>API account</em> above — no actor setup required. Add an actor here
-        only if you want to <em>override</em> the built-in default for a kind (e.g. a faster or cheaper scraper).
+        <strong>Built-in</strong> actors (below) run by default and can't be deleted. Add your own only to <em>override</em> a
+        default or scrape a new platform — those you can edit or delete. Click an ID to open it on Apify; <strong>Test</strong>
+        confirms it's reachable with your token (no run cost).
       </p>
+
+      <div className="space-y-2">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Built-in · always available</div>
+        {BUILTIN_ACTORS.map((a) => (
+          <div key={a.actor_id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/20 p-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="secondary" className="text-[10px]">Built-in</Badge>
+                <span className="font-medium text-sm">{a.label}</span>
+                <a href={actorUrl(a.actor_id)} target="_blank" rel="noreferrer" className="font-mono text-[10px] text-primary hover:underline inline-flex items-center gap-0.5 truncate max-w-[260px]">{a.actor_id} <ExternalLink className="w-3 h-3" /></a>
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">{a.usedBy}</div>
+            </div>
+            <ActorTestButton actorId={a.actor_id} />
+          </div>
+        ))}
+      </div>
+
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground pt-1">Your custom actors</div>
 
       {showAdd && (
         <div className="rounded-md border border-border p-3 space-y-2 bg-muted/30">
@@ -253,6 +320,7 @@ export default function ApifyActorsPanel() {
                           {a.notes && <span className="text-[11px] text-muted-foreground italic truncate max-w-[300px]">{a.notes}</span>}
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
+                          <ActorTestButton actorId={a.actor_id} />
                           {!a.is_default && (
                             <Button size="sm" variant="ghost" onClick={() => makeDefault(a)} title="Make default for this kind">
                               <Star className="w-3 h-3" />

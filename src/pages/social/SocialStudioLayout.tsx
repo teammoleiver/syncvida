@@ -1,13 +1,14 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Linkedin, Newspaper, Settings as SettingsIcon, LayoutDashboard, Search, Youtube } from "lucide-react";
+import { Linkedin, Newspaper, LayoutDashboard, Search, Youtube } from "lucide-react";
 
+// Settings deliberately omitted — all settings now live in the central
+// Settings page (/settings → Social Hub). The Social Hub is for working, not config.
 const tabs = [
   { to: "/social", label: "Overview", icon: LayoutDashboard, end: true },
   { to: "/social/search", label: "Search", icon: Search },
   { to: "/social/linkedin", label: "LinkedIn", icon: Linkedin },
   { to: "/social/youtube", label: "YouTube", icon: Youtube },
   { to: "/social/news", label: "News & RSS", icon: Newspaper },
-  { to: "/social/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 export default function SocialStudioLayout() {

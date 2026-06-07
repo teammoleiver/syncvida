@@ -77,13 +77,10 @@ ARTICLES:
 ${articlesForPrompt}`;
 
     // BYO keys: prefer the user's saved keys, fall back to platform secrets.
-    const lovableKey = Deno.env.get("OPENAI_API_KEY");
     const anthropicKey = (settings?.anthropic_api_key || "").trim() || Deno.env.get("ANTHROPIC_API_KEY");
     const openaiKey = (settings?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
-    const provider = settings?.preferred_provider || "lovable";
-    const tryOrder = provider === "anthropic" ? ["anthropic", "openai", "lovable"]
-      : provider === "openai" ? ["openai", "anthropic", "lovable"]
-      : ["lovable", "anthropic", "openai"];
+    const provider = settings?.preferred_provider || "openai";
+    const tryOrder = provider === "anthropic" ? ["anthropic", "openai"] : ["openai", "anthropic"];
 
     let resultText = ""; let usedProvider = ""; let lastErr: any = null;
     for (const p of tryOrder) {
@@ -101,16 +98,6 @@ ${articlesForPrompt}`;
             method: "POST", headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
             body: JSON.stringify({ model: settings?.openai_model || "gpt-5-mini", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], response_format: { type: "json_object" } }),
           });
-          const d = await r.json(); if (!r.ok) throw new Error(JSON.stringify(d));
-          resultText = d.choices?.[0]?.message?.content ?? ""; usedProvider = p; break;
-        }
-        if (p === "lovable" && lovableKey) {
-          const r = await fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST", headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ model: settings?.lovable_model || "gpt-4o-mini", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], response_format: { type: "json_object" } }),
-          });
-          if (r.status === 429) throw new Error("rate_limited");
-          if (r.status === 402) throw new Error("payment_required");
           const d = await r.json(); if (!r.ok) throw new Error(JSON.stringify(d));
           resultText = d.choices?.[0]?.message?.content ?? ""; usedProvider = p; break;
         }

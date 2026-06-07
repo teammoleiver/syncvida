@@ -107,12 +107,11 @@ function scrubAiTells(text: string): string {
 }
 
 async function callAI(systemPrompt: string, userPrompt: string, openaiKey?: string) {
-  // BYO key: if the user saved an OpenAI key, call OpenAI directly; else use the platform Lovable gateway.
-  const userKey = (openaiKey || "").trim();
-  const endpoint = userKey ? "https://api.openai.com/v1/chat/completions" : "https://ai.gateway.lovable.dev/v1/chat/completions";
-  const model = userKey ? "gpt-4o-mini" : "google/gemini-2.5-flash";
-  const apiKey = userKey || Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) throw new Error("No AI key available. Add your own in Social Hub → Settings → AI provider.");
+  // Always OpenAI: the user's saved key, else the platform OpenAI key.
+  const endpoint = "https://api.openai.com/v1/chat/completions";
+  const model = "gpt-4o-mini";
+  const apiKey = (openaiKey || "").trim() || Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) throw new Error("No OpenAI key available. Add your own in Settings → AI API.");
   const r = await fetch(endpoint, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },

@@ -74,7 +74,7 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    let lovableKey = Deno.env.get("OPENAI_API_KEY"); // overridden by the user's own key after settings load
+    let openaiKey = Deno.env.get("OPENAI_API_KEY"); // overridden by the user's own key after settings load
     const linkupKey = Deno.env.get("LINKUP_API_KEY");
 
     const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -91,7 +91,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: settings } = await admin.from("social_writer_settings").select("*").eq("user_id", user.id).maybeSingle();
     // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
-    lovableKey = ((settings as any)?.openai_api_key || "").trim() || lovableKey;
+    openaiKey = ((settings as any)?.openai_api_key || "").trim() || openaiKey;
     const url = (linkedin_url || settings?.linkedin_url || "").trim();
     if (!url) return jr({ error: "LinkedIn URL required" }, 400);
 
@@ -122,7 +122,7 @@ Deno.serve(async (req: Request) => {
     let headline = "";
     let location = "";
 
-    if (lovableKey) {
+    if (openaiKey) {
       const prompt = `You are extracting a LinkedIn persona using ONLY the WEB CONTEXT below (sourced via Linkup public web search). Strict rules:
 - Do NOT invent any fact. If a field is not clearly supported by the WEB CONTEXT, return an empty string.
 - Use first person ("I") for narrative fields.
@@ -140,7 +140,7 @@ ${postsSearch.answer.slice(0, 6000)}`;
       try {
         const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${openaiKey}` },
           body: JSON.stringify({
             model: "gpt-4o-mini",
             messages: [{ role: "user", content: prompt }],

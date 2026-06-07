@@ -127,10 +127,13 @@ function AppRoutes() {
       <Route path="/social" element={<ProtectedRoute><AppLayout><SocialStudioLayout /></AppLayout></ProtectedRoute>}>
         <Route index element={<SocialOverview />} />
         <Route path="search" element={<SearchPage />} />
-        <Route path="linkedin" element={<SocialMediaModule defaultTab="profiles" hideHeader />} />
+        {/* LinkedIn workspace — each sub-tab is its own URL: /social/linkedin/<tab> */}
+        <Route path="linkedin" element={<Navigate to="/social/linkedin/profiles" replace />} />
+        <Route path="linkedin/:tab" element={<SocialMediaModule hideHeader basePath="/social/linkedin" />} />
         <Route path="youtube" element={<YouTubePage />} />
         <Route path="news" element={<NewsPage />} />
-        <Route path="settings" element={<SocialMediaModule defaultTab="settings" hideHeader />} />
+        {/* Social Hub settings moved to the central Settings page. */}
+        <Route path="settings" element={<Navigate to="/settings?tab=social" replace />} />
       </Route>
       <Route path="/content-studio" element={<ProtectedRoute><AppLayout><ContentStudioPage /></AppLayout></ProtectedRoute>} />
       <Route path="/content-planner" element={<ProtectedRoute><AppLayout><ContentPlannerPage /></AppLayout></ProtectedRoute>} />
@@ -141,8 +144,13 @@ function AppRoutes() {
       <Route path="/designer/assets" element={<ProtectedRoute><AppLayout><AssetLibraryPage /></AppLayout></ProtectedRoute>} />
       <Route path="/designer/linkedin-templates" element={<ProtectedRoute><AppLayout><LinkedInTemplatesPage /></AppLayout></ProtectedRoute>} />
       <Route path="/designer/:id" element={<ProtectedRoute><AppLayout><DesignEditor /></AppLayout></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsModule /></AppLayout></ProtectedRoute>} />
-      <Route path="/admin" element={<ProtectedRoute><AppLayout><AdminPanel /></AppLayout></ProtectedRoute>} />
+      {/* Central settings hub — each tab is its own URL: /settings/<section>
+          and /settings/social-hub/<sub>. /admin & /profile redirect in. */}
+      <Route path="/settings" element={<Navigate to="/settings/profile" replace />} />
+      <Route path="/settings/:section" element={<ProtectedRoute><AppLayout><AdminPanel /></AppLayout></ProtectedRoute>} />
+      <Route path="/settings/:section/:sub" element={<ProtectedRoute><AppLayout><AdminPanel /></AppLayout></ProtectedRoute>} />
+      <Route path="/admin" element={<Navigate to="/settings/profile" replace />} />
+      <Route path="/profile" element={<Navigate to="/settings/profile" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
     </Suspense>

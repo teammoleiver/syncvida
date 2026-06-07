@@ -180,8 +180,8 @@ OUTPUT: Just the post — no preamble, no headers.`,
   },
 };
 
-async function callLovable(systemPrompt: string, userPrompt: string, model: string, key?: string) {
-  if (!key) throw new Error("No OpenAI key available. Add your own in Social Hub → Settings → AI provider.");
+async function callOpenAI(systemPrompt: string, userPrompt: string, model: string, key?: string) {
+  if (!key) throw new Error("No OpenAI key available. Add your own in Settings → AI API.");
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -190,7 +190,7 @@ async function callLovable(systemPrompt: string, userPrompt: string, model: stri
   if (res.status === 429) throw new Error("rate_limited");
   if (res.status === 402) throw new Error("payment_required");
   const d = await res.json();
-  if (!res.ok) throw new Error(`Lovable AI ${res.status}: ${JSON.stringify(d)}`);
+  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${JSON.stringify(d)}`);
   return d.choices?.[0]?.message?.content ?? "";
 }
 
@@ -262,7 +262,7 @@ Return JSON ONLY:
 
       // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
       const __openaiKey = ((settings as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
-      const text = await callLovable(sysP, userP, settings?.lovable_model || "gpt-4o-mini", __openaiKey);
+      const text = await callOpenAI(sysP, userP, settings?.openai_model || "gpt-4o-mini", __openaiKey);
       const match = text.match(/\{[\s\S]*\}/);
       let parsed: any = {};
       try { parsed = JSON.parse(match?.[0] ?? "{}"); } catch { /* */ }

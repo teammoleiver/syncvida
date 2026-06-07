@@ -64,8 +64,7 @@ const navGroups: NavGroup[] = [
 // Bottom-pinned items (always visible at the bottom of sidebar)
 const bottomNavItems: NavItem[] = [
   { path: "/assistant", icon: MessageCircle, label: "Assistant" },
-  { path: "/admin", icon: Settings, label: "Settings" },
-  { path: "/settings", icon: UserIcon, label: "Profile" },
+  { path: "/settings", icon: Settings, label: "Settings" },
 ];
 
 // Sidebar nav item — Clay-style monochrome: dark text + dark icon, with the
@@ -91,6 +90,9 @@ const mobileNavItems: NavItem[] = [
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { signOut } = useAuth();
+  // Highlight a nav item on its sub-routes too (e.g. /settings/profile → Settings).
+  const isActive = (path: string) =>
+    location.pathname === path || (path !== "/" && location.pathname.startsWith(path + "/"));
   // Light-first: the redesigned Syncvida is light by default. Dark is opt-in via
   // the toggle. (New storage key so old OS-derived "dark" prefs don't stick.)
   const [dark, setDark] = useState(() => {
@@ -153,7 +155,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
               <div className="space-y-[1px]">
                 {group.items.map((item) => {
-                  const active = location.pathname === item.path;
+                  const active = isActive(item.path);
                   return (
                     <Link key={item.path} to={item.path} className={navItemClass(active, sidebarOpen)}>
                       <item.icon className="w-[17px] h-[17px] shrink-0" />
@@ -169,7 +171,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               when the viewport is short */}
           <div className="mt-2 pt-1.5 space-y-[1px] border-t border-sidebar-border/50">
           {bottomNavItems.map((item) => {
-            const active = location.pathname === item.path;
+            const active = isActive(item.path);
             return (
               <Link key={item.path} to={item.path} className={navItemClass(active, sidebarOpen)}>
                 <item.icon className="w-[17px] h-[17px] shrink-0" />
@@ -248,7 +250,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       )}
                       <div className="space-y-0.5">
                         {group.items.map((item) => {
-                          const active = location.pathname === item.path;
+                          const active = isActive(item.path);
                           return (
                             <Link
                               key={item.path}
@@ -270,7 +272,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 </nav>
                 <div className="border-t border-border px-2 py-2 space-y-0.5">
                   {bottomNavItems.map((item) => {
-                    const active = location.pathname === item.path;
+                    const active = isActive(item.path);
                     return (
                       <Link
                         key={item.path}
@@ -326,7 +328,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border">
         <div className="flex items-center justify-around py-2 px-2">
           {mobileNavItems.map((item) => {
-            const active = location.pathname === item.path;
+            const active = isActive(item.path);
             return (
               <Link
                 key={item.path}

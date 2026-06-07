@@ -217,15 +217,12 @@ async function callAIWithFallback(provider: string, settings: any, systemPrompt:
   // platform secret so users who leave it blank keep working.
   const anthropicKey = (settings?.anthropic_api_key || "").trim() || Deno.env.get("ANTHROPIC_API_KEY");
   const openaiKey = (settings?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
-  const tryOrder = provider === "anthropic" ? ["anthropic", "openai", "lovable"]
-    : provider === "openai" ? ["openai", "anthropic", "lovable"]
-    : ["lovable", "anthropic", "openai"];
+  const tryOrder = provider === "anthropic" ? ["anthropic", "openai"] : ["openai", "anthropic"];
   let lastErr: any = null;
   for (const p of tryOrder) {
     try {
       if (p === "anthropic") return { provider: p, text: await callAnthropic(systemPrompt, userPrompt, settings?.anthropic_model || "claude-sonnet-4-20250514", anthropicKey) };
       if (p === "openai") return { provider: p, text: await callOpenAI(systemPrompt, userPrompt, settings?.openai_model || "gpt-5-mini", openaiKey) };
-      if (p === "lovable") return { provider: p, text: await callLovable(systemPrompt, userPrompt, settings?.lovable_model || "gpt-4o-mini") };
     } catch (e) { lastErr = e; }
   }
   throw lastErr ?? new Error("all_providers_failed");
@@ -267,7 +264,7 @@ Return JSON: {"suggestions":[{"framework":"BuildInPublic","reason":"..."}]}
 
 SOURCE:
 ${sourceText || idea}`;
-      const result = await callAIWithFallback(settings?.preferred_provider || "lovable", settings, sysP, userP);
+      const result = await callAIWithFallback(settings?.preferred_provider || "openai", settings, sysP, userP);
       const match = result.text.match(/\{[\s\S]*\}/);
       let parsed: any = { suggestions: [] };
       try { parsed = JSON.parse(match?.[0] ?? "{}"); } catch { /* ignore */ }
@@ -316,7 +313,7 @@ ${sourceText || idea}`;
           .replaceAll("{{banned}}", inputs.banned)
           .replaceAll("{{wordLimit}}", String(inputs.wordLimit))
       : fw.prompt(inputs);
-    const result = await callAIWithFallback(settings?.preferred_provider || "lovable", settings, baseSys, userPrompt);
+    const result = await callAIWithFallback(settings?.preferred_provider || "openai", settings, baseSys, userPrompt);
     const text = result.text.trim();
 
     const { data: draft } = await admin.from("social_generated_drafts").insert({

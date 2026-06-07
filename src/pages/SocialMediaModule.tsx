@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, EyeOff, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle, Star, ListPlus, Tag, Folder, ChevronDown, BarChart3, Pin, PinOff, Search as SearchIcon, ThumbsUp, ThumbsDown, Brain } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, ChevronLeft, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, EyeOff, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle, Star, ListPlus, Tag, Folder, ChevronDown, BarChart3, Pin, PinOff, Search as SearchIcon, ThumbsUp, ThumbsDown, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -179,8 +180,26 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<any> }[] = [
   { id: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
-export default function SocialMediaModule({ defaultTab, hideHeader }: { defaultTab?: Tab; hideHeader?: boolean } = {}) {
-  const [tab, setTab] = useState<Tab>(defaultTab ?? "profiles");
+export default function SocialMediaModule({ defaultTab, hideHeader, embedded, basePath }: { defaultTab?: Tab; hideHeader?: boolean; embedded?: boolean; basePath?: string } = {}) {
+  const params = useParams();
+  const navigate = useNavigate();
+  const [internalTab, setInternalTab] = useState<Tab>(defaultTab ?? "profiles");
+
+  // Embedded inside the central Settings page → render ONLY the writer settings
+  // (the single canonical home for these). No tab bar, no other Social Hub tabs.
+  if (embedded) {
+    return <div className="space-y-6"><SettingsTab /></div>;
+  }
+
+  // Standalone Social Hub → the "Settings" tab is removed; writer settings now
+  // live in the central Settings page (/settings → Social Hub).
+  const visibleTabs = TABS.filter((t) => t.id !== "settings");
+
+  // When a basePath is given, each sub-tab is its own URL (/social/linkedin/<tab>);
+  // otherwise fall back to internal state.
+  const urlTab = basePath ? (params.tab as Tab | undefined) : undefined;
+  const tab: Tab = (visibleTabs.some((t) => t.id === urlTab) ? urlTab : (basePath ? "profiles" : internalTab)) as Tab;
+  const setTab = (id: Tab) => { if (basePath) navigate(`${basePath}/${id}`); else setInternalTab(id); };
 
   return (
     <div className={hideHeader ? "space-y-6" : "container max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6"}>
@@ -193,7 +212,7 @@ export default function SocialMediaModule({ defaultTab, hideHeader }: { defaultT
       </header>}
 
       <div className="border-b border-border flex gap-1 overflow-x-auto whitespace-nowrap scrollbar-none pb-0.5 -mx-4 px-4 md:mx-0 md:px-0">
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
@@ -2617,10 +2636,9 @@ function SettingsTab() {
   const [s, setS] = useState<any>({
     custom_system_prompt: "",
     banned_words: [],
-    preferred_provider: "lovable",
+    preferred_provider: "openai",
     anthropic_model: "claude-sonnet-4-20250514",
     openai_model: "gpt-5-mini",
-    lovable_model: "google/gemini-3-flash-preview",
     default_word_limit: 150,
     voice_notes: "",
     about_me: "",
@@ -2896,59 +2914,14 @@ function SettingsTab() {
         />
       </Card>
 
-      <Card className="p-5 space-y-4">
-        <div className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-primary" /><h2 className="font-medium">AI provider</h2></div>
-        <p className="text-xs text-muted-foreground">Falls back automatically if the preferred provider fails. Add your own API keys below to run AI on your own account — leave blank to use Syncvida's built-in keys.</p>
-        <Select value={s.preferred_provider} onValueChange={(v) => setS({ ...s, preferred_provider: v })}>
-          <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="anthropic">Anthropic Claude (preferred)</SelectItem>
-            <SelectItem value="openai">OpenAI</SelectItem>
-            <SelectItem value="lovable">Lovable AI (default Gemini)</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <ApiKeyInput
-            provider="anthropic"
-            label="Your Anthropic API key"
-            placeholder="sk-ant-..."
-            saved={!!(s as any).has_anthropic_api_key || !!s.anthropic_api_key}
-            onChange={(v) => setS({ ...s, anthropic_api_key: v })}
-            hint="console.anthropic.com → API keys"
-          />
-          <ApiKeyInput
-            provider="openai"
-            label="Your OpenAI API key"
-            placeholder="sk-..."
-            saved={!!(s as any).has_openai_api_key || !!s.openai_api_key}
-            onChange={(v) => setS({ ...s, openai_api_key: v })}
-            hint="platform.openai.com → API keys"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div><label className="text-xs font-medium">Anthropic model</label><Input value={s.anthropic_model ?? ""} onChange={(e) => setS({ ...s, anthropic_model: e.target.value })} /></div>
-          <div><label className="text-xs font-medium">OpenAI model</label><Input value={s.openai_model ?? ""} onChange={(e) => setS({ ...s, openai_model: e.target.value })} /></div>
-          <div><label className="text-xs font-medium">Lovable AI model</label><Input value={s.lovable_model ?? ""} onChange={(e) => setS({ ...s, lovable_model: e.target.value })} /></div>
-        </div>
+      <Card className="p-4 space-y-1 bg-muted/30">
+        <div className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /><h2 className="font-medium text-sm">AI provider</h2></div>
+        <p className="text-xs text-muted-foreground">Your AI keys & models now live in one universal place: <strong>Settings → AI API</strong>. They power every AI feature across Syncvida.</p>
       </Card>
-
-      <Card className="p-5 space-y-3">
-        <div className="flex items-center gap-2"><LinkIcon className="w-5 h-5 text-primary" /><h2 className="font-medium">Apify scraping</h2></div>
-        <p className="text-xs text-muted-foreground">Token + default actor are stored as Supabase secrets (<code>APIFY_API_TOKEN</code>, <code>APIFY_LINKEDIN_ACTOR_ID</code>). Override the actor per profile in the Profiles tab.</p>
-        <Badge variant="secondary">Daily cron at 06:00 UTC for active profiles</Badge>
-      </Card>
-
-      <ApifyAccountsPanel />
-
-      <ApifyActorsPanel />
 
       <FrameworkPromptsEditor />
 
       <CommentTonesEditor />
-
-      <ScrapeHistoryPanel />
 
       <ScrapeMemoryPanel />
 
@@ -3255,15 +3228,18 @@ function ScrapeHistoryPanel() {
   const [filterAccount, setFilterAccount] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [openRun, setOpenRun] = useState<any | null>(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const load = async () => {
     setLoading(true);
     const [r, a, p] = await Promise.all([
-      listScrapeRuns({ limit: 100, ...(filterAccount !== "all" ? { account_id: filterAccount } : {}) }),
+      // Cap the fetch so a long history never loads everything at once.
+      listScrapeRuns({ limit: 250, ...(filterAccount !== "all" ? { account_id: filterAccount } : {}) }),
       listApifyAccounts(),
       listSocialProfiles(),
     ]);
-    setRuns(r); setAccounts(a); setProfiles(p); setLoading(false);
+    setRuns(r); setAccounts(a); setProfiles(p); setPage(1); setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filterAccount]);
 
@@ -3272,6 +3248,9 @@ function ScrapeHistoryPanel() {
     const p = profiles.find((x) => x.id === id);
     return p?.display_name || p?.username || "—";
   };
+
+  const totalPages = Math.max(1, Math.ceil(runs.length / PAGE_SIZE));
+  const pageRuns = runs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <Card className="p-5 space-y-4">
@@ -3307,7 +3286,7 @@ function ScrapeHistoryPanel() {
               </tr>
             </thead>
             <tbody>
-              {runs.map((r) => (
+              {pageRuns.map((r) => (
                 <tr key={r.id} className="border-t border-border hover:bg-muted/20">
                   <td className="px-2 py-1.5 whitespace-nowrap">{new Date(r.ran_at).toLocaleString()}</td>
                   <td className="px-2 py-1.5">{profLabel(r.profile_id)}</td>
@@ -3329,6 +3308,23 @@ function ScrapeHistoryPanel() {
           </table>
         </div>
       }
+
+      {!loading && runs.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <span className="text-xs text-muted-foreground">
+            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, runs.length)} of {runs.length} runs
+          </span>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" className="h-7" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+              <ChevronLeft className="w-3.5 h-3.5" /> Prev
+            </Button>
+            <span className="text-xs text-muted-foreground tabular-nums px-1">Page {page} / {totalPages}</span>
+            <Button size="sm" variant="outline" className="h-7" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
+              Next <ChevronRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <Dialog open={!!openRun} onOpenChange={(v) => !v && setOpenRun(null)}>
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
@@ -3379,6 +3375,52 @@ function ScrapeHistoryPanel() {
         </DialogContent>
       </Dialog>
     </Card>
+  );
+}
+
+// ───────── Apify credit health (combined month-to-date usage) ─────────
+function ApifyCreditBar() {
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { (async () => { setAccounts(await listApifyAccounts().catch(() => [])); setLoading(false); })(); }, []);
+
+  const totalBudget = accounts.reduce((s, a) => s + Number(a.monthly_budget_usd ?? 5), 0);
+  const used = accounts.reduce((s, a) => s + (Number(a.posts_used_this_period ?? 0) / 10) * Number(a.cost_per_10_posts_usd ?? 0.5), 0);
+  const remaining = Math.max(0, totalBudget - used);
+  const pct = totalBudget > 0 ? Math.min(100, (used / totalBudget) * 100) : 0;
+  const postsLeft = Math.round(remaining / 0.05);
+  const activeCount = accounts.filter((a) => a.active).length;
+
+  return (
+    <Card className="p-5 space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2"><Activity className="w-5 h-5 text-primary" /><h2 className="font-medium">Apify credit health</h2></div>
+        <div className="text-sm text-muted-foreground tabular-nums">
+          {loading ? "…" : <>${used.toFixed(2)} / ${totalBudget.toFixed(2)} used · ~{postsLeft.toLocaleString()} posts left · {accounts.length} account{accounts.length !== 1 ? "s" : ""} ({activeCount} active)</>}
+        </div>
+      </div>
+      <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${pct > 85 ? "bg-destructive" : pct > 60 ? "bg-amber-500" : "bg-primary"}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-[11px] text-muted-foreground">Each account is ~$5 / 30 days (rolling). Scraping + transcripts rotate across active accounts; this is the combined month-to-date spend.</p>
+    </Card>
+  );
+}
+
+// ───────── Apify settings (accounts + actors + run history) ─────────
+export function ApifyTab() {
+  return (
+    <div className="space-y-4">
+      <Card className="p-5 space-y-2">
+        <div className="flex items-center gap-2"><LinkIcon className="w-5 h-5 text-primary" /><h2 className="font-medium">Apify</h2></div>
+        <p className="text-xs text-muted-foreground">Your Apify API accounts (rotating pool), the scraper actors per platform, and the full history of every run. LinkedIn scraping and YouTube transcripts run through these.</p>
+        <Badge variant="secondary">Daily cron at 06:00 UTC for active profiles</Badge>
+      </Card>
+      <ApifyCreditBar />
+      <ApifyAccountsPanel />
+      <ApifyActorsPanel />
+      <ScrapeHistoryPanel />
+    </div>
   );
 }
 

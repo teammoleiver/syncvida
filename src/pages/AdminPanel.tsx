@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Shield, Folder, Megaphone, Library, ClipboardList, Plus, Trash2, Loader2, Heart, FolderKanban, User as UserIcon, Webhook, Linkedin, Facebook, Instagram, Twitter, Youtube, Save, History, Plug } from "lucide-react";
 import WebhookHistory from "@/components/WebhookHistory";
 import SocialConnections from "@/components/SocialConnections";
-import { Link } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   listContentCategories, createContentCategory,
   updateContentCategory, deleteContentCategory, listContentItems,
@@ -16,12 +16,19 @@ import {
 } from "@/lib/social-queries";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import SocialMediaModule from "./SocialMediaModule";
+import SettingsModule from "./SettingsModule";
+import SocialHubSettings from "@/components/settings/SocialHubSettings";
+import AiProviderSettings from "@/components/settings/AiProviderSettings";
+import { Sparkles } from "lucide-react";
 
 type Cat = { id: string; name: string; slug: string; color?: string };
 type Item = { id: string; category_id: string | null };
 
 export default function AdminPanel() {
+  // Each tab is a real URL: /settings/<section> (and /settings/social-hub/<sub>).
+  const { section, sub } = useParams();
+  const navigate = useNavigate();
+  const activeTab = section ?? "profile";
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-5">
       <header className="flex items-center gap-3">
@@ -34,17 +41,26 @@ export default function AdminPanel() {
         </div>
       </header>
 
-      <Tabs defaultValue={new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("tab") || "content"} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(v) => navigate(`/settings/${v}`)} className="space-y-4">
         <TabsList className="flex flex-wrap h-auto">
+          <TabsTrigger value="profile"><UserIcon className="w-4 h-4 mr-1.5" />Profile</TabsTrigger>
           <TabsTrigger value="content"><Library className="w-4 h-4 mr-1.5" />Content</TabsTrigger>
           <TabsTrigger value="connections"><Plug className="w-4 h-4 mr-1.5" />Connections</TabsTrigger>
           <TabsTrigger value="webhooks"><Webhook className="w-4 h-4 mr-1.5" />Webhooks</TabsTrigger>
-          <TabsTrigger value="social"><Megaphone className="w-4 h-4 mr-1.5" />Social Studio</TabsTrigger>
-          <TabsTrigger value="planner"><ClipboardList className="w-4 h-4 mr-1.5" />Content Planner</TabsTrigger>
+          <TabsTrigger value="social-hub"><Megaphone className="w-4 h-4 mr-1.5" />Social Hub</TabsTrigger>
+          <TabsTrigger value="content-planner"><ClipboardList className="w-4 h-4 mr-1.5" />Content Planner</TabsTrigger>
           <TabsTrigger value="health"><Heart className="w-4 h-4 mr-1.5" />Health</TabsTrigger>
           <TabsTrigger value="productivity"><FolderKanban className="w-4 h-4 mr-1.5" />Productivity</TabsTrigger>
-          <TabsTrigger value="general"><UserIcon className="w-4 h-4 mr-1.5" />General</TabsTrigger>
+          <TabsTrigger value="ai-api"><Sparkles className="w-4 h-4 mr-1.5" />AI API</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="ai-api">
+          <AiProviderSettings />
+        </TabsContent>
+
+        <TabsContent value="profile" className="-mx-4 md:-mx-6">
+          <SettingsModule />
+        </TabsContent>
 
         <TabsContent value="connections" className="space-y-4">
           <Card className="p-5">
@@ -111,13 +127,11 @@ export default function AdminPanel() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="social">
-          <Card className="p-2 md:p-4">
-            <SocialMediaModule defaultTab="settings" hideHeader />
-          </Card>
+        <TabsContent value="social-hub">
+          <SocialHubSettings sub={sub} />
         </TabsContent>
 
-        <TabsContent value="planner">
+        <TabsContent value="content-planner">
           <Card className="p-5 space-y-2">
             <h2 className="font-display font-semibold">Content Planner settings</h2>
             <p className="text-sm text-muted-foreground">Planner uses the shared content categories above. Additional planner-specific settings (default cadence, weekly view start day, etc.) will appear here.</p>
@@ -152,12 +166,6 @@ export default function AdminPanel() {
           />
         </TabsContent>
 
-        <TabsContent value="general">
-          <Card className="p-5 space-y-3">
-            <h2 className="font-display font-semibold">General</h2>
-            <p className="text-sm text-muted-foreground">Personal account preferences (name, avatar, password, language, API keys) live in your <Link to="/settings" className="text-primary underline">Profile</Link> page.</p>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );

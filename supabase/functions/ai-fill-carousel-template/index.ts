@@ -2,7 +2,7 @@
 //
 // Given a post (hook + body), the user's brand/voice, and the structural
 // template (Saleh's 8-slide library: Cover · Context · Insight · Checklist ·
-// Proof · Quote · Comparison · CTA), this function asks Lovable AI to
+// Proof · Quote · Comparison · CTA), this function asks OpenAI to
 // rewrite every slide so the copy actually fits the post — not generic
 // template filler. It also returns icon hints (lucide names) and a
 // suggested accent so the auto-decorator has something to work with.
@@ -118,14 +118,12 @@ Deno.serve(async (req) => {
       examples ? `\n${examples}` : "",
     ].filter(Boolean).join("\n");
 
-    // BYO key: if the user saved an OpenAI key, call OpenAI directly; otherwise
-    // use the platform Lovable gateway (Gemini). Both are OpenAI-compatible.
+    // Always OpenAI: the user's saved key, else the platform OpenAI key.
     const { data: __aikeys } = await supabase.from("social_writer_settings").select("openai_api_key").eq("user_id", user.id).maybeSingle();
-    const __userOpenai = ((__aikeys as any)?.openai_api_key || "").trim();
-    const AI_ENDPOINT = __userOpenai ? "https://api.openai.com/v1/chat/completions" : "https://ai.gateway.lovable.dev/v1/chat/completions";
-    const AI_MODEL = __userOpenai ? "gpt-4o-mini" : "google/gemini-3-flash-preview";
-    const apiKey = __userOpenai || Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) return json({ error: "No AI key available. Add your own in Social Hub → Settings → AI provider." }, 500);
+    const AI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+    const AI_MODEL = "gpt-4o-mini";
+    const apiKey = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
+    if (!apiKey) return json({ error: "No OpenAI key available. Add your own in Settings → AI API." }, 500);
 
     const ai = await fetch(AI_ENDPOINT, {
       method: "POST",
