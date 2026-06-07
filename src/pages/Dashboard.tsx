@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import {
   AlertTriangle, Droplets, Utensils, Dumbbell, Scale,
   TrendingUp, TrendingDown, ArrowRight, Heart, Timer, Plus, Check,
+  Megaphone, Library, ClipboardList, Palette,
 } from "lucide-react";
 import { onSync } from "@/lib/sync-events";
 import { ProgressRing } from "@/components/ui/ProgressRing";
