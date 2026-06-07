@@ -14,6 +14,10 @@ import {
   HeartPulse, Globe, Search, MoreVertical, Pause, Archive,
   Play, Clock, Edit3, Sparkles,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+const AREA_COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#ef4444", "#f59e0b", "#10b981", "#06b6d4", "#84cc16", "#6b7280"];
 import { motion, AnimatePresence } from "framer-motion";
 
 // ============================================================
@@ -65,7 +69,7 @@ export interface Project {
   outcomeStatement: string;
   purpose: string;
   status: ProjectStatus;
-  area: ProjectArea;
+  area: string; // a built-in ProjectArea key or a user's custom area key
   horizon: HorizonLevel;
   color: string;
   icon: string;
@@ -132,16 +136,39 @@ export const HORIZON_DESCRIPTIONS: Record<HorizonLevel, {
   },
 };
 
-const AREA_CONFIG: Record<ProjectArea, { label: string; emoji: string; color: string }> = {
-  health:   { label: "Health",   emoji: "\ud83c\udfe5", color: "#ef4444" },
-  work:     { label: "Work",     emoji: "\ud83d\udcbc", color: "#6366f1" },
-  personal: { label: "Personal", emoji: "\ud83d\udc64", color: "#8b5cf6" },
-  finance:  { label: "Finance",  emoji: "\ud83d\udcb0", color: "#f59e0b" },
-  learning: { label: "Learning", emoji: "\ud83d\udcda", color: "#06b6d4" },
-  home:     { label: "Home",     emoji: "\ud83c\udfe0", color: "#84cc16" },
-  fitness:  { label: "Fitness",  emoji: "\ud83c\udfcb\ufe0f", color: "#1D9E75" },
-  custom:   { label: "Custom",   emoji: "\u2b50",       color: "#6b7280" },
+const AREA_CONFIG: Record<ProjectArea, { label: string; icon: React.ComponentType<any>; color: string }> = {
+  health:   { label: "Health",   icon: HeartPulse,   color: "#ef4444" },
+  work:     { label: "Work",     icon: Briefcase,    color: "#6366f1" },
+  personal: { label: "Personal", icon: User,         color: "#8b5cf6" },
+  finance:  { label: "Finance",  icon: Wallet,       color: "#f59e0b" },
+  learning: { label: "Learning", icon: BookOpen,     color: "#06b6d4" },
+  home:     { label: "Home",     icon: Home,         color: "#84cc16" },
+  fitness:  { label: "Fitness",  icon: DumbbellIcon, color: "#1D9E75" },
+  custom:   { label: "Custom",   icon: Sparkles,     color: "#6b7280" },
 };
+
+type AreaConf = { label: string; icon: React.ComponentType<any>; color: string };
+// User-defined areas, filled at runtime from the project_areas table. Kept as a
+// module registry so every card/list/form resolves an area key without prop drilling.
+let CUSTOM_AREAS: Record<string, { label: string; color: string }> = {};
+
+function getAreaConf(key: string): AreaConf {
+  const builtin = (AREA_CONFIG as Record<string, AreaConf>)[key];
+  if (builtin) return builtin;
+  const c = CUSTOM_AREAS[key];
+  if (c) return { label: c.label, icon: Tag, color: c.color };
+  return { label: key || "—", icon: Tag, color: "#6b7280" };
+}
+
+function areaEntries(): { key: string; conf: AreaConf }[] {
+  return [
+    ...Object.keys(AREA_CONFIG).map((k) => ({ key: k, conf: getAreaConf(k) })),
+    ...Object.keys(CUSTOM_AREAS).map((k) => ({ key: k, conf: getAreaConf(k) })),
+  ];
+}
+
+const slugifyArea = (label: string) =>
+  label.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
 
 const STATUS_CONFIG: Record<ProjectStatus, { label: string; color: string; bg: string }> = {
   active:       { label: "Active",        color: "#1D9E75", bg: "bg-emerald-500/10 text-emerald-400" },
@@ -298,7 +325,7 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
   const milestonePercent = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0;
   const due = dueDateLabel(project.dueDate);
   const hDesc = HORIZON_DESCRIPTIONS[project.horizon];
-  const areaConf = AREA_CONFIG[project.area];
+  const areaConf = getAreaConf(project.area);
   const statusConf = STATUS_CONFIG[project.status];
   const isStuck = project.status === "active" && !project.nextActionId && project.taskIds.length === 0;
 
@@ -340,10 +367,10 @@ function ProjectCard({ project, onClick }: { project: Project; onClick: () => vo
             {hDesc.label.replace("Horizon ", "H")}
           </span>
           <span
-            className="px-2 py-0.5 rounded-full text-[10px] font-medium"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
             style={{ backgroundColor: areaConf.color + "18", color: areaConf.color }}
           >
-            {areaConf.emoji} {areaConf.label}
+            <areaConf.icon className="w-3 h-3" /> {areaConf.label}
           </span>
         </div>
 
@@ -623,11 +650,11 @@ function ProjectDetailPanel({
               <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Area</label>
               <select
                 value={project.area}
-                onChange={e => update({ area: e.target.value as ProjectArea })}
+                onChange={e => update({ area: e.target.value })}
                 className="mt-1 w-full bg-secondary/50 rounded-lg px-3 py-2 text-xs text-foreground outline-none"
               >
-                {(Object.keys(AREA_CONFIG) as ProjectArea[]).map(a => (
-                  <option key={a} value={a}>{AREA_CONFIG[a].emoji} {AREA_CONFIG[a].label}</option>
+                {areaEntries().map(({ key, conf }) => (
+                  <option key={key} value={key}>{conf.label}</option>
                 ))}
               </select>
             </div>
@@ -851,19 +878,19 @@ function ProjectDetailPanel({
         {project.status === "active" && (
           <>
             <button
-              onClick={() => update({ status: "completed", completedAt: new Date().toISOString() })}
+              onClick={() => { update({ status: "completed", completedAt: new Date().toISOString() }); onClose(); }}
               className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-xs font-medium hover:bg-emerald-500/20 transition"
             >
               <Check className="w-3.5 h-3.5" /> Complete
             </button>
             <button
-              onClick={() => update({ status: "on_hold" })}
+              onClick={() => { update({ status: "on_hold" }); onClose(); }}
               className="flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 text-amber-400 rounded-lg text-xs font-medium hover:bg-amber-500/20 transition"
             >
               <Pause className="w-3.5 h-3.5" /> Hold
             </button>
             <button
-              onClick={() => update({ status: "someday_maybe" })}
+              onClick={() => { update({ status: "someday_maybe" }); onClose(); }}
               className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-muted-foreground rounded-lg text-xs font-medium hover:bg-secondary/80 transition"
             >
               <Archive className="w-3.5 h-3.5" /> Someday
@@ -1007,7 +1034,7 @@ function ListView({ projects, onSelect }: { projects: Project[]; onSelect: (p: P
           const IconC = getIcon(p.icon);
           const statusC = STATUS_CONFIG[p.status];
           const hDesc = HORIZON_DESCRIPTIONS[p.horizon];
-          const areaConf = AREA_CONFIG[p.area];
+          const areaConf = getAreaConf(p.area);
           const due = dueDateLabel(p.dueDate);
           const isStuck = p.status === "active" && !p.nextActionId && p.taskIds.length === 0;
           return (
@@ -1023,7 +1050,7 @@ function ListView({ projects, onSelect }: { projects: Project[]; onSelect: (p: P
                 {isStuck && <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />}
               </div>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium text-center ${statusC.bg}`}>{statusC.label}</span>
-              <span className="text-xs text-muted-foreground">{areaConf.emoji} {areaConf.label}</span>
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><areaConf.icon className="w-3 h-3" /> {areaConf.label}</span>
               <span className="text-xs" style={{ color: hDesc.color }}>{hDesc.label.replace("Horizon ", "H")}</span>
               <span className="text-xs text-muted-foreground text-center">{p.taskIds.length}</span>
               {due ? <span className={`text-xs ${due.className}`}>{due.text}</span> : <span className="text-xs text-muted-foreground">-</span>}
@@ -1098,19 +1125,56 @@ export default function ProjectsModule() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [viewMode, setViewMode] = useState<"cards" | "list" | "horizon">("cards");
   const [filterHorizon, setFilterHorizon] = useState<HorizonLevel | "all">("all");
-  const [filterArea, setFilterArea] = useState<ProjectArea | "all">("all");
+  const [filterArea, setFilterArea] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<ProjectStatus | "all">("active");
   const [searchQuery, setSearchQuery] = useState("");
   const [stuckBannerDismissed, setStuckBannerDismissed] = useState(false);
   const [somedayOpen, setSomedayOpen] = useState(false);
 
-  // Load projects from Supabase
+  // Custom (user-defined) areas
+  const [customAreas, setCustomAreas] = useState<{ id: string; key: string; label: string; color: string }[]>([]);
+  const [areaDialogOpen, setAreaDialogOpen] = useState(false);
+  const [newAreaLabel, setNewAreaLabel] = useState("");
+  const [newAreaColor, setNewAreaColor] = useState(AREA_COLORS[0]);
+  const [savingArea, setSavingArea] = useState(false);
+
+  async function loadAreas() {
+    const { data } = await supabase.from("project_areas" as any).select("*").order("created_at");
+    const rows = ((data as any[]) ?? []) as { id: string; key: string; label: string; color: string }[];
+    CUSTOM_AREAS = Object.fromEntries(rows.map((r) => [r.key, { label: r.label, color: r.color }]));
+    setCustomAreas(rows);
+  }
+
+  async function createArea() {
+    const label = newAreaLabel.trim();
+    if (!label) return;
+    const key = slugifyArea(label) || `area-${Date.now()}`;
+    if ((AREA_CONFIG as Record<string, unknown>)[key]) { toast.error("That name matches a built-in area — pick another."); return; }
+    setSavingArea(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not signed in");
+      const { error } = await supabase.from("project_areas" as any).insert({ user_id: user.id, key, label, color: newAreaColor } as any);
+      if (error) throw error;
+      setNewAreaLabel("");
+      await loadAreas();
+      toast.success("Area added");
+    } catch (e: any) { toast.error(e?.message ?? "Couldn't add area"); } finally { setSavingArea(false); }
+  }
+
+  async function deleteArea(id: string) {
+    await supabase.from("project_areas" as any).delete().eq("id", id);
+    await loadAreas();
+  }
+
+  // Load projects + custom areas from Supabase
   useEffect(() => {
     dbGetProjects().then(rows => {
       if (rows && rows.length > 0) {
         setProjects(rows.map(rowToProject));
       }
     });
+    void loadAreas();
   }, []);
 
   const stuckProjects = useMemo(() =>
@@ -1332,21 +1396,73 @@ export default function ProjectsModule() {
         >
           All areas
         </button>
-        {(Object.keys(AREA_CONFIG) as ProjectArea[]).map(a => {
-          const ac = AREA_CONFIG[a];
-          return (
-            <button
-              key={a}
-              onClick={() => setFilterArea(filterArea === a ? "all" : a)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition shrink-0 ${
-                filterArea === a ? "bg-primary text-primary-foreground" : "bg-secondary/50 text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {ac.emoji} {ac.label}
-            </button>
-          );
-        })}
+        {areaEntries().map(({ key, conf }) => (
+          <button
+            key={key}
+            onClick={() => setFilterArea(filterArea === key ? "all" : key)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition shrink-0 ${
+              filterArea === key ? "bg-primary text-primary-foreground" : "bg-secondary/50 text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <conf.icon className="w-3.5 h-3.5" /> {conf.label}
+          </button>
+        ))}
+        <button
+          onClick={() => setAreaDialogOpen(true)}
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition shrink-0 border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary"
+        >
+          <Plus className="w-3.5 h-3.5" /> New area
+        </button>
       </div>
+
+      {/* CUSTOM AREA DIALOG */}
+      {areaDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setAreaDialogOpen(false)}>
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-display font-semibold">Custom areas</h3>
+              <button onClick={() => setAreaDialogOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+            </div>
+
+            {customAreas.length > 0 && (
+              <div className="space-y-1.5">
+                {customAreas.map(a => (
+                  <div key={a.id} className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
+                    <span className="inline-flex items-center gap-2 text-sm"><span className="w-3 h-3 rounded-full" style={{ background: a.color }} /> {a.label}</span>
+                    <button onClick={() => deleteArea(a.id)} className="text-muted-foreground hover:text-destructive" title="Delete area"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">New area name</label>
+              <input
+                value={newAreaLabel}
+                onChange={e => setNewAreaLabel(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") createArea(); }}
+                placeholder="e.g. Side Hustle"
+                className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm outline-none"
+                autoFocus
+              />
+              <div className="flex items-center gap-2 flex-wrap pt-1">
+                {AREA_COLORS.map(c => (
+                  <button key={c} type="button" onClick={() => setNewAreaColor(c)}
+                    className={`w-6 h-6 rounded-full transition ${newAreaColor === c ? "ring-2 ring-offset-2 ring-foreground" : ""}`}
+                    style={{ background: c }} />
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setAreaDialogOpen(false)} className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground">Close</button>
+              <button onClick={createArea} disabled={!newAreaLabel.trim() || savingArea} className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground disabled:opacity-50">
+                {savingArea ? "Adding…" : "Add area"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* STATUS FILTER */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
