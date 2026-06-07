@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import {
   listSocialPosts, listSocialProfiles, deleteSocialPost, deleteSocialPosts,
   listEngagementComments, upsertEngagementComment, generateEngagementComment, suggestCommentTone, listCommentTones, previewAllTones,
+  scorePostRelevance,
   type EngagementRow, type CommentTone,
 } from "@/lib/social-queries";
 import { getMyLinkedInConnection, startLinkedInAuth, type SocialConnectionMeta } from "@/lib/social-connections";
@@ -71,6 +72,10 @@ export default function EngagementFeedTab() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkConfirm, setBulkConfirm] = useState<null | { ids: string[]; reason: string }>(null);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [sortByRelevance, setSortByRelevance] = useState(false);
+  const [scoring, setScoring] = useState<Set<string>>(new Set());
+  const [scoringAll, setScoringAll] = useState(false);
+  const [scoreAllProgress, setScoreAllProgress] = useState<{ done: number; total: number } | null>(null);
   // Defer search input so typing stays smooth even on 1000+ posts
   const deferredSearch = useDeferredValue(search);
 
@@ -120,7 +125,7 @@ export default function EngagementFeedTab() {
   const filtered = useMemo(() => {
     const q = deferredSearch.trim().toLowerCase();
     const cutoff = dateFilter === "all" ? null : Date.now() - parseInt(dateFilter, 10) * 86400000;
-    return posts.filter((p) => {
+    const out = posts.filter((p) => {
       if (hideNoLink && !linkByPost.get(p.id)) return false;
       if (q && !((p.post_text || "").toLowerCase().includes(q) || (p.author || "").toLowerCase().includes(q))) return false;
       if (cutoff != null) {
@@ -138,10 +143,57 @@ export default function EngagementFeedTab() {
       if (statusFilter === "liked" && !e?.liked) return false;
       return true;
     });
-  }, [posts, engagement, deferredSearch, statusFilter, dateFilter, hideNoLink, linkByPost, listFilter, profileById]);
+    if (sortByRelevance) {
+      return [...out].sort((a, b) => {
+        const sa = typeof a.relevance_score === "number" ? a.relevance_score : -1;
+        const sb = typeof b.relevance_score === "number" ? b.relevance_score : -1;
+        return sb - sa;
+      });
+    }
+    return out;
+  }, [posts, engagement, deferredSearch, statusFilter, dateFilter, hideNoLink, linkByPost, listFilter, profileById, sortByRelevance]);
 
   // Reset to page 1 whenever filters change
-  useEffect(() => { setPage(1); }, [search, statusFilter, dateFilter, profileFilter, listFilter, hideNoLink]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, dateFilter, profileFilter, listFilter, hideNoLink, sortByRelevance]);
+
+  async function scoreOne(postId: string, force = false) {
+    if (scoring.has(postId)) return;
+    setScoring((s) => { const n = new Set(s); n.add(postId); return n; });
+    try {
+      const { data, error } = await scorePostRelevance(postId, force);
+      if (error) { toast.error(error.message || "Failed to score"); return; }
+      const score = (data as any)?.score;
+      const fields = (data as any)?.fields ?? [];
+      const reasoning = (data as any)?.reasoning ?? "";
+      setPosts((ps) => ps.map((p) => p.id === postId ? {
+        ...p,
+        relevance_score: score,
+        relevance_reasoning: reasoning,
+        relevance_fields: { fields, matched_to_user: (data as any)?.matched_to_user ?? [] },
+        relevance_computed_at: new Date().toISOString(),
+      } : p));
+    } finally {
+      setScoring((s) => { const n = new Set(s); n.delete(postId); return n; });
+    }
+  }
+
+  async function scoreAllVisibleUnscored() {
+    const targets = filtered.filter((p) => typeof p.relevance_score !== "number").map((p) => p.id);
+    if (!targets.length) { toast.info("All visible posts are already scored"); return; }
+    setScoringAll(true);
+    setScoreAllProgress({ done: 0, total: targets.length });
+    let done = 0;
+    for (const id of targets) {
+      await scoreOne(id, false);
+      done++;
+      setScoreAllProgress({ done, total: targets.length });
+      // small gap to be gentle on the AI rate limit
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    setScoringAll(false);
+    setScoreAllProgress(null);
+    toast.success(`Scored ${done} post${done === 1 ? "" : "s"}`);
+  }
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
