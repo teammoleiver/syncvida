@@ -3010,14 +3010,41 @@ function ApifyAccountsPanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<any>({});
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [approvalUrl, setApprovalUrl] = useState<string>("");
 
   const load = async () => { setLoading(true); setAccounts(await listApifyAccounts()); setLoading(false); };
+
+  // Check each account's REAL Apify usage/limit via its token (no password needed).
+  const verify = async () => {
+    setVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("verify-apify-accounts", { body: {} });
+      if (error) throw error;
+      const r = data as any;
+      if (r?.approval_url) setApprovalUrl(r.approval_url);
+      const list = (r?.accounts ?? []) as any[];
+      const withCredit = list.filter((a) => a.ok).length;
+      const detail = list.map((a) => `${a.label}: ${a.remainingUsd != null ? `$${Number(a.remainingUsd).toFixed(2)} left` : a.status}`).join(" · ");
+      toast.success(`Checked ${list.length} account(s) · ${withCredit} have credit`, { description: detail.slice(0, 180) });
+      await load();
+    } catch (e: any) { toast.error(e?.message ?? "Verify failed"); }
+    finally { setVerifying(false); }
+  };
   useEffect(() => { load(); }, []);
 
-  const totalBudget = accounts.reduce((s, a) => s + Number(a.monthly_budget_usd ?? 5), 0);
-  const totalRemaining = accounts.reduce((s, a) => s + computeAccountHealth(a).remaining, 0);
+  // Pool totals: use REAL Apify numbers once verified, else our local estimate.
+  const anyVerified = accounts.some((a) => a.apify_limit_usd != null);
+  const totalBudget = accounts.reduce((s, a) => s + Number(a.apify_limit_usd ?? a.monthly_budget_usd ?? 5), 0);
+  const totalRemaining = accounts.reduce((s, a) => s + (a.apify_limit_usd != null ? Math.max(0, Number(a.apify_limit_usd) - Number(a.apify_usage_usd || 0)) : computeAccountHealth(a).remaining), 0);
   const totalPct = totalBudget > 0 ? (totalRemaining / totalBudget) * 100 : 0;
   const maxPostsPerMonth = Math.floor((totalRemaining / 0.5) * 10);
+
+  // Pyramid order: most real credit on top (used first), drained at the bottom.
+  const realRemainingOf = (a: any) => a.apify_limit_usd != null
+    ? Math.max(0, Number(a.apify_limit_usd) - Number(a.apify_usage_usd || 0))
+    : computeAccountHealth(a).remaining;
+  const sortedAccounts = [...accounts].sort((a, b) => realRemainingOf(b) - realRemainingOf(a));
 
   const add = async () => {
     if (!label.trim() || !token.trim()) { toast.error("Label and token required"); return; }
@@ -3107,18 +3134,33 @@ function ApifyAccountsPanel() {
     <Card className="p-5 space-y-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2"><LinkIcon className="w-5 h-5 text-primary" /><h2 className="font-medium">Apify account pool</h2></div>
-        <Button size="sm" variant="outline" onClick={() => setShowAdd((v) => !v)}><Plus className="w-4 h-4 mr-1" />Add account</Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={verify} disabled={verifying} title="Read each account's real Apify usage + limit via its token">
+            {verifying ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}Verify accounts
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowAdd((v) => !v)}><Plus className="w-4 h-4 mr-1" />Add account</Button>
+        </div>
       </div>
       <p className="text-xs text-muted-foreground">Add up to 10 Apify tokens. LinkedIn scraping and YouTube transcript fetching rotate through this pool, trying the next account when one hits an Apify usage limit. Each account = $5 / 30 days (rolling). 10 posts cost ~$0.50.</p>
+
+      {/* One-time actor approval — the #1 reason scraping fails on a fresh account. */}
+      <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs space-y-1">
+        <div className="font-medium text-amber-700 dark:text-amber-400">⚠ One-time setup: approve the scraper actor for each account</div>
+        <p className="text-muted-foreground">The built-in LinkedIn actor needs its permissions approved once per Apify account before it can run. Log into each Apify account, open the link below, and click <strong>Approve</strong>. Then scraping works.</p>
+        <a href={approvalUrl || "https://console.apify.com/actors/94SdiE9JwTx0RNyfS?approvePermissions=true"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline font-medium">Open actor approval page <ArrowUpRight className="w-3 h-3" /></a>
+      </div>
 
       {/* Health bar */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="font-medium">Pool health</span>
-          <span className="text-muted-foreground">${totalRemaining.toFixed(2)} / ${totalBudget.toFixed(2)} · ~{maxPostsPerMonth} posts left this month</span>
+          <span className="font-medium">Pool health {anyVerified && <span className="text-[10px] font-normal text-emerald-600">· live from Apify</span>}</span>
+          <span className="text-muted-foreground">${totalRemaining.toFixed(2)} / ${totalBudget.toFixed(2)} real credit · ~{maxPostsPerMonth} posts left</span>
         </div>
         <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-primary to-primary/60 transition-all" style={{ width: `${Math.min(100, totalPct)}%` }} />
+          <div
+            className={`h-full transition-all ${totalPct < 15 ? "bg-destructive" : totalPct < 40 ? "bg-amber-500" : "bg-gradient-to-r from-primary to-primary/60"}`}
+            style={{ width: `${Math.min(100, totalPct)}%` }}
+          />
         </div>
       </div>
 
@@ -3146,8 +3188,11 @@ function ApifyAccountsPanel() {
         <div className="text-sm text-muted-foreground italic">No accounts yet. Add one to power the rotating pool. Until then, the scraper falls back to the project-level <code>APIFY_API_TOKEN</code> secret.</div>
       ) : (
         <div className="space-y-2">
-          {accounts.map((a) => {
+          {sortedAccounts.map((a) => {
             const h = computeAccountHealth(a);
+            // Real Apify numbers (from "Verify accounts") override our local estimate.
+            const hasReal = a.apify_limit_usd != null;
+            const realRemaining = hasReal ? Math.max(0, Number(a.apify_limit_usd) - Number(a.apify_usage_usd || 0)) : null;
             const isEditing = editingId === a.id;
             return (
               <div key={a.id} className="rounded-md border border-border p-3 space-y-2">
@@ -3172,7 +3217,9 @@ function ApifyAccountsPanel() {
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm">{a.label}</span>
-                    <Badge variant={h.remaining > 0 ? "secondary" : "destructive"}>${h.remaining.toFixed(2)} left</Badge>
+                    <Badge variant={(realRemaining ?? h.remaining) > 0 ? "secondary" : "destructive"}>
+                      ${(realRemaining ?? h.remaining).toFixed(2)} left{hasReal ? " · live" : ""}
+                    </Badge>
                     <Badge variant="outline">{h.daysLeft}d left in period</Badge>
                     {/out of credit|usage|402/i.test(a.last_test_status || "") ? (
                       <Badge variant="destructive" className="gap-1">⚠ Credits out</Badge>
@@ -3202,12 +3249,18 @@ function ApifyAccountsPanel() {
                 <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
                   <div
                     className={`h-full transition-all ${/out of credit|usage|402/i.test(a.last_test_status || "") ? "bg-destructive" : "bg-primary"}`}
-                    style={{ width: `${/out of credit|usage|402/i.test(a.last_test_status || "") ? 100 : Math.min(100, h.pct)}%` }}
+                    style={{ width: `${/out of credit|usage|402/i.test(a.last_test_status || "") ? 100 : (hasReal && Number(a.apify_limit_usd) > 0 ? Math.min(100, (Number(a.apify_usage_usd || 0) / Number(a.apify_limit_usd)) * 100) : Math.min(100, h.pct))}%` }}
                   />
                 </div>
                 <div className="text-xs text-muted-foreground flex flex-wrap gap-3">
-                  <span>Used {a.posts_used_this_period ?? 0} posts (~${h.cost.toFixed(2)})</span>
-                  <span>Budget ${Number(a.monthly_budget_usd ?? 5).toFixed(2)}/30d</span>
+                  {hasReal ? (
+                    <span className="text-foreground font-medium">Apify (live): ${Number(a.apify_usage_usd || 0).toFixed(2)} / ${Number(a.apify_limit_usd).toFixed(2)} used</span>
+                  ) : (
+                    <span>Used {a.posts_used_this_period ?? 0} posts (~${h.cost.toFixed(2)})</span>
+                  )}
+                  {a.apify_cycle_end && <span>Credit renews {new Date(a.apify_cycle_end).toLocaleDateString()}</span>}
+                  {a.apify_checked_at && <span>Checked {new Date(a.apify_checked_at).toLocaleString()}</span>}
+                  {!hasReal && <span>Budget ${Number(a.monthly_budget_usd ?? 5).toFixed(2)}/30d</span>}
                   <span>Period since {new Date(a.period_start).toLocaleDateString()}</span>
                   {a.last_used_at && <span>Last used {new Date(a.last_used_at).toLocaleString()}</span>}
                 </div>

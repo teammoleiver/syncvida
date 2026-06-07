@@ -30,8 +30,7 @@ function pickBestAccount(accounts: any[], usedAccountIdsThisWeek: Set<string>) {
   // Prefer unused-this-week accounts, then fall back to the highest remaining balance.
   let best: any = null; let bestScore = -Infinity;
   for (const a of eligible) {
-    const cost = (Number(a.posts_used_this_period ?? 0) / 10) * Number(a.cost_per_10_posts_usd ?? 0.5);
-    const rem = Number(a.monthly_budget_usd ?? 5) - cost;
+    const rem = accountRemaining(a); // real Apify balance when known
     const score = rem - (usedAccountIdsThisWeek.has(a.id) ? 1000 : 0);
     if (rem > 0 && score > bestScore) { best = a; bestScore = score; }
   }
@@ -56,6 +55,9 @@ function normalizeActorId(input?: string | null): string {
 }
 
 function accountRemaining(a: any) {
+  // Prefer the REAL Apify balance (refreshed weekly / on Verify) so rotation always
+  // picks the fullest account first and drained ones sink to the bottom.
+  if (a.apify_limit_usd != null) return Math.max(0, Number(a.apify_limit_usd) - Number(a.apify_usage_usd ?? 0));
   return Number(a.monthly_budget_usd ?? 5) - (Number(a.posts_used_this_period ?? 0) / 10) * Number(a.cost_per_10_posts_usd ?? 0.5);
 }
 
@@ -358,9 +360,11 @@ Deno.serve(async (req: Request) => {
           const txt = await apifyRes.text();
           lastError = `Apify ${apifyRes.status}: ${txt.slice(0, 300)}`;
           responseExcerpt = txt.slice(0, 2000);
-          // An out-of-credit account is expected during rotation — mark it (UI turns
-          // it red) and keep going; don't treat it as the "real" failure.
-          const isCreditOut = apifyRes.status === 402 || /not-enough-usage|exceed your remaining usage|run-paid-actor|payment.required|insufficient/i.test(txt);
+          // An out-of-credit / over-limit account is expected during rotation — mark
+          // it (UI turns it red) and keep going; don't treat it as the "real" failure.
+          // Covers 402 (not enough usage) AND 403 (monthly hard limit / feature disabled).
+          const isCreditOut = apifyRes.status === 402
+            || /not-enough-usage|exceed your remaining usage|run-paid-actor|payment.required|insufficient|hard limit exceeded|platform-feature-disabled|monthly usage|usage limit/i.test(txt);
           if (isCreditOut) creditOutCount++;
           else lastInformativeError = lastError;
           polling.push({ t: new Date().toISOString(), step: "error", message: lastError, creditOut: isCreditOut });
@@ -553,8 +557,10 @@ Deno.serve(async (req: Request) => {
         // 402 from a drained one. Only show the billing message if EVERY account that
         // could run was out of credit.
         let friendly = lastInformativeError || lastError;
-        if (!lastInformativeError && creditOutCount > 0) {
-          friendly = `All ${creditOutCount} of your Apify account(s) are out of credit/usage. The built-in LinkedIn scraper is a paid Apify actor — none have enough remaining usage to run it. Fix: add billing on one Apify account (console.apify.com/billing), or set a free actor override in Settings → Social Hub → Apify → Your custom actors.`;
+        if (/full-permission-actor-not-approved|approvePermissions|approve its permissions/i.test(friendly)) {
+          friendly = "This scraper actor needs a ONE-TIME permission approval for your Apify account. In Settings → Social Hub → Apify, click 'Open actor approval page', approve it while logged into that Apify account, then run again. (Your account has credit — this is just the approval step.)";
+        } else if (!lastInformativeError && creditOutCount > 0) {
+          friendly = `All ${creditOutCount} of your Apify account(s) have hit their monthly usage limit. The built-in LinkedIn scraper is a PAID Apify actor; free accounts have a fixed $5/month hard cap that's now exhausted. To scrape, do ONE of these: (1) make one Apify account pay-as-you-go / raise its limit at console.apify.com/billing, or (2) override the actor with a free LinkedIn actor in Settings → Social Hub → Apify → Your custom actors.`;
         } else if (/0 items|no usable text/i.test(friendly)) {
           friendly = "The scraper ran successfully but returned 0 posts — the profile may have no recent public posts, or this actor doesn't support this profile. Your Apify account is fine.";
         }
