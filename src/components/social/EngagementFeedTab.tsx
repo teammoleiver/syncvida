@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import {
   listSocialPosts, listSocialProfiles, deleteSocialPost, deleteSocialPosts,
   listEngagementComments, upsertEngagementComment, generateEngagementComment, suggestCommentTone, listCommentTones, previewAllTones,
+  scorePostRelevance,
   type EngagementRow, type CommentTone,
 } from "@/lib/social-queries";
 import { getMyLinkedInConnection, startLinkedInAuth, type SocialConnectionMeta } from "@/lib/social-connections";
@@ -71,6 +72,10 @@ export default function EngagementFeedTab() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkConfirm, setBulkConfirm] = useState<null | { ids: string[]; reason: string }>(null);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [sortByRelevance, setSortByRelevance] = useState(false);
+  const [scoring, setScoring] = useState<Set<string>>(new Set());
+  const [scoringAll, setScoringAll] = useState(false);
+  const [scoreAllProgress, setScoreAllProgress] = useState<{ done: number; total: number } | null>(null);
   // Defer search input so typing stays smooth even on 1000+ posts
   const deferredSearch = useDeferredValue(search);
 
@@ -120,7 +125,7 @@ export default function EngagementFeedTab() {
   const filtered = useMemo(() => {
     const q = deferredSearch.trim().toLowerCase();
     const cutoff = dateFilter === "all" ? null : Date.now() - parseInt(dateFilter, 10) * 86400000;
-    return posts.filter((p) => {
+    const out = posts.filter((p) => {
       if (hideNoLink && !linkByPost.get(p.id)) return false;
       if (q && !((p.post_text || "").toLowerCase().includes(q) || (p.author || "").toLowerCase().includes(q))) return false;
       if (cutoff != null) {
@@ -138,10 +143,57 @@ export default function EngagementFeedTab() {
       if (statusFilter === "liked" && !e?.liked) return false;
       return true;
     });
-  }, [posts, engagement, deferredSearch, statusFilter, dateFilter, hideNoLink, linkByPost, listFilter, profileById]);
+    if (sortByRelevance) {
+      return [...out].sort((a, b) => {
+        const sa = typeof a.relevance_score === "number" ? a.relevance_score : -1;
+        const sb = typeof b.relevance_score === "number" ? b.relevance_score : -1;
+        return sb - sa;
+      });
+    }
+    return out;
+  }, [posts, engagement, deferredSearch, statusFilter, dateFilter, hideNoLink, linkByPost, listFilter, profileById, sortByRelevance]);
 
   // Reset to page 1 whenever filters change
-  useEffect(() => { setPage(1); }, [search, statusFilter, dateFilter, profileFilter, listFilter, hideNoLink]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, dateFilter, profileFilter, listFilter, hideNoLink, sortByRelevance]);
+
+  async function scoreOne(postId: string, force = false) {
+    if (scoring.has(postId)) return;
+    setScoring((s) => { const n = new Set(s); n.add(postId); return n; });
+    try {
+      const { data, error } = await scorePostRelevance(postId, force);
+      if (error) { toast.error(error.message || "Failed to score"); return; }
+      const score = (data as any)?.score;
+      const fields = (data as any)?.fields ?? [];
+      const reasoning = (data as any)?.reasoning ?? "";
+      setPosts((ps) => ps.map((p) => p.id === postId ? {
+        ...p,
+        relevance_score: score,
+        relevance_reasoning: reasoning,
+        relevance_fields: { fields, matched_to_user: (data as any)?.matched_to_user ?? [] },
+        relevance_computed_at: new Date().toISOString(),
+      } : p));
+    } finally {
+      setScoring((s) => { const n = new Set(s); n.delete(postId); return n; });
+    }
+  }
+
+  async function scoreAllVisibleUnscored() {
+    const targets = filtered.filter((p) => typeof p.relevance_score !== "number").map((p) => p.id);
+    if (!targets.length) { toast.info("All visible posts are already scored"); return; }
+    setScoringAll(true);
+    setScoreAllProgress({ done: 0, total: targets.length });
+    let done = 0;
+    for (const id of targets) {
+      await scoreOne(id, false);
+      done++;
+      setScoreAllProgress({ done, total: targets.length });
+      // small gap to be gentle on the AI rate limit
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    setScoringAll(false);
+    setScoreAllProgress(null);
+    toast.success(`Scored ${done} post${done === 1 ? "" : "s"}`);
+  }
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -309,6 +361,22 @@ export default function EngagementFeedTab() {
             <Switch checked={hideNoLink} onCheckedChange={setHideNoLink} />
             <span>Only with link {noLinkCount > 0 && <span className="opacity-60">({noLinkCount} hidden)</span>}</span>
           </label>
+          <label className="flex items-center justify-between sm:justify-start gap-2 text-xs text-muted-foreground border border-border rounded-md px-2.5 h-9 w-full sm:w-auto" title="Sort by AI relevance score (best matches first)">
+            <Switch checked={sortByRelevance} onCheckedChange={setSortByRelevance} />
+            <span className="inline-flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> Sort by relevance</span>
+          </label>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-1.5 text-xs"
+            onClick={scoreAllVisibleUnscored}
+            disabled={scoringAll || loading}
+            title="Score every visible unscored post against your persona"
+          >
+            {scoringAll
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Scoring {scoreAllProgress?.done}/{scoreAllProgress?.total}…</>
+              : <><Sparkles className="w-3.5 h-3.5" /> Score visible</>}
+          </Button>
         </div>
         <div className="flex flex-wrap gap-1.5 text-[11px] w-full justify-start sm:justify-end">
           <Pill label="Posts" value={stats.total} />
@@ -408,6 +476,13 @@ export default function EngagementFeedTab() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    <RelevanceBadge
+                      score={p.relevance_score}
+                      reasoning={p.relevance_reasoning}
+                      fields={p.relevance_fields?.fields}
+                      loading={scoring.has(p.id)}
+                      onScore={(ev) => { ev.stopPropagation(); scoreOne(p.id, typeof p.relevance_score === "number"); }}
+                    />
                     {link && (
                       <a
                         href={link}
@@ -552,6 +627,39 @@ function Pill({ label, value, tone = "zinc" }: { label: string; value: number; t
     rose: "bg-rose-500/15 text-rose-500",
   };
   return <span className={`px-2 py-1 rounded-md ${tones[tone]} inline-flex items-center gap-1`}><span>{value}</span><span className="opacity-70">{label}</span></span>;
+}
+
+function RelevanceBadge({
+  score, reasoning, fields, loading, onScore,
+}: {
+  score?: number | null;
+  reasoning?: string | null;
+  fields?: string[] | null;
+  loading?: boolean;
+  onScore: (e: React.MouseEvent) => void;
+}) {
+  const has = typeof score === "number";
+  const tone =
+    !has ? "border-border text-muted-foreground hover:bg-muted"
+      : score! >= 75 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+      : score! >= 50 ? "border-amber-500/40 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20"
+      : "border-rose-500/40 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20";
+  const tip = has
+    ? `Relevance ${score}% — ${reasoning || "AI scored against your persona"}${fields?.length ? `\nTopics: ${fields.join(", ")}` : ""}\nClick to re-score`
+    : "Score this post's relevance to you";
+  return (
+    <button
+      type="button"
+      onClick={onScore}
+      disabled={loading}
+      title={tip}
+      className={`h-6 px-1.5 rounded-md border text-[10px] font-semibold tabular-nums inline-flex items-center gap-1 transition-colors ${tone} disabled:opacity-60`}
+    >
+      {loading ? <Loader2 className="w-3 h-3 animate-spin" />
+        : <Sparkles className="w-3 h-3" />}
+      {loading ? "…" : has ? `${score}%` : "Score"}
+    </button>
+  );
 }
 
 function EngagementDialog({ post, row, tones, onClose, onUpdate }: { post: any; row?: EngagementRow; tones: CommentTone[]; onClose: () => void; onUpdate: (r: EngagementRow) => void }) {
