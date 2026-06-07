@@ -9,7 +9,6 @@ import {
   Shield, User as UserIcon, Menu, MoreHorizontal,
 } from "lucide-react";
 import syncvidaLogo from "@/assets/syncvida-icon.png";
-import { getTodayWaterLog } from "@/lib/supabase-queries";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 // ── Grouped navigation ──
@@ -32,14 +31,12 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Health",
+    label: "Content",
     items: [
-      { path: "/nutrition", icon: Utensils, label: "Nutrition" },
-      { path: "/fasting", icon: Timer, label: "Fasting" },
-      { path: "/exercise", icon: Dumbbell, label: "Exercise" },
-      { path: "/sleep", icon: Moon, label: "Sleep" },
-      { path: "/health", icon: HeartPulse, label: "Records" },
-      { path: "/body", icon: BarChart3, label: "Body" },
+      { path: "/social", icon: Megaphone, label: "Social Hub" },
+      { path: "/content-studio", icon: Library, label: "Content Studio" },
+      { path: "/content-planner", icon: ClipboardList, label: "Content Planner" },
+      { path: "/designer", icon: Palette, label: "Designer" },
     ],
   },
   {
@@ -52,12 +49,14 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Content",
+    label: "Health",
     items: [
-      { path: "/social", icon: Megaphone, label: "Social Hub" },
-      { path: "/content-studio", icon: Library, label: "Content Studio" },
-      { path: "/content-planner", icon: ClipboardList, label: "Content Planner" },
-      { path: "/designer", icon: Palette, label: "Designer" },
+      { path: "/nutrition", icon: Utensils, label: "Nutrition" },
+      { path: "/fasting", icon: Timer, label: "Fasting" },
+      { path: "/exercise", icon: Dumbbell, label: "Exercise" },
+      { path: "/sleep", icon: Moon, label: "Sleep" },
+      { path: "/health", icon: HeartPulse, label: "Records" },
+      { path: "/body", icon: BarChart3, label: "Body" },
     ],
   },
 ];
