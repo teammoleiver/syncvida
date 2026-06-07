@@ -184,36 +184,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           })}
           </div>
 
-          {/* Water progress widget */}
-          <Link
-          to="/nutrition"
-          className="mt-2 px-2.5 py-1.5 rounded-lg bg-sidebar-accent/40 hover:bg-sidebar-accent/70 transition block"
-        >
-          {sidebarOpen ? (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Droplets className="w-3.5 h-3.5 text-blue-400" />
-                  <span className="text-[10px] font-medium text-sidebar-foreground/70">Water</span>
-                </div>
-                <span className={`text-[10px] font-bold ${waterMl >= 3000 ? "text-blue-400" : "text-sidebar-foreground/50"}`}>
-                  {(waterMl / 1000).toFixed(1)}L
-                </span>
-              </div>
-              <div className="h-[3px] bg-sidebar-border rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-500 transition-[width] duration-300 ease-out"
-                  style={{ width: `${Math.min((waterMl / 3000) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-0.5">
-              <Droplets className={`w-3.5 h-3.5 ${waterMl >= 3000 ? "text-blue-400" : "text-sidebar-foreground/40"}`} />
-              <span className="text-[8px] font-bold text-sidebar-foreground/50">{(waterMl / 1000).toFixed(1)}L</span>
-            </div>
-          )}
-          </Link>
         </nav>
 
         {/* Footer */}
