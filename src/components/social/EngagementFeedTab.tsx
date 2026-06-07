@@ -629,6 +629,39 @@ function Pill({ label, value, tone = "zinc" }: { label: string; value: number; t
   return <span className={`px-2 py-1 rounded-md ${tones[tone]} inline-flex items-center gap-1`}><span>{value}</span><span className="opacity-70">{label}</span></span>;
 }
 
+function RelevanceBadge({
+  score, reasoning, fields, loading, onScore,
+}: {
+  score?: number | null;
+  reasoning?: string | null;
+  fields?: string[] | null;
+  loading?: boolean;
+  onScore: (e: React.MouseEvent) => void;
+}) {
+  const has = typeof score === "number";
+  const tone =
+    !has ? "border-border text-muted-foreground hover:bg-muted"
+      : score! >= 75 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+      : score! >= 50 ? "border-amber-500/40 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20"
+      : "border-rose-500/40 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20";
+  const tip = has
+    ? `Relevance ${score}% — ${reasoning || "AI scored against your persona"}${fields?.length ? `\nTopics: ${fields.join(", ")}` : ""}\nClick to re-score`
+    : "Score this post's relevance to you";
+  return (
+    <button
+      type="button"
+      onClick={onScore}
+      disabled={loading}
+      title={tip}
+      className={`h-6 px-1.5 rounded-md border text-[10px] font-semibold tabular-nums inline-flex items-center gap-1 transition-colors ${tone} disabled:opacity-60`}
+    >
+      {loading ? <Loader2 className="w-3 h-3 animate-spin" />
+        : <Sparkles className="w-3 h-3" />}
+      {loading ? "…" : has ? `${score}%` : "Score"}
+    </button>
+  );
+}
+
 function EngagementDialog({ post, row, tones, onClose, onUpdate }: { post: any; row?: EngagementRow; tones: CommentTone[]; onClose: () => void; onUpdate: (r: EngagementRow) => void }) {
   const [draft, setDraft] = useState(row?.draft_text ?? "");
   const [toneId, setToneId] = useState<string>(tones[0]?.id ?? "peer-sharp");
