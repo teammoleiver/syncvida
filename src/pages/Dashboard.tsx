@@ -196,8 +196,30 @@ export default function Dashboard() {
           <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">
             Good {time.getHours() < 12 ? "morning" : time.getHours() < 18 ? "afternoon" : "evening"}, {userName?.split(" ")[0] || "there"}
           </h1>
-          <p className="text-sm text-muted-foreground truncate">{motivation}</p>
+          <p className="text-sm text-muted-foreground truncate">Your social, content, productivity & health — all in one place.</p>
         </div>
+      </div>
+
+      {/* System hubs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { to: "/social", icon: Megaphone, label: "Social Hub", desc: "LinkedIn, news, engagement" },
+          { to: "/content-studio", icon: Library, label: "Content Studio", desc: "Drafts & generators" },
+          { to: "/content-planner", icon: ClipboardList, label: "Planner", desc: "Schedule & publish" },
+          { to: "/designer", icon: Palette, label: "Designer", desc: "Carousels & assets" },
+        ].map((h) => (
+          <Link key={h.to} to={h.to} className="glass-card rounded-xl p-4 hover:border-primary/40 transition group">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                <h.icon className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-foreground truncate">{h.label}</div>
+                <div className="text-[11px] text-muted-foreground truncate">{h.desc}</div>
+              </div>
+            </div>
+          </Link>
+        ))}
       </div>
 
       {/* Health Score + Fasting */}
