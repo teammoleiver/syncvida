@@ -71,8 +71,17 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const hook = String(body.hook ?? "").trim();
     const post = String(body.body ?? "").trim();
-    const author = String(body.author ?? "Saleh Seddik").trim();
-    const handleShort = String(body.handleShort ?? "Salehseddik").trim();
+    // Author identity: use what the client sent, else the signed-in user's own
+    // name (never a hardcoded person).
+    let author = String(body.author ?? "").trim();
+    let handleShort = String(body.handleShort ?? "").trim();
+    if (!author) {
+      const { data: prof } = await supabase.from("profiles").select("full_name, name").eq("user_id", user.id).maybeSingle();
+      const meta = (user.user_metadata ?? {}) as Record<string, any>;
+      author = ((prof as any)?.full_name || (prof as any)?.name || meta.full_name || meta.name
+        || (user.email ? user.email.split("@")[0] : "")).trim();
+    }
+    if (!handleShort) handleShort = author.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
     const themeKey = String(body.themeKey ?? "figma-template");
     const hashtagFirst = Boolean(body.hashtagFirst);
     if (!hook && !post) return json({ error: "hook or body required" }, 400);
