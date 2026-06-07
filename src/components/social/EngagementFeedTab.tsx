@@ -77,6 +77,12 @@ export default function EngagementFeedTab() {
   const [scoringAll, setScoringAll] = useState(false);
   const [scoreAllProgress, setScoreAllProgress] = useState<{ done: number; total: number } | null>(null);
   const scoringAllRef = useRef(true);
+  const [autoScore, setAutoScore] = useState<boolean>(() => {
+    try { return localStorage.getItem("engagement.autoScore") === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("engagement.autoScore", autoScore ? "1" : "0"); } catch {}
+  }, [autoScore]);
   // Defer search input so typing stays smooth even on 1000+ posts
   const deferredSearch = useDeferredValue(search);
 
@@ -93,6 +99,19 @@ export default function EngagementFeedTab() {
     } finally { setLoading(false); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [profileFilter]);
+
+  // Auto-score: when enabled, score any newly-loaded posts that don't yet have a relevance_score.
+  // Runs after each load() and any time `posts` changes (e.g. after scraping).
+  const autoScoreRunningRef = useRef(false);
+  useEffect(() => {
+    if (!autoScore || loading || scoringAll || autoScoreRunningRef.current) return;
+    const unscored = posts.filter((p) => typeof p.relevance_score !== "number");
+    if (unscored.length === 0) return;
+    autoScoreRunningRef.current = true;
+    scoringAllRef.current = true;
+    scoreAllUnscored().finally(() => { autoScoreRunningRef.current = false; });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoScore, loading, posts]);
 
   useEffect(() => {
     getMyLinkedInConnection().then(setLinkedin).catch(() => setLinkedin(null));
@@ -179,15 +198,17 @@ export default function EngagementFeedTab() {
   }
 
   async function scoreAllUnscored() {
-    // Score every loaded post (not just the current filter view) that does not have a score yet.
-    const targets = posts.filter((p) => typeof p.relevance_score !== "number").map((p) => p.id);
+    return scoreMany(posts.filter((p) => typeof p.relevance_score !== "number").map((p) => p.id), { reScore: false });
+  }
+
+  async function scoreMany(targets: string[], opts: { reScore?: boolean } = {}) {
     if (!targets.length) { toast.info("All posts already have a relevance score"); return; }
     setScoringAll(true);
     setScoreAllProgress({ done: 0, total: targets.length });
     let done = 0;
     for (const id of targets) {
       if (!scoringAllRef.current) break;
-      await scoreOne(id, false);
+      await scoreOne(id, !!opts.reScore);
       done++;
       setScoreAllProgress({ done, total: targets.length });
       // small gap to be gentle on the AI rate limit
