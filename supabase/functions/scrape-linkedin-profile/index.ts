@@ -220,8 +220,8 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
     const body = await req.json().catch(() => ({}));
-    const { profile_id, all_active, limit = 5, force_rotate = false, account_id } = body as {
-      profile_id?: string; all_active?: boolean; limit?: number; force_rotate?: boolean; account_id?: string;
+    const { profile_id, all_active, limit = 5, force_rotate = false, account_id, manual = false } = body as {
+      profile_id?: string; all_active?: boolean; limit?: number; force_rotate?: boolean; account_id?: string; manual?: boolean;
     };
 
     let q = admin.from("social_profiles").select("*").eq("user_id", user.id);
@@ -249,7 +249,9 @@ Deno.serve(async (req: Request) => {
       const { data: existingRuns } = await admin.from("social_scrape_runs").select("id, apify_account_id, status, posts_fetched")
         .eq("user_id", user.id).eq("profile_id", profile.id).eq("iso_year", year).eq("iso_week", week);
       const alreadySucceeded = (existingRuns ?? []).some((r: any) => r.status === "success" && Number(r.posts_fetched ?? 0) > 0);
-      if (alreadySucceeded && !force_rotate && !account_id) {
+      // The once-per-week guard only applies to the automatic schedule (all_active /
+      // cron). A hand-clicked manual run always proceeds.
+      if (alreadySucceeded && !force_rotate && !account_id && !manual) {
         results.push({ profile_id: profile.id, status: "skipped", reason: "already scraped this week" });
         continue;
       }
@@ -286,6 +288,11 @@ Deno.serve(async (req: Request) => {
       let inserted = 0;
       let winningAccount: any = null;
       let lastError = "No results";
+      // A "credit/usage" error from a drained account is the LEAST useful thing to
+      // report. Track the most informative non-credit error (e.g. "0 posts") so it
+      // wins over a 402 from an exhausted account.
+      let lastInformativeError = "";
+      let creditOutCount = 0;
       const attempts = candidates.length > 0 ? candidates : [{ id: null, label: "env", api_token: fallbackToken, actor_id: profile.apify_actor_id || defaultActor, actor_input_defaults: {} }];
 
       if (profile.is_self) {
@@ -351,9 +358,14 @@ Deno.serve(async (req: Request) => {
           const txt = await apifyRes.text();
           lastError = `Apify ${apifyRes.status}: ${txt.slice(0, 300)}`;
           responseExcerpt = txt.slice(0, 2000);
-          polling.push({ t: new Date().toISOString(), step: "error", message: lastError });
+          // An out-of-credit account is expected during rotation — mark it (UI turns
+          // it red) and keep going; don't treat it as the "real" failure.
+          const isCreditOut = apifyRes.status === 402 || /not-enough-usage|exceed your remaining usage|run-paid-actor|payment.required|insufficient/i.test(txt);
+          if (isCreditOut) creditOutCount++;
+          else lastInformativeError = lastError;
+          polling.push({ t: new Date().toISOString(), step: "error", message: lastError, creditOut: isCreditOut });
           if (account.id) {
-            await admin.from("social_apify_accounts").update({ last_test_status: `scrape error ${apifyRes.status}`, last_test_at: new Date().toISOString() }).eq("id", account.id);
+            await admin.from("social_apify_accounts").update({ last_test_status: isCreditOut ? "out of credit" : `scrape error ${apifyRes.status}`, last_test_at: new Date().toISOString() }).eq("id", account.id);
             const finishedAt = new Date();
             await admin.from("social_scrape_runs").insert({
               user_id: user.id, profile_id: profile.id, apify_account_id: account.id,
@@ -494,6 +506,7 @@ Deno.serve(async (req: Request) => {
         if (inserted === 0) {
           zeroReason = flat.length === 0 ? "Actor returned 0 items" : insertErrors.length ? `Database insert failed: ${insertErrors[0]}` : "Items returned but no usable text/id found";
           lastError = zeroReason;
+          lastInformativeError = zeroReason; // the account WORKED — this beats a 402 from a drained one
           if (account.id) {
             await admin.from("social_apify_accounts").update({ last_test_status: "no results", last_test_at: new Date().toISOString() }).eq("id", account.id);
             const finishedAt = new Date();
@@ -536,11 +549,20 @@ Deno.serve(async (req: Request) => {
       }
 
       if (inserted === 0) {
+        // Prefer the informative error (e.g. "0 posts" from a working account) over a
+        // 402 from a drained one. Only show the billing message if EVERY account that
+        // could run was out of credit.
+        let friendly = lastInformativeError || lastError;
+        if (!lastInformativeError && creditOutCount > 0) {
+          friendly = `All ${creditOutCount} of your Apify account(s) are out of credit/usage. The built-in LinkedIn scraper is a paid Apify actor — none have enough remaining usage to run it. Fix: add billing on one Apify account (console.apify.com/billing), or set a free actor override in Settings → Social Hub → Apify → Your custom actors.`;
+        } else if (/0 items|no usable text/i.test(friendly)) {
+          friendly = "The scraper ran successfully but returned 0 posts — the profile may have no recent public posts, or this actor doesn't support this profile. Your Apify account is fine.";
+        }
         await admin.from("social_profiles").update({
           last_scraped_at: new Date().toISOString(), last_scrape_status: "error",
-          last_scrape_error: lastError.slice(0, 500),
+          last_scrape_error: friendly.slice(0, 500),
         }).eq("id", profile.id);
-        results.push({ profile_id: profile.id, status: "error", error: lastError });
+        results.push({ profile_id: profile.id, status: "error", error: friendly });
         continue;
       }
 

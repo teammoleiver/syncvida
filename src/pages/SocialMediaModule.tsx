@@ -3174,9 +3174,11 @@ function ApifyAccountsPanel() {
                     <span className="font-medium text-sm">{a.label}</span>
                     <Badge variant={h.remaining > 0 ? "secondary" : "destructive"}>${h.remaining.toFixed(2)} left</Badge>
                     <Badge variant="outline">{h.daysLeft}d left in period</Badge>
-                    {a.last_test_status && (
-                      <Badge variant={a.last_test_status === "ok" ? "secondary" : "destructive"}>test: {a.last_test_status}</Badge>
-                    )}
+                    {/out of credit|usage|402/i.test(a.last_test_status || "") ? (
+                      <Badge variant="destructive" className="gap-1">⚠ Credits out</Badge>
+                    ) : a.last_test_status ? (
+                      <Badge variant={a.last_test_status === "ok" || a.last_test_status === "health ok" ? "secondary" : "destructive"}>test: {a.last_test_status}</Badge>
+                    ) : null}
                     {a.actor_id && <Badge variant="outline" className="font-mono text-[10px]">{a.actor_id}</Badge>}
                   </div>
                   <div className="flex items-center gap-1">
@@ -3198,7 +3200,10 @@ function ApifyAccountsPanel() {
                   </div>
                 </div>
                 <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                  <div className="h-full bg-primary transition-all" style={{ width: `${Math.min(100, h.pct)}%` }} />
+                  <div
+                    className={`h-full transition-all ${/out of credit|usage|402/i.test(a.last_test_status || "") ? "bg-destructive" : "bg-primary"}`}
+                    style={{ width: `${/out of credit|usage|402/i.test(a.last_test_status || "") ? 100 : Math.min(100, h.pct)}%` }}
+                  />
                 </div>
                 <div className="text-xs text-muted-foreground flex flex-wrap gap-3">
                   <span>Used {a.posts_used_this_period ?? 0} posts (~${h.cost.toFixed(2)})</span>
