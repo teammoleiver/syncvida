@@ -3128,11 +3128,10 @@ function ApifyAccountsPanel() {
             <div><label className="text-xs font-medium">Label</label><Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Apify #1 (gmail-1)" /></div>
             <div><label className="text-xs font-medium">Monthly budget (USD)</label><Input type="number" min={1} value={budget} onChange={(e) => setBudget(Number(e.target.value))} /></div>
           </div>
-          <div><label className="text-xs font-medium">Apify API token</label><Input value={token} onChange={(e) => setToken(e.target.value)} placeholder="apify_api_xxx" /></div>
           <div>
-            <label className="text-xs font-medium">Actor URL or ID (optional override)</label>
-            <Input value={actor} onChange={(e) => setActor(e.target.value)} placeholder="https://console.apify.com/actors/94SdiE9JwTx0RNyfS/ or just the ID" />
-            {actor && <p className="text-xs text-muted-foreground mt-1">Will use actor: <code>{parseApifyActorId(actor)}</code></p>}
+            <label className="text-xs font-medium">Apify API token</label>
+            <Input value={token} onChange={(e) => setToken(e.target.value)} placeholder="apify_api_xxx" />
+            <p className="text-[11px] text-muted-foreground mt-1">That's all you need — the scraper actors are built in. <a href="https://console.apify.com/account/integrations" target="_blank" rel="noreferrer" className="text-primary hover:underline">Get your token</a>.</p>
           </div>
           <div className="flex gap-2 justify-end">
             <Button size="sm" variant="ghost" onClick={() => setShowAdd(false)}>Cancel</Button>
@@ -3181,11 +3180,8 @@ function ApifyAccountsPanel() {
                     {a.actor_id && <Badge variant="outline" className="font-mono text-[10px]">{a.actor_id}</Badge>}
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button size="sm" variant="outline" onClick={() => test(a.id, "run")} disabled={testingId === a.id}>
-                      {testingId === a.id ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Play className="w-3 h-3 mr-1" />}Run test
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => test(a.id, "health")} disabled={healthId === a.id} title="Check token health without running actor">
-                      {healthId === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    <Button size="sm" variant="outline" onClick={() => test(a.id, "health")} disabled={healthId === a.id} title="Validate this Apify token">
+                      {healthId === a.id ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Check className="w-3 h-3 mr-1" />}Test token
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => retryAccount(a.id)} disabled={retryingId === a.id} title="Retry last failed profile through this account">
                       {retryingId === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3 text-primary" />}

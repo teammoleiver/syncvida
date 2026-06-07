@@ -719,6 +719,8 @@ function EngagementDialog({ post, row, tones, onClose, onUpdate }: { post: any; 
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [replyInOriginal, setReplyInOriginal] = useState(false); // reply in the post's own language
+  const [translation, setTranslation] = useState("");            // English translation (display only)
   const liked = row?.liked ?? false;
   const status = row?.status ?? "draft";
 
@@ -731,10 +733,15 @@ function EngagementDialog({ post, row, tones, onClose, onUpdate }: { post: any; 
 
   async function smartReply() {
     setGenerating(true);
+    setTranslation("");
     try {
-      const r = await generateEngagementComment({ post_text: post.post_text || "", author: post.author, tone_id: toneId, instruction: extra });
+      const r = await generateEngagementComment({
+        post_text: post.post_text || "", author: post.author, tone_id: toneId, instruction: extra,
+        language: replyInOriginal ? "original" : "english",
+      });
       if (r.error) { toast.error(r.error); return; }
       if (r.comment) setDraft(r.comment);
+      setTranslation(r.translation || "");
     } finally { setGenerating(false); }
   }
 
@@ -866,6 +873,11 @@ function EngagementDialog({ post, row, tones, onClose, onUpdate }: { post: any; 
                 {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Smart Reply
               </Button>
             </div>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer w-fit">
+              <input type="checkbox" checked={replyInOriginal} onChange={(e) => setReplyInOriginal(e.target.checked)} className="accent-primary" />
+              Reply in the post's original language
+              <span className="text-[10px]">(an English translation is shown below — for your reference only)</span>
+            </label>
             {suggestReason && (
               <p className="text-[11px] text-muted-foreground italic">Why this tone: {suggestReason}</p>
             )}
@@ -934,6 +946,12 @@ function EngagementDialog({ post, row, tones, onClose, onUpdate }: { post: any; 
               placeholder="Write your comment, or click Smart Reply to generate one. Keep it short, specific and human."
               className="resize-y"
             />
+            {translation && (
+              <div className="rounded-md border border-dashed border-border bg-muted/30 p-2">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium mb-0.5">English translation · reference only (not posted)</div>
+                <p className="text-xs text-muted-foreground italic">{translation}</p>
+              </div>
+            )}
           </div>
 
           {/* Actions */}

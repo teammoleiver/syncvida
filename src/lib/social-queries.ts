@@ -441,7 +441,7 @@ export async function upsertEngagementComment(post_id: string, patch: Partial<Pi
 
 export type CommentTone = { id: string; label: string; description?: string; prompt: string };
 
-export async function generateEngagementComment(payload: { post_text: string; author?: string; tone_id?: string; instruction?: string }): Promise<{ comment?: string; error?: string; tone_id?: string }> {
+export async function generateEngagementComment(payload: { post_text: string; author?: string; tone_id?: string; instruction?: string; language?: "english" | "original" }): Promise<{ comment?: string; error?: string; tone_id?: string; translation?: string; language?: string }> {
   const { data, error } = await supabase.functions.invoke("generate-engagement-comment", { body: { action: "generate", ...payload } });
   if (error) return { error: error.message };
   return data as any;

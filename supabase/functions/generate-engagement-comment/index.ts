@@ -216,16 +216,32 @@ serve(async (req) => {
     const author = (body as any).author;
     const tone_id = (body as any).tone_id || (body as any).tone || tones[0].id;
     const instruction = (body as any).instruction;
+    // "original" → reply in the post's own language (and return an English translation).
+    const language = (body as any).language === "original" ? "original" : "english";
     if (!post_text.trim()) return new Response(JSON.stringify({ error: "post_text required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const tone = tones.find((t: any) => t.id === tone_id) || tones[0];
-    const sys = `${BASE_SYSTEM}\n\n${personaBlock(settings)}\n\nTONE INSTRUCTIONS:\n${tone.prompt}\n\nHARD LIMIT: ${tone.max_words} words maximum. Going over is a failure — count your words before responding.`;
+    const langRule = language === "original"
+      ? `\n\nLANGUAGE: Detect the language of the POST and write your comment in that SAME language, sounding native and natural. Do NOT write in English unless the post itself is English.`
+      : `\n\nLANGUAGE: Write the comment in English.`;
+    const sys = `${BASE_SYSTEM}\n\n${personaBlock(settings)}\n\nTONE INSTRUCTIONS:\n${tone.prompt}\n\nHARD LIMIT: ${tone.max_words} words maximum. Going over is a failure — count your words before responding.${langRule}`;
     const usr = `Write a LinkedIn comment for this post${author ? ` by ${author}` : ""}.${instruction ? `\nExtra instruction: ${instruction}.` : ""}\n\n--- POST ---\n${post_text.slice(0, 4000)}`;
     let comment = await callAI(sys, usr, __openaiKey);
     comment = comment.replace(/^["“]|["”]$/g, "").trim();
     comment = scrubAiTells(comment);
     comment = enforceWordLimit(comment, tone.max_words);
-    return new Response(JSON.stringify({ comment, tone_id: tone.id }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    // When replying in the post's language, also return an English translation
+    // (display-only — the user comments with `comment`, not this).
+    let translation: string | null = null;
+    if (language === "original") {
+      try {
+        const tSys = "Translate the user's short social-media comment into natural, plain English. Return ONLY the English translation — no quotes, no notes, no preamble. If it is already English, return it unchanged.";
+        translation = (await callAI(tSys, comment, __openaiKey)).replace(/^["“]|["”]$/g, "").trim();
+        if (translation && translation.toLowerCase() === comment.toLowerCase()) translation = null; // already English
+      } catch { translation = null; }
+    }
+    return new Response(JSON.stringify({ comment, tone_id: tone.id, translation, language }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     const msg = String(e?.message ?? "Unknown");
     const status = msg.includes("rate_limited") ? 429 : msg.includes("payment_required") ? 402 : 500;
