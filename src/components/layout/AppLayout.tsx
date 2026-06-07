@@ -89,7 +89,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return false;
   });
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [waterGlasses, setWaterGlasses] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Close the mobile sheet on route change
@@ -99,19 +98,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("ht-theme", dark ? "dark" : "light");
   }, [dark]);
-
-  const [waterMl, setWaterMl] = useState(0);
-
-  // Poll water intake for sidebar display + sync on water events
-  useEffect(() => {
-    const load = () => getTodayWaterLog().then((w) => {
-      setWaterGlasses(w?.glasses ?? 0);
-      setWaterMl(w?.ml_total ?? (w?.glasses ?? 0) * 250);
-    });
-    load();
-    const unsub = onSync("water:updated", load);
-    return () => { unsub(); };
-  }, []);
 
   return (
     <div className="min-h-screen flex bg-background">
