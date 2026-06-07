@@ -15,9 +15,19 @@ export default {
     extend: {
       fontFamily: {
         sans: ["Inter", "sans-serif"],
-        display: ["Space Grotesk", "sans-serif"],
+        display: ["Plus Jakarta Sans", "Space Grotesk", "sans-serif"],
       },
       colors: {
+        // Per-module accent colors (used for icons, dots, feature tiles).
+        module: {
+          social: "#2B5DF0",
+          studio: "#7B3FD8",
+          planner: "#E8561A",
+          designer: "#D9218A",
+          projects: "#0E9B8A",
+          tasks: "#1A6B47",
+          assistant: "#E0A81C",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -97,12 +107,17 @@ export default {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "fade-in-up": {
+          from: { opacity: "0", transform: "translateY(14px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
         "count-up": "count-up 0.4s ease-out",
+        "fade-in-up": "fade-in-up 0.45s ease both",
       },
     },
   },

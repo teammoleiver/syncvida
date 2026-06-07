@@ -67,6 +67,37 @@ const bottomNavItems: NavItem[] = [
   { path: "/settings", icon: UserIcon, label: "Profile" },
 ];
 
+// Per-module accent colors for the sidebar icons (matches the design system).
+const MODULE_COLORS: Record<string, string> = {
+  "/": "#4F46E5",
+  "/social": "#2B5DF0",
+  "/content-studio": "#7B3FD8",
+  "/content-planner": "#E8561A",
+  "/designer": "#D9218A",
+  "/projects": "#0E9B8A",
+  "/tasks": "#1A6B47",
+  "/calendar": "#E8561A",
+  "/goals": "#1A6B47",
+  "/nutrition": "#1A6B47",
+  "/fasting": "#7B3FD8",
+  "/exercise": "#E8561A",
+  "/sleep": "#2B5DF0",
+  "/health": "#D9218A",
+  "/body": "#0E9B8A",
+  "/assistant": "#E0A81C",
+  "/admin": "#4A4A4A",
+  "/settings": "#4A4A4A",
+};
+const moduleColor = (path: string) => MODULE_COLORS[path] ?? "#4F46E5";
+
+// Sidebar nav item classes — soft tinted active state with a left indicator.
+const navItemClass = (active: boolean, open: boolean) =>
+  `relative flex items-center gap-2.5 px-3 py-[6px] rounded-lg transition-all text-[13px] leading-tight ${
+    active
+      ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold before:absolute before:-left-2 before:top-1/2 before:-translate-y-1/2 before:h-4 before:w-[3px] before:rounded-r-full before:bg-sidebar-accent-foreground"
+      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+  } ${!open ? "justify-center px-0" : ""}`;
+
 // Flat list for lookups
 const allNavItems = navGroups.flatMap(g => g.items);
 
@@ -80,10 +111,11 @@ const mobileNavItems: NavItem[] = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
+  // Light-first: the redesigned Syncvida is light by default. Dark is opt-in via
+  // the toggle. (New storage key so old OS-derived "dark" prefs don't stick.)
   const [dark, setDark] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("ht-theme") === "dark" ||
-        (!localStorage.getItem("ht-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      return localStorage.getItem("syncvida-theme") === "dark";
     }
     return false;
   });
@@ -95,7 +127,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("ht-theme", dark ? "dark" : "light");
+    localStorage.setItem("syncvida-theme", dark ? "dark" : "light");
   }, [dark]);
 
   return (
@@ -143,16 +175,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 {group.items.map((item) => {
                   const active = location.pathname === item.path;
                   return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      className={`flex items-center gap-2.5 px-3 py-[5px] rounded-md transition-all text-[13px] leading-tight ${
-                        active
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
-                          : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                      } ${!sidebarOpen ? "justify-center px-0" : ""}`}
-                    >
-                      <item.icon className="w-[17px] h-[17px] shrink-0" />
+                    <Link key={item.path} to={item.path} className={navItemClass(active, sidebarOpen)}>
+                      <item.icon className="w-[17px] h-[17px] shrink-0" style={active ? undefined : { color: moduleColor(item.path) }} />
                       {sidebarOpen && <span>{item.label}</span>}
                     </Link>
                   );
@@ -167,16 +191,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {bottomNavItems.map((item) => {
             const active = location.pathname === item.path;
             return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-2.5 px-3 py-[5px] rounded-md transition-all text-[13px] leading-tight ${
-                  active
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
-                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                } ${!sidebarOpen ? "justify-center px-0" : ""}`}
-              >
-                <item.icon className="w-[17px] h-[17px] shrink-0" />
+              <Link key={item.path} to={item.path} className={navItemClass(active, sidebarOpen)}>
+                <item.icon className="w-[17px] h-[17px] shrink-0" style={active ? undefined : { color: moduleColor(item.path) }} />
                 {sidebarOpen && <span>{item.label}</span>}
               </Link>
             );
@@ -254,7 +270,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                                   : "text-foreground/80 hover:bg-accent"
                               }`}
                             >
-                              <item.icon className="w-5 h-5 shrink-0" />
+                              <item.icon className="w-5 h-5 shrink-0" style={active ? undefined : { color: moduleColor(item.path) }} />
                               <span>{item.label}</span>
                             </Link>
                           );
@@ -276,7 +292,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                             : "text-foreground/80 hover:bg-accent"
                         }`}
                       >
-                        <item.icon className="w-5 h-5 shrink-0" />
+                        <item.icon className="w-5 h-5 shrink-0" style={active ? undefined : { color: moduleColor(item.path) }} />
                         <span>{item.label}</span>
                       </Link>
                     );
