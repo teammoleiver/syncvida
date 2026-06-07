@@ -12,19 +12,31 @@ import { getWriterSettings, upsertWriterSettings } from "@/lib/social-queries";
 import { AI_PROVIDERS, AI_PROVIDER_BY_ID, type AiProvider } from "@/lib/ai-providers";
 
 /** One provider's key row: Active badge + masked key + Test / View (password) / Replace / Remove. */
-function ProviderKeyRow({ provider, value, model, onChange, onModel, onRemove }: {
+function ProviderKeyRow({ provider, value, model, onChange, onModel, onSave, onRemove }: {
   provider: AiProvider; value: string; model: string;
-  onChange: (v: string) => void; onModel: (v: string) => void; onRemove: () => void;
+  onChange: (v: string) => void; onModel: (v: string) => void;
+  onSave: (keyVal: string, modelVal: string) => Promise<void>; onRemove: () => void;
 }) {
   const saved = !!(value && value.trim());
   const [editing, setEditing] = useState(!saved);
   const [draft, setDraft] = useState("");
   const [testing, setTesting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [pwOpen, setPwOpen] = useState(false);
   const [pw, setPw] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [revealed, setRevealed] = useState(false);
+
+  // Persist this provider's key to Supabase immediately (survives refresh/logout).
+  async function saveKey() {
+    const keyVal = (draft.trim() || value).trim();
+    if (!keyVal) { setResult({ ok: false, msg: "Enter a key first" }); return; }
+    setSaving(true);
+    try { await onSave(keyVal, model); setEditing(false); setDraft(""); setResult({ ok: true, msg: "Saved" }); }
+    catch (e: any) { setResult({ ok: false, msg: e?.message ?? "Save failed" }); }
+    finally { setSaving(false); }
+  }
 
   async function test() {
     setTesting(true); setResult(null);
@@ -85,12 +97,15 @@ function ProviderKeyRow({ provider, value, model, onChange, onModel, onRemove }:
         <Button type="button" size="sm" variant="outline" onClick={test} disabled={testing || (!saved && !draft.trim())}>
           {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Test"}
         </Button>
+        <Button type="button" size="sm" onClick={saveKey} disabled={saving || (!draft.trim() && !value)}>
+          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+        </Button>
         {saved && !editing && <Button type="button" size="sm" variant="ghost" onClick={() => { setEditing(true); setDraft(""); setRevealed(false); }}>Replace</Button>}
         {saved && editing && <Button type="button" size="sm" variant="ghost" onClick={() => { setEditing(false); setDraft(""); onChange(value); }}>Cancel</Button>}
       </div>
       {result && (
         <p className={`text-[11px] flex items-center gap-1 ${result.ok ? "text-emerald-600" : "text-red-500"}`}>
-          {result.ok ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />} {result.ok ? "Connected — " : "Failed — "}{result.msg}
+          {result.ok ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />} {result.ok ? "" : "Failed — "}{result.msg}
         </p>
       )}
 
@@ -141,22 +156,46 @@ export default function AiProviderSettings() {
     })();
   }, []);
 
+  // Single writer to Supabase. Empty keys are dropped so nothing junk persists.
+  async function persist(nextKeys: Record<string, string>, nextModels: Record<string, string>, nextPreferred: string) {
+    const cleanKeys = Object.fromEntries(Object.entries(nextKeys).filter(([, v]) => v && String(v).trim()));
+    await upsertWriterSettings({
+      ai_provider_keys: cleanKeys,
+      ai_provider_models: nextModels,
+      preferred_provider: nextPreferred,
+      // Mirror so the existing edge functions (which read these columns) work.
+      openai_api_key: cleanKeys.openai ?? null,
+      anthropic_api_key: cleanKeys.anthropic ?? null,
+      openai_model: nextModels.openai ?? null,
+      anthropic_model: nextModels.anthropic ?? null,
+    });
+  }
+
   async function save() {
     setBusy(true);
-    try {
-      const cleanKeys = Object.fromEntries(Object.entries(keys).filter(([, v]) => v && v.trim()));
-      await upsertWriterSettings({
-        ai_provider_keys: cleanKeys,
-        ai_provider_models: models,
-        preferred_provider: preferred,
-        // Mirror so the existing edge functions (which read these columns) work.
-        openai_api_key: cleanKeys.openai ?? null,
-        anthropic_api_key: cleanKeys.anthropic ?? null,
-        openai_model: models.openai ?? null,
-        anthropic_model: models.anthropic ?? null,
-      });
-      toast.success("AI settings saved — used across the whole app");
-    } catch (e: any) { toast.error(e?.message ?? "Save failed"); } finally { setBusy(false); }
+    try { await persist(keys, models, preferred); toast.success("AI settings saved — used across the whole app"); }
+    catch (e: any) { toast.error(e?.message ?? "Save failed"); } finally { setBusy(false); }
+  }
+
+  // Auto-save a single provider's key+model immediately (survives refresh/logout).
+  async function saveProvider(id: string, keyVal: string, modelVal: string) {
+    const nextKeys = { ...keys, [id]: keyVal };
+    const nextModels = { ...models, [id]: modelVal };
+    setKeys(nextKeys); setModels(nextModels);
+    await persist(nextKeys, nextModels, preferred);
+  }
+
+  async function removeProvider(id: string) {
+    const nextKeys = { ...keys }; delete nextKeys[id];
+    const nextModels = { ...models }; delete nextModels[id];
+    setKeys(nextKeys); setModels(nextModels);
+    await persist(nextKeys, nextModels, preferred);
+    toast.success("Provider removed");
+  }
+
+  async function changePreferred(v: string) {
+    setPreferred(v);
+    try { await persist(keys, models, v); } catch { /* saved on next action */ }
   }
 
   if (loading) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
@@ -178,7 +217,7 @@ export default function AiProviderSettings() {
 
         <div>
           <label className="text-xs font-medium">Preferred provider</label>
-          <Select value={preferred} onValueChange={setPreferred}>
+          <Select value={preferred} onValueChange={changePreferred}>
             <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               {AI_PROVIDERS.map((p) => (
@@ -230,11 +269,12 @@ export default function AiProviderSettings() {
               model={models[p.id] ?? ""}
               onChange={(v) => setKeys((k) => ({ ...k, [p.id]: v }))}
               onModel={(v) => setModels((m) => ({ ...m, [p.id]: v }))}
-              onRemove={() => setKeys((k) => { const n = { ...k }; delete n[p.id]; return n; })}
+              onSave={(keyVal, modelVal) => saveProvider(p.id, keyVal, modelVal)}
+              onRemove={() => removeProvider(p.id)}
             />
           ))}
         </div>
-        <p className="text-[11px] text-muted-foreground">Keys are hidden by default. <strong>View</strong> requires your account password. Changes apply after <strong>Save AI settings</strong> above.</p>
+        <p className="text-[11px] text-muted-foreground">Each key is <strong>saved to your account</strong> the moment you click <strong>Save</strong> on its row — it persists across refresh and logout. Keys are hidden by default; <strong>View</strong> requires your account password.</p>
       </Card>
     </div>
   );
