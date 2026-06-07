@@ -176,12 +176,15 @@ export default function EngagementFeedTab() {
   // Reset to page 1 whenever filters change
   useEffect(() => { setPage(1); }, [search, statusFilter, dateFilter, profileFilter, listFilter, hideNoLink, sortByRelevance]);
 
-  async function scoreOne(postId: string, force = false) {
-    if (scoring.has(postId)) return;
+  async function scoreOne(postId: string, force = false, silent = false): Promise<boolean> {
+    if (scoring.has(postId)) return false;
     setScoring((s) => { const n = new Set(s); n.add(postId); return n; });
     try {
       const { data, error } = await scorePostRelevance(postId, force);
-      if (error) { toast.error(error.message || "Failed to score"); return; }
+      if (error || typeof (data as any)?.score !== "number") {
+        if (!silent) toast.error(error?.message || (data as any)?.error || "Failed to score");
+        return false;
+      }
       const score = (data as any)?.score;
       const fields = (data as any)?.fields ?? [];
       const reasoning = (data as any)?.reasoning ?? "";
@@ -192,6 +195,10 @@ export default function EngagementFeedTab() {
         relevance_fields: { fields, matched_to_user: (data as any)?.matched_to_user ?? [] },
         relevance_computed_at: new Date().toISOString(),
       } : p));
+      return true;
+    } catch (e: any) {
+      if (!silent) toast.error(e?.message || "Failed to score");
+      return false;
     } finally {
       setScoring((s) => { const n = new Set(s); n.delete(postId); return n; });
     }
@@ -205,18 +212,25 @@ export default function EngagementFeedTab() {
     if (!targets.length) { toast.info("All posts already have a relevance score"); return; }
     setScoringAll(true);
     setScoreAllProgress({ done: 0, total: targets.length });
-    let done = 0;
+    let done = 0, failed = 0;
     for (const id of targets) {
       if (!scoringAllRef.current) break;
-      await scoreOne(id, !!opts.reScore);
-      done++;
-      setScoreAllProgress({ done, total: targets.length });
+      // silent per-post: collect failures and report once at the end (no toast spam)
+      const ok = await scoreOne(id, !!opts.reScore, true);
+      ok ? done++ : failed++;
+      setScoreAllProgress({ done: done + failed, total: targets.length });
       // small gap to be gentle on the AI rate limit
       await new Promise((r) => setTimeout(r, 250));
     }
     setScoringAll(false);
     setScoreAllProgress(null);
-    toast.success(`Scored ${done} post${done === 1 ? "" : "s"} using your OpenAI key`);
+    if (done === 0 && failed > 0) {
+      toast.error(`Couldn't score ${failed} post${failed === 1 ? "" : "s"} — check your AI key in Settings → AI API.`);
+    } else if (failed > 0) {
+      toast.success(`Scored ${done} post${done === 1 ? "" : "s"} · ${failed} failed`);
+    } else {
+      toast.success(`Scored ${done} post${done === 1 ? "" : "s"}`);
+    }
   }
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -391,7 +405,7 @@ export default function EngagementFeedTab() {
           </label>
           <label
             className="flex items-center justify-between sm:justify-start gap-2 text-xs text-muted-foreground border border-border rounded-md px-2.5 h-9 w-full sm:w-auto"
-            title="Automatically score every newly-scraped post against your persona using your OpenAI key"
+            title="Automatically score every newly-scraped post against your persona"
           >
             <Switch checked={autoScore} onCheckedChange={setAutoScore} />
             <span className="inline-flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> Auto-score new posts</span>
@@ -406,7 +420,7 @@ export default function EngagementFeedTab() {
               scoreAllUnscored();
             }}
             disabled={loading}
-            title="Score every unscored post against your persona using your OpenAI key"
+            title="Score every unscored post against your persona"
           >
             {scoringAll
               ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Scoring {scoreAllProgress?.done}/{scoreAllProgress?.total} — click to stop</>

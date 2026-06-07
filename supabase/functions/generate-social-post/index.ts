@@ -212,6 +212,19 @@ async function callLovable(systemPrompt: string, userPrompt: string, model: stri
   return d.choices?.[0]?.message?.content ?? "";
 }
 
+// Task-aware routing: "quality" tasks (post writing) prefer the best writer
+// (Claude), "fast" tasks prefer the cheap model (OpenAI). An explicit override
+// in settings.ai_task_routing wins; otherwise it auto-picks from available keys.
+function pickProvider(settings: any, tier: "quality" | "fast"): string {
+  const hasAnthropic = !!((settings?.anthropic_api_key || "").trim() || Deno.env.get("ANTHROPIC_API_KEY"));
+  const hasOpenai = !!((settings?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY"));
+  const explicit = settings?.ai_task_routing?.[tier]?.provider;
+  if (explicit === "anthropic" && hasAnthropic) return "anthropic";
+  if (explicit === "openai" && hasOpenai) return "openai";
+  if (tier === "quality") return hasAnthropic ? "anthropic" : "openai";
+  return hasOpenai ? "openai" : "anthropic";
+}
+
 async function callAIWithFallback(provider: string, settings: any, systemPrompt: string, userPrompt: string) {
   // Prefer the user's own API key (BYO key from settings); fall back to the
   // platform secret so users who leave it blank keep working.
@@ -264,7 +277,7 @@ Return JSON: {"suggestions":[{"framework":"BuildInPublic","reason":"..."}]}
 
 SOURCE:
 ${sourceText || idea}`;
-      const result = await callAIWithFallback(settings?.preferred_provider || "openai", settings, sysP, userP);
+      const result = await callAIWithFallback(pickProvider(settings, "quality"), settings, sysP, userP);
       const match = result.text.match(/\{[\s\S]*\}/);
       let parsed: any = { suggestions: [] };
       try { parsed = JSON.parse(match?.[0] ?? "{}"); } catch { /* ignore */ }
@@ -313,7 +326,7 @@ ${sourceText || idea}`;
           .replaceAll("{{banned}}", inputs.banned)
           .replaceAll("{{wordLimit}}", String(inputs.wordLimit))
       : fw.prompt(inputs);
-    const result = await callAIWithFallback(settings?.preferred_provider || "openai", settings, baseSys, userPrompt);
+    const result = await callAIWithFallback(pickProvider(settings, "quality"), settings, baseSys, userPrompt);
     const text = result.text.trim();
 
     const { data: draft } = await admin.from("social_generated_drafts").insert({

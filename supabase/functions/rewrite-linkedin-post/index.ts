@@ -127,7 +127,7 @@ serve(async (req) => {
     // self-described voice so the rewrite is in THEIR voice, not the app author's.
     const { data: aiSettings } = await userClient
       .from("social_writer_settings")
-      .select("anthropic_api_key, openai_api_key, custom_system_prompt, voice_notes, about_me, career_summary, expertise, target_audience, writing_samples")
+      .select("anthropic_api_key, openai_api_key, ai_task_routing, custom_system_prompt, voice_notes, about_me, career_summary, expertise, target_audience, writing_samples")
       .eq("user_id", userRes.user.id)
       .maybeSingle();
     const ANTHROPIC_API_KEY = (aiSettings?.anthropic_api_key || "").trim() || Deno.env.get("ANTHROPIC_API_KEY");
@@ -142,7 +142,12 @@ serve(async (req) => {
 
     let rewrite = "";
 
-    if (ANTHROPIC_API_KEY) {
+    // Rewriting is a "quality" task → prefer Claude, unless the user explicitly
+    // routed quality writing to OpenAI in Settings → AI API → Smart routing.
+    const qualityProvider = (aiSettings as any)?.ai_task_routing?.quality?.provider;
+    const preferOpenAIForQuality = qualityProvider === "openai" && OPENAI_API_KEY;
+
+    if (ANTHROPIC_API_KEY && !preferOpenAIForQuality) {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {

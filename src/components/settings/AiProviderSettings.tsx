@@ -135,6 +135,7 @@ export default function AiProviderSettings() {
   const [keys, setKeys] = useState<Record<string, string>>({});
   const [models, setModels] = useState<Record<string, string>>({});
   const [preferred, setPreferred] = useState<string>("openai");
+  const [routing, setRouting] = useState<Record<string, { provider: string }>>({});
   const [addId, setAddId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -150,6 +151,7 @@ export default function AiProviderSettings() {
       if (!mdl.openai && data?.openai_model) mdl.openai = data.openai_model;
       if (!mdl.anthropic && data?.anthropic_model) mdl.anthropic = data.anthropic_model;
       setKeys(map); setModels(mdl);
+      setRouting((data?.ai_task_routing as any) ?? {});
       // Lovable is retired — default to OpenAI; migrate any old "lovable" pref.
       setPreferred(!data?.preferred_provider || data.preferred_provider === "lovable" ? "openai" : data.preferred_provider);
       setLoading(false);
@@ -157,18 +159,25 @@ export default function AiProviderSettings() {
   }, []);
 
   // Single writer to Supabase. Empty keys are dropped so nothing junk persists.
-  async function persist(nextKeys: Record<string, string>, nextModels: Record<string, string>, nextPreferred: string) {
+  async function persist(nextKeys: Record<string, string>, nextModels: Record<string, string>, nextPreferred: string, nextRouting: Record<string, { provider: string }> = routing) {
     const cleanKeys = Object.fromEntries(Object.entries(nextKeys).filter(([, v]) => v && String(v).trim()));
     await upsertWriterSettings({
       ai_provider_keys: cleanKeys,
       ai_provider_models: nextModels,
       preferred_provider: nextPreferred,
+      ai_task_routing: nextRouting,
       // Mirror so the existing edge functions (which read these columns) work.
       openai_api_key: cleanKeys.openai ?? null,
       anthropic_api_key: cleanKeys.anthropic ?? null,
       openai_model: nextModels.openai ?? null,
       anthropic_model: nextModels.anthropic ?? null,
     });
+  }
+
+  async function changeRouting(tier: "quality" | "fast", provider: string) {
+    const next = { ...routing, [tier]: { provider } };
+    setRouting(next);
+    try { await persist(keys, models, preferred, next); toast.success("Routing updated"); } catch { /* saved next action */ }
   }
 
   async function save() {
@@ -276,6 +285,67 @@ export default function AiProviderSettings() {
         </div>
         <p className="text-[11px] text-muted-foreground">Each key is <strong>saved to your account</strong> the moment you click <strong>Save</strong> on its row — it persists across refresh and logout. Keys are hidden by default; <strong>View</strong> requires your account password.</p>
       </Card>
+
+      <SmartRouting keys={keys} routing={routing} onChange={changeRouting} />
     </div>
+  );
+}
+
+/**
+ * Task-aware model routing. With 2+ providers, the system automatically sends
+ * quality writing (LinkedIn posts, rewrites, carousels) to the best writer and
+ * fast/cheap tasks (scoring, tone, classification) to the cheapest model — saving
+ * tokens while using the right model per action. Users can override per task.
+ */
+function SmartRouting({ keys, routing, onChange }: {
+  keys: Record<string, string>;
+  routing: Record<string, { provider: string }>;
+  onChange: (tier: "quality" | "fast", provider: string) => void;
+}) {
+  const keyed = AI_PROVIDERS.filter((p) => keys[p.id] && keys[p.id].trim());
+  const hasAnthropic = !!(keys.anthropic && keys.anthropic.trim());
+  const hasOpenai = !!(keys.openai && keys.openai.trim());
+
+  const autoFor = (tier: "quality" | "fast") =>
+    tier === "quality"
+      ? (hasAnthropic ? "anthropic" : hasOpenai ? "openai" : keyed[0]?.id)
+      : (hasOpenai ? "openai" : hasAnthropic ? "anthropic" : keyed[0]?.id);
+  const effective = (tier: "quality" | "fast") => routing[tier]?.provider || autoFor(tier) || "";
+
+  const TIERS: { id: "quality" | "fast"; title: string; desc: string }[] = [
+    { id: "quality", title: "Quality writing", desc: "LinkedIn posts, rewrites, carousel copy — best writer (Claude)." },
+    { id: "fast", title: "Fast / cheap tasks", desc: "Scoring, tone suggestions, classification, translation — cheap model." },
+  ];
+
+  return (
+    <Card className="p-5 space-y-3">
+      <h3 className="font-display font-semibold text-sm">Smart model routing</h3>
+      {keyed.length < 2 ? (
+        <p className="text-xs text-muted-foreground">Add a <strong>second</strong> provider key above to unlock routing — e.g. Anthropic (Claude) for writing and OpenAI for fast, cheaper tasks. With one provider, everything uses it.</p>
+      ) : (
+        <>
+          <p className="text-xs text-muted-foreground">Automatic by default: quality writing goes to the best writer, fast tasks to the cheapest model — so every run uses the right model and saves tokens. Override below if you like.</p>
+          <div className="space-y-2">
+            {TIERS.map((t) => (
+              <div key={t.id} className="flex items-center justify-between gap-3 rounded-md border border-border p-3 flex-wrap">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{t.title}</div>
+                  <div className="text-[11px] text-muted-foreground">{t.desc}</div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {!routing[t.id]?.provider && <Badge variant="outline" className="text-[10px]">Auto</Badge>}
+                  <Select value={effective(t.id)} onValueChange={(v) => onChange(t.id, v)}>
+                    <SelectTrigger className="h-8 w-[190px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {keyed.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </Card>
   );
 }
