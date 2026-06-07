@@ -648,6 +648,7 @@ export type Database = {
           created_at: string
           height: number | null
           id: string
+          is_profile: boolean
           kind: string
           mime: string | null
           name: string | null
@@ -662,6 +663,7 @@ export type Database = {
           created_at?: string
           height?: number | null
           id?: string
+          is_profile?: boolean
           kind: string
           mime?: string | null
           name?: string | null
@@ -676,6 +678,7 @@ export type Database = {
           created_at?: string
           height?: number | null
           id?: string
+          is_profile?: boolean
           kind?: string
           mime?: string | null
           name?: string | null
@@ -1335,6 +1338,7 @@ export type Database = {
           expires_at: string
           provider: string
           redirect_to: string | null
+          redirect_uri: string | null
           state: string
           user_id: string
         }
@@ -1344,6 +1348,7 @@ export type Database = {
           expires_at?: string
           provider: string
           redirect_to?: string | null
+          redirect_uri?: string | null
           state: string
           user_id: string
         }
@@ -1353,6 +1358,7 @@ export type Database = {
           expires_at?: string
           provider?: string
           redirect_to?: string | null
+          redirect_uri?: string | null
           state?: string
           user_id?: string
         }
@@ -2664,6 +2670,7 @@ export type Database = {
       social_writer_settings: {
         Row: {
           about_me: string | null
+          anthropic_api_key: string | null
           anthropic_model: string | null
           banned_words: string[] | null
           career_summary: string | null
@@ -2684,6 +2691,7 @@ export type Database = {
           last_websites_enriched_at: string | null
           linkedin_url: string | null
           lovable_model: string | null
+          openai_api_key: string | null
           openai_model: string | null
           preferred_provider: string
           profile_actor_id: string | null
@@ -2697,6 +2705,7 @@ export type Database = {
         }
         Insert: {
           about_me?: string | null
+          anthropic_api_key?: string | null
           anthropic_model?: string | null
           banned_words?: string[] | null
           career_summary?: string | null
@@ -2717,6 +2726,7 @@ export type Database = {
           last_websites_enriched_at?: string | null
           linkedin_url?: string | null
           lovable_model?: string | null
+          openai_api_key?: string | null
           openai_model?: string | null
           preferred_provider?: string
           profile_actor_id?: string | null
@@ -2730,6 +2740,7 @@ export type Database = {
         }
         Update: {
           about_me?: string | null
+          anthropic_api_key?: string | null
           anthropic_model?: string | null
           banned_words?: string[] | null
           career_summary?: string | null
@@ -2750,6 +2761,7 @@ export type Database = {
           last_websites_enriched_at?: string | null
           linkedin_url?: string | null
           lovable_model?: string | null
+          openai_api_key?: string | null
           openai_model?: string | null
           preferred_provider?: string
           profile_actor_id?: string | null
