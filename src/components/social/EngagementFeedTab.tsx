@@ -361,6 +361,22 @@ export default function EngagementFeedTab() {
             <Switch checked={hideNoLink} onCheckedChange={setHideNoLink} />
             <span>Only with link {noLinkCount > 0 && <span className="opacity-60">({noLinkCount} hidden)</span>}</span>
           </label>
+          <label className="flex items-center justify-between sm:justify-start gap-2 text-xs text-muted-foreground border border-border rounded-md px-2.5 h-9 w-full sm:w-auto" title="Sort by AI relevance score (best matches first)">
+            <Switch checked={sortByRelevance} onCheckedChange={setSortByRelevance} />
+            <span className="inline-flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> Sort by relevance</span>
+          </label>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-1.5 text-xs"
+            onClick={scoreAllVisibleUnscored}
+            disabled={scoringAll || loading}
+            title="Score every visible unscored post against your persona"
+          >
+            {scoringAll
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Scoring {scoreAllProgress?.done}/{scoreAllProgress?.total}…</>
+              : <><Sparkles className="w-3.5 h-3.5" /> Score visible</>}
+          </Button>
         </div>
         <div className="flex flex-wrap gap-1.5 text-[11px] w-full justify-start sm:justify-end">
           <Pill label="Posts" value={stats.total} />
