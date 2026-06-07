@@ -666,7 +666,7 @@ export async function saveCommentTargets(t: CommentTargets) {
 
 // ── Edge function calls ──
 export async function scrapeProfile(profile_id: string) {
-  return supabase.functions.invoke("scrape-linkedin-profile", { body: { profile_id } });
+  return supabase.functions.invoke("scrape-linkedin-profile", { body: { profile_id, limit: 25 } });
 }
 export async function generatePostImage(args: { hook: string; post_body?: string; entry_id?: string | null }) {
   return supabase.functions.invoke("generate-post-image", { body: args });

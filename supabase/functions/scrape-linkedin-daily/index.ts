@@ -40,7 +40,8 @@ Deno.serve(async (req: Request) => {
     for (const profile of profiles ?? []) {
       try {
         const actorId = profile.apify_actor_id || defaultActor;
-        const runUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apifyToken}`;
+        // &maxItems caps Apify's pay-per-result billing ("Maximum charged results") — must be > 0.
+        const runUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apifyToken}&maxItems=30`;
         const apifyRes = await fetch(runUrl, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -50,7 +51,7 @@ Deno.serve(async (req: Request) => {
             startUrls: [{ url: profile.profile_url }],
             username: profile.username,
             usernames: profile.username ? [profile.username] : undefined,
-            limit: 30, postsLimit: 30, maxPosts: 30, maxItems: 30,
+            limit: 30, postsLimit: 30, maxPosts: 30, maxItems: 30, maxResults: 30, resultsLimit: 30, count: 30, maxChargedResults: 30,
           }),
         });
         if (!apifyRes.ok) {

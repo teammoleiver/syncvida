@@ -76,8 +76,14 @@ function rankedAccounts(accounts: any[], usedAccountIdsThisWeek: Set<string>) {
 }
 
 function buildLinkedInInput(profile: any, limit: number) {
+  const n = Math.max(1, Number(limit) || 25); // never 0 — Apify rejects "maxItems must be > 0"
   const url = profile.profile_url;
-  return { url, urls: [url], profileUrls: [url], startUrls: [{ url }], username: profile.username, usernames: profile.username ? [profile.username] : undefined, limit, postsLimit: limit, maxPosts: limit, maxItems: limit };
+  // Set every common limit alias so whichever field the chosen actor expects is covered.
+  return {
+    url, urls: [url], profileUrls: [url], startUrls: [{ url }],
+    username: profile.username, usernames: profile.username ? [profile.username] : undefined,
+    limit: n, postsLimit: n, maxPosts: n, maxItems: n, maxResults: n, resultsLimit: n, count: n, maxChargedResults: n,
+  };
 }
 
 function flattenItems(rawItems: any[]) {
@@ -315,14 +321,24 @@ Deno.serve(async (req: Request) => {
         }
         const polling: any[] = [];
         const startedAt = new Date();
-        const baseInput = buildLinkedInInput(profile, limit);
-        const actorInput = { ...baseInput, ...(account.actor_input_defaults ?? {}) };
+        const safeLimit = Math.max(1, Number(limit) || 25);
+        const baseInput = buildLinkedInInput(profile, safeLimit);
+        const merged = { ...baseInput, ...(account.actor_input_defaults ?? {}) };
+        // Account defaults must never zero out the post limit (Apify rejects 0).
+        const clampField = (v: any) => Math.max(1, Number(v) || safeLimit);
+        const actorInput = {
+          ...merged,
+          limit: clampField(merged.limit), postsLimit: clampField(merged.postsLimit),
+          maxPosts: clampField(merged.maxPosts), maxItems: clampField(merged.maxItems),
+          maxResults: clampField(merged.maxResults),
+        };
         polling.push({ t: new Date().toISOString(), step: "request", account: account.label, actor: actorId });
         let runUrl: string | null = null;
         let responseExcerpt = "";
         let zeroReason: string | null = null;
         try {
-        const apiUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${token}`;
+        // &maxItems caps Apify's pay-per-result billing ("Maximum charged results"); it MUST be > 0.
+        const apiUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${token}&maxItems=${safeLimit}`;
         const apifyRes = await fetch(apiUrl, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify(actorInput),
