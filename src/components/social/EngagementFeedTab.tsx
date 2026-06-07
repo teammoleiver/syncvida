@@ -177,13 +177,15 @@ export default function EngagementFeedTab() {
     }
   }
 
-  async function scoreAllVisibleUnscored() {
-    const targets = filtered.filter((p) => typeof p.relevance_score !== "number").map((p) => p.id);
-    if (!targets.length) { toast.info("All visible posts are already scored"); return; }
+  async function scoreAllUnscored() {
+    // Score every loaded post (not just the current filter view) that does not have a score yet.
+    const targets = posts.filter((p) => typeof p.relevance_score !== "number").map((p) => p.id);
+    if (!targets.length) { toast.info("All posts already have a relevance score"); return; }
     setScoringAll(true);
     setScoreAllProgress({ done: 0, total: targets.length });
     let done = 0;
     for (const id of targets) {
+      if (!scoringAllRef.current) break;
       await scoreOne(id, false);
       done++;
       setScoreAllProgress({ done, total: targets.length });
@@ -192,7 +194,7 @@ export default function EngagementFeedTab() {
     }
     setScoringAll(false);
     setScoreAllProgress(null);
-    toast.success(`Scored ${done} post${done === 1 ? "" : "s"}`);
+    toast.success(`Scored ${done} post${done === 1 ? "" : "s"} using your OpenAI key`);
   }
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
