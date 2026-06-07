@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useDeferredValue } from "react";
+import { useEffect, useMemo, useRef, useState, useDeferredValue } from "react";
 import { Loader2, MessageCircle, ThumbsUp, ExternalLink, Sparkles, Copy, Check, Send, Search, X, Heart, Link2, ShieldCheck, ShieldAlert, ChevronLeft, ChevronRight, Trash2, Wand2, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,6 +76,7 @@ export default function EngagementFeedTab() {
   const [scoring, setScoring] = useState<Set<string>>(new Set());
   const [scoringAll, setScoringAll] = useState(false);
   const [scoreAllProgress, setScoreAllProgress] = useState<{ done: number; total: number } | null>(null);
+  const scoringAllRef = useRef(true);
   // Defer search input so typing stays smooth even on 1000+ posts
   const deferredSearch = useDeferredValue(search);
 
@@ -177,13 +178,15 @@ export default function EngagementFeedTab() {
     }
   }
 
-  async function scoreAllVisibleUnscored() {
-    const targets = filtered.filter((p) => typeof p.relevance_score !== "number").map((p) => p.id);
-    if (!targets.length) { toast.info("All visible posts are already scored"); return; }
+  async function scoreAllUnscored() {
+    // Score every loaded post (not just the current filter view) that does not have a score yet.
+    const targets = posts.filter((p) => typeof p.relevance_score !== "number").map((p) => p.id);
+    if (!targets.length) { toast.info("All posts already have a relevance score"); return; }
     setScoringAll(true);
     setScoreAllProgress({ done: 0, total: targets.length });
     let done = 0;
     for (const id of targets) {
+      if (!scoringAllRef.current) break;
       await scoreOne(id, false);
       done++;
       setScoreAllProgress({ done, total: targets.length });
@@ -192,7 +195,7 @@ export default function EngagementFeedTab() {
     }
     setScoringAll(false);
     setScoreAllProgress(null);
-    toast.success(`Scored ${done} post${done === 1 ? "" : "s"}`);
+    toast.success(`Scored ${done} post${done === 1 ? "" : "s"} using your OpenAI key`);
   }
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -369,13 +372,17 @@ export default function EngagementFeedTab() {
             variant="outline"
             size="sm"
             className="h-9 gap-1.5 text-xs"
-            onClick={scoreAllVisibleUnscored}
-            disabled={scoringAll || loading}
-            title="Score every visible unscored post against your persona"
+            onClick={() => {
+              if (scoringAll) { scoringAllRef.current = false; return; }
+              scoringAllRef.current = true;
+              scoreAllUnscored();
+            }}
+            disabled={loading}
+            title="Score every unscored post against your persona using your OpenAI key"
           >
             {scoringAll
-              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Scoring {scoreAllProgress?.done}/{scoreAllProgress?.total}…</>
-              : <><Sparkles className="w-3.5 h-3.5" /> Score visible</>}
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Scoring {scoreAllProgress?.done}/{scoreAllProgress?.total} — click to stop</>
+              : <><Sparkles className="w-3.5 h-3.5" /> Score all unscored ({posts.filter((p) => typeof p.relevance_score !== "number").length})</>}
           </Button>
         </div>
         <div className="flex flex-wrap gap-1.5 text-[11px] w-full justify-start sm:justify-end">
