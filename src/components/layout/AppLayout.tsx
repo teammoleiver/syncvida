@@ -1,10 +1,9 @@
 import { ReactNode, useState, useEffect, Suspense } from "react";
 import { useLocation, Link } from "react-router-dom";
-import { onSync } from "@/lib/sync-events";
 import {
   LayoutDashboard, Utensils, Dumbbell, HeartPulse,
   MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun,
-  Droplets, FolderKanban, CheckSquare, CalendarDays,
+  FolderKanban, CheckSquare, CalendarDays,
   PanelLeftClose, PanelLeft, Megaphone, Library, ClipboardList, Palette,
   Shield, User as UserIcon, Menu, MoreHorizontal,
 } from "lucide-react";
