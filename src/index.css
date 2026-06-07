@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 @layer base {
   :root {
@@ -48,9 +48,9 @@
 
     --radius: 0.9rem;                /* rounder, softer */
 
-    /* ── Sidebar: clean WHITE ── */
+    /* ── Sidebar: clean WHITE, Clay-style dark monochrome text/icons ── */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 29%;      /* #4A4A4A */
+    --sidebar-foreground: 0 0% 20%;      /* near-black labels + icons */
     --sidebar-primary: 243 75% 59%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 226 100% 96%;      /* #EEF2FF active/hover tint */
