@@ -16,10 +16,10 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 5%;
 
-    /* ── Brand: vibrant indigo ── */
-    --primary: 243 75% 59%;          /* #4F46E5 */
+    /* ── Brand: LinkedIn blue ── */
+    --primary: 210 90% 40%;          /* #0A66C2 LinkedIn blue */
     --primary-foreground: 0 0% 100%;
-    --primary-dark: 243 54% 41%;     /* #3730A3 */
+    --primary-dark: 210 90% 30%;     /* deeper blue */
 
     --secondary: 40 22% 93%;         /* warm tinted surface */
     --secondary-foreground: 0 0% 13%;
@@ -27,8 +27,8 @@
     --muted: 40 26% 93%;             /* #F2EFE9 section bg */
     --muted-foreground: 0 0% 45%;    /* secondary text */
 
-    --accent: 226 100% 96%;          /* #EEF2FF indigo-50 hover tint */
-    --accent-foreground: 243 75% 50%;
+    --accent: 210 100% 96%;          /* light blue hover tint */
+    --accent-foreground: 210 90% 38%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -44,19 +44,19 @@
 
     --border: 40 14% 88%;
     --input: 40 14% 85%;
-    --ring: 243 75% 59%;
+    --ring: 210 90% 40%;
 
     --radius: 0.9rem;                /* rounder, softer */
 
     /* ── Sidebar: clean WHITE, Clay-style dark monochrome text/icons ── */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 0 0% 20%;      /* near-black labels + icons */
-    --sidebar-primary: 243 75% 59%;
+    --sidebar-primary: 210 90% 40%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 226 100% 96%;      /* #EEF2FF active/hover tint */
-    --sidebar-accent-foreground: 243 75% 55%;
+    --sidebar-accent: 210 100% 96%;      /* light-blue active/hover tint */
+    --sidebar-accent-foreground: 210 90% 42%;  /* LinkedIn-blue active icon + text */
     --sidebar-border: 40 14% 90%;
-    --sidebar-ring: 243 75% 59%;
+    --sidebar-ring: 210 90% 40%;
 
     /* ── Per-module accent colors (raw hex for direct use) ── */
     --module-social: #2B5DF0;
@@ -92,9 +92,9 @@
     --popover: 240 11% 11%;
     --popover-foreground: 0 0% 96%;
 
-    --primary: 243 80% 68%;
+    --primary: 205 90% 58%;
     --primary-foreground: 0 0% 100%;
-    --primary-dark: 243 54% 45%;
+    --primary-dark: 210 90% 40%;
 
     --secondary: 240 8% 16%;
     --secondary-foreground: 0 0% 96%;
@@ -102,7 +102,7 @@
     --muted: 240 8% 16%;
     --muted-foreground: 240 5% 62%;
 
-    --accent: 243 40% 22%;
+    --accent: 210 60% 22%;
     --accent-foreground: 0 0% 96%;
 
     --destructive: 0 65% 52%;
@@ -119,16 +119,16 @@
 
     --border: 240 8% 18%;
     --input: 240 8% 18%;
-    --ring: 243 80% 68%;
+    --ring: 205 90% 58%;
 
     --sidebar-background: 240 12% 10%;
     --sidebar-foreground: 0 0% 80%;
-    --sidebar-primary: 243 80% 68%;
+    --sidebar-primary: 205 90% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 243 40% 20%;
-    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-accent: 210 60% 20%;
+    --sidebar-accent-foreground: 205 90% 70%;
     --sidebar-border: 240 8% 16%;
-    --sidebar-ring: 243 80% 68%;
+    --sidebar-ring: 205 90% 58%;
   }
 }
 
@@ -170,7 +170,7 @@
 
   .text-gradient-primary {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(280 70% 55%) 100%);
+    background-image: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(195 90% 48%) 100%);
   }
 
   /* AI gradient accent (indigo → magenta) */
