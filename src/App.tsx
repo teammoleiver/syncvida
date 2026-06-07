@@ -6,18 +6,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/layout/AppLayout";
-import { scheduleEndOfDaySnapshot, checkMissedSnapshot } from "@/lib/daily-snapshot";
 import { getProfile } from "@/lib/supabase-queries";
 import OnboardingWizard from "@/components/OnboardingWizard";
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const HealthRecords = lazy(() => import("./pages/HealthRecords"));
-const FastingModule = lazy(() => import("./pages/FastingModule"));
-const NutritionModule = lazy(() => import("./pages/NutritionModule"));
-const ExerciseModule = lazy(() => import("./pages/ExerciseModule"));
-const BodyMetrics = lazy(() => import("./pages/BodyMetrics"));
-const GoalsModule = lazy(() => import("./pages/GoalsModule"));
 const AssistantModule = lazy(() => import("./pages/AssistantModule"));
-const SleepModule = lazy(() => import("./pages/SleepModule"));
 const SettingsModule = lazy(() => import("./pages/SettingsModule"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const ProjectsModule = lazy(() => import("./pages/ProjectsModule"));
@@ -54,8 +46,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) return;
     getProfile().then((p: any) => {
-      // If profile exists but has no height_cm set, show onboarding
-      setNeedsOnboarding(!p?.height_cm);
+      // New users go through onboarding until they complete it.
+      setNeedsOnboarding(!p?.onboarded);
     });
   }, [user]);
 
@@ -92,18 +84,6 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
-  useEffect(() => {
-    const run = () => {
-      scheduleEndOfDaySnapshot();
-      checkMissedSnapshot();
-    };
-    if (typeof (window as any).requestIdleCallback === "function") {
-      (window as any).requestIdleCallback(run);
-    } else {
-      setTimeout(run, 1);
-    }
-  }, []);
-
   return (
     <Suspense fallback={null}>
     <Routes>
@@ -113,13 +93,6 @@ function AppRoutes() {
       <Route path="/oauth/canva/callback" element={<ProtectedRoute><CanvaCallback /></ProtectedRoute>} />
       <Route path="/oauth/meta/callback" element={<ProtectedRoute><MetaCallback /></ProtectedRoute>} />
       <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
-      <Route path="/health" element={<ProtectedRoute><AppLayout><HealthRecords /></AppLayout></ProtectedRoute>} />
-      <Route path="/fasting" element={<ProtectedRoute><AppLayout><FastingModule /></AppLayout></ProtectedRoute>} />
-      <Route path="/nutrition" element={<ProtectedRoute><AppLayout><NutritionModule /></AppLayout></ProtectedRoute>} />
-      <Route path="/exercise" element={<ProtectedRoute><AppLayout><ExerciseModule /></AppLayout></ProtectedRoute>} />
-      <Route path="/body" element={<ProtectedRoute><AppLayout><BodyMetrics /></AppLayout></ProtectedRoute>} />
-      <Route path="/sleep" element={<ProtectedRoute><AppLayout><SleepModule /></AppLayout></ProtectedRoute>} />
-      <Route path="/goals" element={<ProtectedRoute><AppLayout><GoalsModule /></AppLayout></ProtectedRoute>} />
       <Route path="/assistant" element={<ProtectedRoute><AppLayout><AssistantModule /></AppLayout></ProtectedRoute>} />
       <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsModule /></AppLayout></ProtectedRoute>} />
       <Route path="/tasks" element={<ProtectedRoute><AppLayout><TasksModule /></AppLayout></ProtectedRoute>} />

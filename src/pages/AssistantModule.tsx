@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Send, Bot, User, Trash2, Loader2 } from "lucide-react";
 import { getChatHistory, saveChatMessage } from "@/lib/supabase-queries";
 import { clearChatHistory } from "@/lib/supabase-queries";
-import { gatherHealthIntelligence, buildAIContextFromIntelligence } from "@/lib/health-intelligence";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 
@@ -11,21 +10,13 @@ interface Message {
   content: string;
 }
 
-const WELCOME = `Hi! 👋 I'm your **unified Health Intelligence assistant**. I analyze ALL your health data as one interconnected system:
+const WELCOME = `Hi! 👋 I'm your **Syncvida assistant**. Ask me anything about your work in Syncvida — Social Hub, content, planning, and your accounts.
 
-• 😴 **Sleep** — quality, duration, consistency, and how it affects everything else
-• 🍽️ **Nutrition** — meals, calories, liver-safe choices, hydration
-• ⏱️ **Fasting** — 16:8 compliance, eating window status
-• 🏋️ **Exercise** — sessions, recovery needs
-• ⚖️ **Body** — weight trends, BMI, body composition
-• 🩸 **Blood markers** — alerts, trends
-• ✅ **Daily habits** — checklist compliance, streaks
-
-All modules talk to each other. Ask me anything — for example:
-- "How is my overall health right now?"
-- "Is my sleep affecting my weight loss?"
-- "What should I focus on today based on all my data?"
-- "Give me a full health report"`;
+For example:
+- "Draft a LinkedIn post about our launch"
+- "Summarise what my tracked profiles are posting about"
+- "Help me plan this week's content"
+- "Give me 5 engagement comment ideas"`;
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-chat`;
 
@@ -49,16 +40,6 @@ export default function AssistantModule() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  const buildHealthContext = async () => {
-    try {
-      const intel = await gatherHealthIntelligence();
-      return buildAIContextFromIntelligence(intel);
-    } catch (e) {
-      console.error("Failed to gather health intelligence:", e);
-      return "Health data temporarily unavailable.";
-    }
-  };
-
   const send = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -71,7 +52,6 @@ export default function AssistantModule() {
     await saveChatMessage("user", input, "assistant");
 
     try {
-      const healthContext = await buildHealthContext();
       const apiMessages = newMessages.slice(-20).map((m) => ({ role: m.role, content: m.content }));
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -84,7 +64,7 @@ export default function AssistantModule() {
           Authorization: `Bearer ${session.access_token}`,
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ messages: apiMessages, healthContext }),
+        body: JSON.stringify({ messages: apiMessages }),
       });
 
       if (!resp.ok || !resp.body) {
@@ -152,7 +132,7 @@ export default function AssistantModule() {
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div>
           <h1 className="text-xl font-display font-bold text-foreground">Syncvida Assistant</h1>
-          <p className="text-xs text-muted-foreground">Powered by AI — your unified health intelligence</p>
+          <p className="text-xs text-muted-foreground">Powered by AI — your Syncvida copilot</p>
         </div>
         <button onClick={handleClear} className="text-muted-foreground hover:text-foreground p-2" title="Clear chat">
           <Trash2 className="w-4 h-4" />
@@ -202,7 +182,7 @@ export default function AssistantModule() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-            placeholder="Ask about your health..."
+            placeholder="Ask me anything about your Syncvida workspace..."
             disabled={isLoading}
             className="flex-1 px-4 py-2.5 rounded-xl bg-secondary text-foreground text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
           />

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Shield, Folder, Megaphone, Library, ClipboardList, Plus, Trash2, Loader2, Heart, FolderKanban, User as UserIcon, Webhook, Linkedin, Facebook, Instagram, Twitter, Youtube, Save, History, Plug } from "lucide-react";
+import { Shield, Folder, Megaphone, Library, ClipboardList, Plus, Trash2, Loader2, FolderKanban, User as UserIcon, Webhook, Linkedin, Facebook, Instagram, Twitter, Youtube, Save, History, Plug } from "lucide-react";
 import WebhookHistory from "@/components/WebhookHistory";
 import SocialConnections from "@/components/SocialConnections";
 import { Link, useParams, useNavigate } from "react-router-dom";
@@ -49,7 +49,6 @@ export default function AdminPanel() {
           <TabsTrigger value="webhooks"><Webhook className="w-4 h-4 mr-1.5" />Webhooks</TabsTrigger>
           <TabsTrigger value="social-hub"><Megaphone className="w-4 h-4 mr-1.5" />Social Hub</TabsTrigger>
           <TabsTrigger value="content-planner"><ClipboardList className="w-4 h-4 mr-1.5" />Content Planner</TabsTrigger>
-          <TabsTrigger value="health"><Heart className="w-4 h-4 mr-1.5" />Health</TabsTrigger>
           <TabsTrigger value="productivity"><FolderKanban className="w-4 h-4 mr-1.5" />Productivity</TabsTrigger>
           <TabsTrigger value="ai-api"><Sparkles className="w-4 h-4 mr-1.5" />AI API</TabsTrigger>
         </TabsList>
@@ -136,21 +135,6 @@ export default function AdminPanel() {
             <h2 className="font-display font-semibold">Content Planner settings</h2>
             <p className="text-sm text-muted-foreground">Planner uses the shared content categories above. Additional planner-specific settings (default cadence, weekly view start day, etc.) will appear here.</p>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="health">
-          <ModuleSettingsPlaceholder
-            title="Health modules"
-            description="Manage settings for Nutrition, Fasting, Exercise, Sleep, Records and Body."
-            links={[
-              { to: "/nutrition", label: "Nutrition" },
-              { to: "/fasting", label: "Fasting" },
-              { to: "/exercise", label: "Exercise" },
-              { to: "/sleep", label: "Sleep" },
-              { to: "/health", label: "Records" },
-              { to: "/body", label: "Body" },
-            ]}
-          />
         </TabsContent>
 
         <TabsContent value="productivity">

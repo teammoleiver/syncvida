@@ -1,8 +1,7 @@
 import { ReactNode, useState, useEffect, Suspense } from "react";
 import { useLocation, Link } from "react-router-dom";
 import {
-  LayoutGrid, Utensils, Dumbbell, HeartPulse,
-  MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun,
+  LayoutGrid, MessageCircle, Settings, Moon, Sun,
   FolderKanban, CalendarDays,
   PanelLeftClose, PanelLeft, Share2, PenLine, CalendarClock, PenTool, ListChecks,
   User as UserIcon, Menu, MoreHorizontal, LogOut,
@@ -45,18 +44,6 @@ const navGroups: NavGroup[] = [
       { path: "/projects", icon: FolderKanban, label: "Projects" },
       { path: "/tasks", icon: ListChecks, label: "Tasks" },
       { path: "/calendar", icon: CalendarDays, label: "Calendar" },
-      { path: "/goals", icon: Target, label: "Goals" },
-    ],
-  },
-  {
-    label: "Health",
-    items: [
-      { path: "/nutrition", icon: Utensils, label: "Nutrition" },
-      { path: "/fasting", icon: Timer, label: "Fasting" },
-      { path: "/exercise", icon: Dumbbell, label: "Exercise" },
-      { path: "/sleep", icon: Moon, label: "Sleep" },
-      { path: "/health", icon: HeartPulse, label: "Records" },
-      { path: "/body", icon: BarChart3, label: "Body" },
     ],
   },
 ];
@@ -82,9 +69,9 @@ const allNavItems = navGroups.flatMap(g => g.items);
 // Mobile bottom nav: 4 key sections + More (opens full menu)
 const mobileNavItems: NavItem[] = [
   allNavItems.find(i => i.path === "/") ?? { path: "/", icon: LayoutGrid, label: "Dashboard" },
-  allNavItems.find(i => i.path === "/nutrition") ?? { path: "/nutrition", icon: Utensils, label: "Nutrition" },
-  allNavItems.find(i => i.path === "/health") ?? { path: "/health", icon: HeartPulse, label: "Records" },
-  allNavItems.find(i => i.path === "/goals") ?? { path: "/goals", icon: Target, label: "Goals" },
+  allNavItems.find(i => i.path === "/social") ?? { path: "/social", icon: Share2, label: "Social Hub" },
+  allNavItems.find(i => i.path === "/content-planner") ?? { path: "/content-planner", icon: CalendarClock, label: "Planner" },
+  allNavItems.find(i => i.path === "/projects") ?? { path: "/projects", icon: FolderKanban, label: "Projects" },
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {
