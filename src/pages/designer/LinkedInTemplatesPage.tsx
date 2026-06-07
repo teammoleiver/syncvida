@@ -1961,74 +1961,98 @@ function CheatSheetForm({ data, setData }: { data: CheatSheetData; setData: (d: 
   const update = (patch: Partial<CheatSheetData>) => setData({ ...data, ...patch });
   const updateSection = (i: number, patch: Partial<SheetSection>) =>
     setData({ ...data, sections: data.sections.map((s, j) => j === i ? { ...s, ...patch } : s) });
+  const [tab, setTab] = useState<"sections" | "sheet" | "meta">("sections");
+  const [secIdx, setSecIdx] = useState(0);
+  const idx = Math.min(secIdx, Math.max(0, data.sections.length - 1));
+  const s = data.sections[idx];
+
+  const TabButton = ({ id, label }: { id: typeof tab; label: string }) => (
+    <button type="button" onClick={() => setTab(id)} className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${tab === id ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>{label}</button>
+  );
 
   return (
-    <>
-        <Card className="p-3 space-y-2">
-          <h3 className="text-sm font-semibold">Header</h3>
-          <FieldText label="Author" value={data.author} onChange={(v) => update({ author: v })} />
-          <FieldText label="Handle (without @)" value={data.handleShort ?? ""} onChange={(v) => update({ handleShort: v })} />
-          <FieldText label="Type label" value={data.typeLabel ?? "Cheat Sheet"} onChange={(v) => update({ typeLabel: v })} />
-          <FieldText label="Eyebrow" value={data.eyebrow ?? ""} onChange={(v) => update({ eyebrow: v })} />
-          <FieldText label="Title" value={data.title} onChange={(v) => update({ title: v })} multiline />
-          <FieldText label="Subtitle" value={data.subtitle ?? ""} onChange={(v) => update({ subtitle: v })} multiline />
-        </Card>
+    <div className="space-y-2">
+      <div className="sticky top-0 z-20 -mx-1 px-1 pb-2 bg-background/95 backdrop-blur">
+        <div className="flex gap-1 p-1 bg-muted rounded-lg">
+          <TabButton id="sections" label="Sections" />
+          <TabButton id="sheet" label="Sheet" />
+          <TabButton id="meta" label="Header" />
+        </div>
+      </div>
 
-        <Card className="p-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Sections</h3>
-            <Button size="sm" variant="outline" onClick={() => setData({ ...data, sections: [...data.sections, { tag: "New", title: "", kind: "bullets", items: [] }] })}>
-              <Plus className="w-3 h-3 mr-1" /> Add section
+      {/* SECTIONS — edit one section at a time via the chip strip (no scrolling
+          through every section). */}
+      {tab === "sections" && (
+        <Card className="p-3 space-y-2">
+          <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
+            {data.sections.map((_, i) => (
+              <button key={i} type="button" onClick={() => setSecIdx(i)}
+                className={`shrink-0 w-7 h-7 rounded-md text-[11px] font-semibold border transition-colors ${i === idx ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}>{i + 1}</button>
+            ))}
+            <Button size="sm" variant="outline" className="h-7 px-2 gap-1 shrink-0 ml-1" onClick={() => { setData({ ...data, sections: [...data.sections, { tag: "New", title: "", kind: "bullets", items: [] }] }); setSecIdx(data.sections.length); }}>
+              <Plus className="w-3.5 h-3.5" /> Add
             </Button>
           </div>
-          {data.sections.map((s, i) => (
-            <div key={i} className="rounded-md border border-border p-3 space-y-2 bg-muted/30">
+          {s ? (
+            <div className="space-y-2 pt-1">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono text-muted-foreground">SECTION {String(i + 1).padStart(2, "0")}</span>
-                <Button size="icon" variant="ghost" onClick={() => setData({ ...data, sections: data.sections.filter((_, j) => j !== i) })}>
+                <span className="text-[10px] font-mono text-muted-foreground">SECTION {String(idx + 1).padStart(2, "0")}</span>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { if (data.sections.length <= 1) return; setData({ ...data, sections: data.sections.filter((_, j) => j !== idx) }); setSecIdx(Math.max(0, idx - 1)); }} disabled={data.sections.length <= 1} title="Delete section">
                   <Trash2 className="w-3 h-3 text-destructive" />
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <FieldText label="Tag" value={s.tag} onChange={(v) => updateSection(i, { tag: v })} />
+                <FieldText label="Tag" value={s.tag} onChange={(v) => updateSection(idx, { tag: v })} />
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">Accent</label>
-                  <Select value={s.accent ?? "coral"} onValueChange={(v) => updateSection(i, { accent: v as AccentKey })}>
+                  <Select value={s.accent ?? "coral"} onValueChange={(v) => updateSection(idx, { accent: v as AccentKey })}>
                     <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>{ACCENT_KEYS.slice(0, 7).map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
-              <FieldText label="Title" value={s.title} onChange={(v) => updateSection(i, { title: v })} multiline />
-              <FieldText label="Subtitle" value={s.subtitle ?? ""} onChange={(v) => updateSection(i, { subtitle: v })} multiline />
+              <FieldText label="Title" value={s.title} onChange={(v) => updateSection(idx, { title: v })} multiline />
+              <FieldText label="Subtitle" value={s.subtitle ?? ""} onChange={(v) => updateSection(idx, { subtitle: v })} multiline />
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Kind</label>
-                <Select value={s.kind} onValueChange={(v) => updateSection(i, { kind: v as SectionKind })}>
+                <Select value={s.kind} onValueChange={(v) => updateSection(idx, { kind: v as SectionKind })}>
                   <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>{SECTION_KINDS.map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               {s.kind !== "table" && (
-                <ListEditor
-                  items={s.items ?? []}
-                  onChange={(next) => updateSection(i, { items: next })}
-                  placeholder={kindHint(s.kind)}
-                  hint={kindHelp(s.kind)}
-                />
+                <ListEditor items={s.items ?? []} onChange={(next) => updateSection(idx, { items: next })} placeholder={kindHint(s.kind)} hint={kindHelp(s.kind)} />
               )}
               {s.kind === "table" && (
-                <TableEditor table={s.table ?? { headers: ["", ""], rows: [["", ""]] }} onChange={(t) => updateSection(i, { table: t })} />
+                <TableEditor table={s.table ?? { headers: ["", ""], rows: [["", ""]] }} onChange={(t) => updateSection(idx, { table: t })} />
               )}
             </div>
-          ))}
+          ) : (
+            <p className="text-xs text-muted-foreground py-2">No sections yet — click "Add".</p>
+          )}
         </Card>
+      )}
 
+      {/* SHEET — the hero (top of the cheat sheet). */}
+      {tab === "sheet" && (
         <Card className="p-3 space-y-2">
-          <h3 className="text-sm font-semibold">Footer</h3>
+          <FieldText label="Eyebrow" value={data.eyebrow ?? ""} onChange={(v) => update({ eyebrow: v })} />
+          <FieldText label="Title" value={data.title} onChange={(v) => update({ title: v })} multiline />
+          <FieldText label="Subtitle" value={data.subtitle ?? ""} onChange={(v) => update({ subtitle: v })} multiline />
           <FieldText label="Closer" value={data.closer ?? ""} onChange={(v) => update({ closer: v })} />
           <FieldText label="Attribution" value={data.attribution ?? ""} onChange={(v) => update({ attribution: v })} />
         </Card>
-    </>
+      )}
+
+      {/* HEADER — author identity. */}
+      {tab === "meta" && (
+        <Card className="p-3 space-y-2">
+          <FieldText label="Author" value={data.author} onChange={(v) => update({ author: v })} />
+          <FieldText label="Handle (without @)" value={data.handleShort ?? ""} onChange={(v) => update({ handleShort: v })} />
+          <FieldText label="Type label" value={data.typeLabel ?? "Cheat Sheet"} onChange={(v) => update({ typeLabel: v })} />
+        </Card>
+      )}
+    </div>
   );
 }
 
@@ -2098,145 +2122,176 @@ function CarouselForm({ data, setData, slideIdx, setSlideIdx }: { data: Carousel
     setData({ ...data, slides: data.slides.map((s, j) => j === i ? { ...s, ...patch } : s) });
   const slide = data.slides[slideIdx] ?? data.slides[0];
   const layout: CarouselLayout = slide?.layout || "text";
+  const [tab, setTab] = useState<"content" | "style" | "header">("content");
+
+  const TabButton = ({ id, label }: { id: typeof tab; label: string }) => (
+    <button
+      type="button"
+      onClick={() => setTab(id)}
+      className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${
+        tab === id ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {label}
+    </button>
+  );
 
   return (
-    <>
+    <div className="space-y-2">
+      {/* Sticky slide navigator — stays put when you switch slides, so the panel
+          never jumps. Number chips let you jump straight to any slide. */}
+      <div className="sticky top-0 z-20 -mx-1 px-1 pb-2 bg-background/95 backdrop-blur space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setSlideIdx(Math.max(0, slideIdx - 1))} disabled={slideIdx === 0}><PrevIcon className="w-3.5 h-3.5" /></Button>
+            <span className="text-xs font-medium tabular-nums whitespace-nowrap">Slide {slideIdx + 1} / {data.slides.length}</span>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setSlideIdx(Math.min(data.slides.length - 1, slideIdx + 1))} disabled={slideIdx >= data.slides.length - 1}><NextIcon className="w-3.5 h-3.5" /></Button>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" className="h-7 px-2 gap-1" onClick={() => { setData({ ...data, slides: [...data.slides, { title: "New slide", body: "", accent: "coral", layout: "text" }] }); setSlideIdx(data.slides.length); }}>
+              <Plus className="w-3.5 h-3.5" /> Add
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => {
+              if (data.slides.length <= 1) return;
+              setData({ ...data, slides: data.slides.filter((_, j) => j !== slideIdx) });
+              setSlideIdx(Math.max(0, slideIdx - 1));
+            }} disabled={data.slides.length <= 1} title="Delete this slide">
+              <Trash2 className="w-3.5 h-3.5 text-destructive" />
+            </Button>
+          </div>
+        </div>
+        <div className="flex gap-1 overflow-x-auto pb-0.5">
+          {data.slides.map((_, i) => (
+            <button
+              key={i} type="button" onClick={() => setSlideIdx(i)}
+              className={`shrink-0 w-7 h-7 rounded-md text-[11px] font-semibold border transition-colors ${
+                i === slideIdx ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"
+              }`}
+            >{i + 1}</button>
+          ))}
+        </div>
+        <div className="space-y-1">
+          <label className="text-[11px] font-medium text-muted-foreground">Layout</label>
+          <Select value={layout} onValueChange={(v) => updateSlide(slideIdx, { layout: v as CarouselLayout })}>
+            <SelectTrigger className="text-xs h-8"><SelectValue /></SelectTrigger>
+            <SelectContent>{CAROUSEL_LAYOUTS.map((k) => <SelectItem key={k} value={k}>{LAYOUT_LABEL[k]}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="flex gap-1 p-1 bg-muted rounded-lg">
+          <TabButton id="content" label="Content" />
+          <TabButton id="style" label="Style" />
+          <TabButton id="header" label="Header" />
+        </div>
+      </div>
+
+      {/* CONTENT — only the current slide's copy. The only thing that should
+          change when you switch slides. */}
+      {tab === "content" && slide && (
         <Card className="p-3 space-y-2">
-          <h3 className="text-sm font-semibold">Header</h3>
+          <FieldText label="Eyebrow" value={slide.eyebrow ?? ""} onChange={(v) => updateSlide(slideIdx, { eyebrow: v })} max={20} />
+
+          {layout === "text" && (
+            <>
+              <FieldText label="Title" value={slide.title} onChange={(v) => updateSlide(slideIdx, { title: v })} multiline max={100} />
+              <FieldText label="Body" value={slide.body ?? ""} onChange={(v) => updateSlide(slideIdx, { body: v })} multiline max={220} rows={4} />
+            </>
+          )}
+
+          {layout === "cover" && (
+            <>
+              <FieldText label="Title (hook)" value={slide.title} onChange={(v) => updateSlide(slideIdx, { title: v })} multiline max={120} rows={3} />
+              <FieldText label="Subtitle (optional)" value={slide.body ?? ""} onChange={(v) => updateSlide(slideIdx, { body: v })} multiline max={120} />
+            </>
+          )}
+
+          {layout === "stat" && (
+            <>
+              <FieldText label="Stat value (e.g. 80%, 3x, $2M)" value={slide.statValue ?? ""} onChange={(v) => updateSlide(slideIdx, { statValue: v })} max={12} />
+              <FieldText label="Stat label" value={slide.statLabel ?? ""} onChange={(v) => updateSlide(slideIdx, { statLabel: v })} multiline max={80} />
+              <FieldText label="Context (optional)" value={slide.body ?? ""} onChange={(v) => updateSlide(slideIdx, { body: v })} multiline max={80} />
+            </>
+          )}
+
+          {layout === "quote" && (
+            <>
+              <FieldText label="Quote" value={slide.quote ?? slide.title} onChange={(v) => updateSlide(slideIdx, { quote: v, title: v })} multiline max={180} rows={4} />
+              <FieldText label="Attribution (optional)" value={slide.quoteAuthor ?? ""} onChange={(v) => updateSlide(slideIdx, { quoteAuthor: v })} max={40} />
+            </>
+          )}
+
+          {layout === "bullets" && (
+            <>
+              <FieldText label="Title" value={slide.title} onChange={(v) => updateSlide(slideIdx, { title: v })} multiline max={80} />
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Bullets (3–5 max)</label>
+                <ListEditor
+                  items={slide.bullets ?? []}
+                  onChange={(next) => updateSlide(slideIdx, { bullets: next.slice(0, 5) })}
+                  placeholder="Short, punchy line (≤ 70 chars)"
+                  hint="Keep each bullet to one tight idea. Long bullets get truncated."
+                />
+              </div>
+            </>
+          )}
+
+          {layout === "comparison" && (
+            <>
+              <FieldText label="Title" value={slide.title} onChange={(v) => updateSlide(slideIdx, { title: v })} multiline max={70} />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <FieldText label="Left label" value={slide.leftLabel ?? "Before"} onChange={(v) => updateSlide(slideIdx, { leftLabel: v })} max={20} />
+                </div>
+                <div className="space-y-1">
+                  <FieldText label="Right label" value={slide.rightLabel ?? "After"} onChange={(v) => updateSlide(slideIdx, { rightLabel: v })} max={20} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Left items</label>
+                <ListEditor
+                  items={slide.leftItems ?? []}
+                  onChange={(next) => updateSlide(slideIdx, { leftItems: next.slice(0, 4) })}
+                  placeholder="Old-way item (≤ 50 chars)"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Right items</label>
+                <ListEditor
+                  items={slide.rightItems ?? []}
+                  onChange={(next) => updateSlide(slideIdx, { rightItems: next.slice(0, 4) })}
+                  placeholder="New-way item (≤ 50 chars)"
+                />
+              </div>
+            </>
+          )}
+
+          <FieldText label="Closer" value={slide.closer ?? ""} onChange={(v) => updateSlide(slideIdx, { closer: v })} max={30} />
+        </Card>
+      )}
+
+      {/* STYLE — accent + sizes for the current slide. */}
+      {tab === "style" && slide && (
+        <Card className="p-3 space-y-2">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Accent</label>
+            <Select value={slide.accent ?? "coral"} onValueChange={(v) => updateSlide(slideIdx, { accent: v as AccentKey })}>
+              <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>{ACCENT_KEYS.slice(0, 7).map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <TextSizer label="Title size" value={slide.titleSizePx} onChange={(n) => updateSlide(slideIdx, { titleSizePx: n })} />
+          <TextSizer label="Body / bullet size" value={slide.bodySizePx} onChange={(n) => updateSlide(slideIdx, { bodySizePx: n })} />
+        </Card>
+      )}
+
+      {/* HEADER — applies to the whole carousel (same on every slide). */}
+      {tab === "header" && (
+        <Card className="p-3 space-y-2">
           <FieldText label="Author" value={data.author} onChange={(v) => update({ author: v })} />
           <FieldText label="Handle" value={data.handleShort ?? ""} onChange={(v) => update({ handleShort: v })} />
           <FieldText label="Type label" value={data.typeLabel ?? "Carousel"} onChange={(v) => update({ typeLabel: v })} />
         </Card>
-
-        <Card className="p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Slides ({data.slides.length})</h3>
-            <div className="flex gap-1">
-              <Button size="sm" variant="ghost" onClick={() => setSlideIdx(Math.max(0, slideIdx - 1))}><PrevIcon className="w-3 h-3" /></Button>
-              <span className="text-xs text-muted-foreground self-center">{slideIdx + 1} / {data.slides.length}</span>
-              <Button size="sm" variant="ghost" onClick={() => setSlideIdx(Math.min(data.slides.length - 1, slideIdx + 1))}><NextIcon className="w-3 h-3" /></Button>
-            </div>
-          </div>
-          <div className="flex gap-1">
-            <Button size="sm" variant="outline" onClick={() => { setData({ ...data, slides: [...data.slides, { title: "New slide", body: "", accent: "coral", layout: "text" }] }); setSlideIdx(data.slides.length); }}>
-              <Plus className="w-3 h-3 mr-1" /> Add slide
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => {
-              if (data.slides.length <= 1) return;
-              setData({ ...data, slides: data.slides.filter((_, j) => j !== slideIdx) });
-              setSlideIdx(Math.max(0, slideIdx - 1));
-            }} disabled={data.slides.length <= 1}>
-              <Trash2 className="w-3 h-3 text-destructive" />
-            </Button>
-          </div>
-          {slide && (
-            <div className="space-y-2 pt-2 border-t border-border">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Layout</label>
-                <Select value={layout} onValueChange={(v) => updateSlide(slideIdx, { layout: v as CarouselLayout })}>
-                  <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>{CAROUSEL_LAYOUTS.map((k) => <SelectItem key={k} value={k}>{LAYOUT_LABEL[k]}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-
-              <FieldText label="Eyebrow" value={slide.eyebrow ?? ""} onChange={(v) => updateSlide(slideIdx, { eyebrow: v })} max={20} />
-
-              {layout === "text" && (
-                <>
-                  <FieldText label="Title" value={slide.title} onChange={(v) => updateSlide(slideIdx, { title: v })} multiline max={100} />
-                  <FieldText label="Body" value={slide.body ?? ""} onChange={(v) => updateSlide(slideIdx, { body: v })} multiline max={220} rows={4} />
-                </>
-              )}
-
-              {layout === "cover" && (
-                <>
-                  <FieldText label="Title (hook)" value={slide.title} onChange={(v) => updateSlide(slideIdx, { title: v })} multiline max={120} rows={3} />
-                  <FieldText label="Subtitle (optional)" value={slide.body ?? ""} onChange={(v) => updateSlide(slideIdx, { body: v })} multiline max={120} />
-                </>
-              )}
-
-              {layout === "stat" && (
-                <>
-                  <FieldText label="Stat value (e.g. 80%, 3x, $2M)" value={slide.statValue ?? ""} onChange={(v) => updateSlide(slideIdx, { statValue: v })} max={12} />
-                  <FieldText label="Stat label" value={slide.statLabel ?? ""} onChange={(v) => updateSlide(slideIdx, { statLabel: v })} multiline max={80} />
-                  <FieldText label="Context (optional)" value={slide.body ?? ""} onChange={(v) => updateSlide(slideIdx, { body: v })} multiline max={80} />
-                </>
-              )}
-
-              {layout === "quote" && (
-                <>
-                  <FieldText label="Quote" value={slide.quote ?? slide.title} onChange={(v) => updateSlide(slideIdx, { quote: v, title: v })} multiline max={180} rows={4} />
-                  <FieldText label="Attribution (optional)" value={slide.quoteAuthor ?? ""} onChange={(v) => updateSlide(slideIdx, { quoteAuthor: v })} max={40} />
-                </>
-              )}
-
-              {layout === "bullets" && (
-                <>
-                  <FieldText label="Title" value={slide.title} onChange={(v) => updateSlide(slideIdx, { title: v })} multiline max={80} />
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground">Bullets (3–5 max)</label>
-                    <ListEditor
-                      items={slide.bullets ?? []}
-                      onChange={(next) => updateSlide(slideIdx, { bullets: next.slice(0, 5) })}
-                      placeholder="Short, punchy line (≤ 70 chars)"
-                      hint="Keep each bullet to one tight idea. Long bullets get truncated."
-                    />
-                  </div>
-                </>
-              )}
-
-              {layout === "comparison" && (
-                <>
-                  <FieldText label="Title" value={slide.title} onChange={(v) => updateSlide(slideIdx, { title: v })} multiline max={70} />
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <FieldText label="Left label" value={slide.leftLabel ?? "Before"} onChange={(v) => updateSlide(slideIdx, { leftLabel: v })} max={20} />
-                    </div>
-                    <div className="space-y-1">
-                      <FieldText label="Right label" value={slide.rightLabel ?? "After"} onChange={(v) => updateSlide(slideIdx, { rightLabel: v })} max={20} />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground">Left items</label>
-                    <ListEditor
-                      items={slide.leftItems ?? []}
-                      onChange={(next) => updateSlide(slideIdx, { leftItems: next.slice(0, 4) })}
-                      placeholder="Old-way item (≤ 50 chars)"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground">Right items</label>
-                    <ListEditor
-                      items={slide.rightItems ?? []}
-                      onChange={(next) => updateSlide(slideIdx, { rightItems: next.slice(0, 4) })}
-                      placeholder="New-way item (≤ 50 chars)"
-                    />
-                  </div>
-                </>
-              )}
-
-              <FieldText label="Closer" value={slide.closer ?? ""} onChange={(v) => updateSlide(slideIdx, { closer: v })} max={30} />
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Accent</label>
-                <Select value={slide.accent ?? "coral"} onValueChange={(v) => updateSlide(slideIdx, { accent: v as AccentKey })}>
-                  <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>{ACCENT_KEYS.slice(0, 7).map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <TextSizer
-                label="Title size"
-                value={slide.titleSizePx}
-                onChange={(n) => updateSlide(slideIdx, { titleSizePx: n })}
-              />
-              <TextSizer
-                label="Body / bullet size"
-                value={slide.bodySizePx}
-                onChange={(n) => updateSlide(slideIdx, { bodySizePx: n })}
-              />
-            </div>
-          )}
-        </Card>
-    </>
+      )}
+    </div>
   );
 }
 
@@ -2288,17 +2343,17 @@ function TextSizer({ label, value, onChange }: {
 
 function SquareForm({ data, setData }: { data: SquareData; setData: (d: SquareData) => void }) {
   const update = (patch: Partial<SquareData>) => setData({ ...data, ...patch });
+  const [tab, setTab] = useState<"content" | "header">("content");
   return (
-    <>
+    <div className="space-y-2">
+      <div className="sticky top-0 z-20 -mx-1 px-1 pb-2 bg-background/95 backdrop-blur">
+        <div className="flex gap-1 p-1 bg-muted rounded-lg">
+          <button type="button" onClick={() => setTab("content")} className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${tab === "content" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>Content</button>
+          <button type="button" onClick={() => setTab("header")} className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${tab === "header" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>Header</button>
+        </div>
+      </div>
+      {tab === "content" && (
         <Card className="p-3 space-y-2">
-          <h3 className="text-sm font-semibold">Header</h3>
-          <FieldText label="Author" value={data.author} onChange={(v) => update({ author: v })} />
-          <FieldText label="Handle" value={data.handleShort ?? ""} onChange={(v) => update({ handleShort: v })} />
-          <FieldText label="Type label" value={data.typeLabel ?? "Hot Take"} onChange={(v) => update({ typeLabel: v })} />
-        </Card>
-
-        <Card className="p-3 space-y-2">
-          <h3 className="text-sm font-semibold">Statement</h3>
           <FieldText label="Eyebrow" value={data.eyebrow ?? ""} onChange={(v) => update({ eyebrow: v })} />
           <FieldText
             label="Statement (wrap *highlights* in single asterisks for coral)"
@@ -2309,7 +2364,15 @@ function SquareForm({ data, setData }: { data: SquareData; setData: (d: SquareDa
           <FieldText label="Closer" value={data.closer ?? ""} onChange={(v) => update({ closer: v })} />
           <FieldText label="Attribution" value={data.attribution ?? ""} onChange={(v) => update({ attribution: v })} />
         </Card>
-    </>
+      )}
+      {tab === "header" && (
+        <Card className="p-3 space-y-2">
+          <FieldText label="Author" value={data.author} onChange={(v) => update({ author: v })} />
+          <FieldText label="Handle" value={data.handleShort ?? ""} onChange={(v) => update({ handleShort: v })} />
+          <FieldText label="Type label" value={data.typeLabel ?? "Hot Take"} onChange={(v) => update({ typeLabel: v })} />
+        </Card>
+      )}
+    </div>
   );
 }
 
