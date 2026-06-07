@@ -2913,7 +2913,7 @@ function SettingsTab() {
             provider="anthropic"
             label="Your Anthropic API key"
             placeholder="sk-ant-..."
-            saved={!!s.anthropic_api_key}
+            saved={!!(s as any).has_anthropic_api_key || !!s.anthropic_api_key}
             onChange={(v) => setS({ ...s, anthropic_api_key: v })}
             hint="console.anthropic.com → API keys"
           />
@@ -2921,7 +2921,7 @@ function SettingsTab() {
             provider="openai"
             label="Your OpenAI API key"
             placeholder="sk-..."
-            saved={!!s.openai_api_key}
+            saved={!!(s as any).has_openai_api_key || !!s.openai_api_key}
             onChange={(v) => setS({ ...s, openai_api_key: v })}
             hint="platform.openai.com → API keys"
           />
