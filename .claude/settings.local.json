@@ -4,7 +4,17 @@
       "Bash(npm install:*)",
       "Bash(node -e \"const r=require\\('./public/logos-registry.json'\\); console.log\\('count',r.length\\); console.log\\(JSON.stringify\\(r.slice\\(0,4\\),null,1\\)\\); const clay=r.filter\\(x=>/clay/i.test\\(x.name\\)\\).slice\\(0,3\\); console.log\\('clay-ish:',JSON.stringify\\(clay\\)\\);\")",
       "mcp__claude_ai_Supabase__get_advisors",
-      "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('supabase/functions/rewrite-linkedin-post/index.ts','utf8'\\);fs.writeFileSync\\('e:/tmp/rewrite-deploy.json', JSON.stringify\\(s\\)\\); console.log\\('bytes', s.length, '-> escaped', JSON.stringify\\(s\\).length\\);\")"
+      "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('supabase/functions/rewrite-linkedin-post/index.ts','utf8'\\);fs.writeFileSync\\('e:/tmp/rewrite-deploy.json', JSON.stringify\\(s\\)\\); console.log\\('bytes', s.length, '-> escaped', JSON.stringify\\(s\\).length\\);\")",
+      "Bash(rm -f pages/HealthRecords.tsx pages/NutritionModule.tsx pages/FastingModule.tsx pages/ExerciseModule.tsx pages/SleepModule.tsx pages/BodyMetrics.tsx pages/GoalsModule.tsx)",
+      "Bash(rm -f lib/health-data.ts lib/health-intelligence.ts lib/exercise-data.ts lib/water-sound.ts lib/daily-snapshot.ts)",
+      "Bash(rm -f components/HealthInsights.tsx components/modals/LogWaterModal.tsx components/modals/LogWeightModal.tsx components/modals/LogMealModal.tsx components/modals/LogExerciseModal.tsx)",
+      "Bash(rm -f components/NutritionPlanner.tsx components/NutritionPlanUpload.tsx components/WeeklyMenuUpload.tsx components/ExercisePlanUpload.tsx components/TreadmillTimer.tsx)",
+      "Bash(sed -n '68,72p' src/lib/supabase-queries.ts)",
+      "Bash(sed -n '346,352p' src/lib/supabase-queries.ts)",
+      "Bash(sed -n '379,384p' src/lib/supabase-queries.ts)",
+      "Bash(sed -n '558,563p' src/lib/supabase-queries.ts)",
+      "Bash(cp src/lib/supabase-queries.ts /tmp/sq-backup.ts)",
+      "Bash(sed -i '70,348d;382,557d' src/lib/supabase-queries.ts)"
     ]
   }
 }
