@@ -238,6 +238,39 @@ export default function SocialMediaModule({ defaultTab, hideHeader, embedded, ba
 }
 
 // ───────── Profiles tab ─────────
+/**
+ * User-facing scraping-capacity bar (no provider jargon). Reflects the real
+ * remaining credit across the account pool as a simple % with a traffic-light
+ * colour: green ≥75 · orange ≥50 · yellow ≥25 · red <25.
+ */
+function ScrapingCreditsBar() {
+  const [accounts, setAccounts] = useState<any[]>([]);
+  useEffect(() => { listApifyAccounts().then(setAccounts).catch(() => {}); }, []);
+  if (!accounts.length) return null;
+
+  const totalLimit = accounts.reduce((s, a) => s + Number(a.apify_limit_usd ?? a.monthly_budget_usd ?? 5), 0);
+  const totalRemaining = accounts.reduce((s, a) => s + (a.apify_limit_usd != null
+    ? Math.max(0, Number(a.apify_limit_usd) - Number(a.apify_usage_usd || 0))
+    : Number(a.monthly_budget_usd ?? 5)), 0);
+  const pct = totalLimit > 0 ? Math.max(0, Math.min(100, (totalRemaining / totalLimit) * 100)) : 0;
+  const scrapesLeft = Math.floor((totalRemaining / 0.5) * 10);
+
+  const color = pct >= 75 ? "bg-emerald-500" : pct >= 50 ? "bg-orange-500" : pct >= 25 ? "bg-yellow-400" : "bg-red-500";
+  const label = pct >= 75 ? "Healthy" : pct >= 50 ? "Good" : pct >= 25 ? "Running low" : "Almost out";
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium flex items-center gap-1.5"><Activity className="w-4 h-4 text-primary" /> Scraping credits</span>
+        <span className="text-xs text-muted-foreground tabular-nums">{Math.round(pct)}% left · {label} · ~{scrapesLeft.toLocaleString()} scrapes</span>
+      </div>
+      <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${Math.max(2, pct)}%` }} />
+      </div>
+    </div>
+  );
+}
+
 function ProfilesTab() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -394,6 +427,7 @@ function ProfilesTab() {
 
   return (
     <section className="space-y-4">
+      <ScrapingCreditsBar />
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <Input placeholder="Search name, URL, company, location…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
         <div className="flex gap-2">
