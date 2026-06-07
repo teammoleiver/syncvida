@@ -463,6 +463,19 @@ export default function EngagementFeedTab() {
               </Button>
             )}
             <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs gap-1.5"
+              disabled={selected.size === 0 || scoringAll}
+              onClick={() => {
+                scoringAllRef.current = true;
+                scoreMany(Array.from(selected), { reScore: true });
+              }}
+              title="Score (or re-score) only the selected posts"
+            >
+              <Sparkles className="w-3.5 h-3.5" /> Score selected
+            </Button>
+            <Button
               variant="destructive"
               size="sm"
               className="h-7 px-2 text-xs gap-1.5"
