@@ -389,6 +389,13 @@ export default function EngagementFeedTab() {
             <Switch checked={sortByRelevance} onCheckedChange={setSortByRelevance} />
             <span className="inline-flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> Sort by relevance</span>
           </label>
+          <label
+            className="flex items-center justify-between sm:justify-start gap-2 text-xs text-muted-foreground border border-border rounded-md px-2.5 h-9 w-full sm:w-auto"
+            title="Automatically score every newly-scraped post against your persona using your OpenAI key"
+          >
+            <Switch checked={autoScore} onCheckedChange={setAutoScore} />
+            <span className="inline-flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> Auto-score new posts</span>
+          </label>
           <Button
             variant="outline"
             size="sm"
