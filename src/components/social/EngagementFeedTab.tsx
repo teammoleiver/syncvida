@@ -476,6 +476,13 @@ export default function EngagementFeedTab() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    <RelevanceBadge
+                      score={p.relevance_score}
+                      reasoning={p.relevance_reasoning}
+                      fields={p.relevance_fields?.fields}
+                      loading={scoring.has(p.id)}
+                      onScore={(ev) => { ev.stopPropagation(); scoreOne(p.id, typeof p.relevance_score === "number"); }}
+                    />
                     {link && (
                       <a
                         href={link}
