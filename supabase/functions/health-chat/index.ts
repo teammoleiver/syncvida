@@ -28,33 +28,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { messages, healthContext } = await req.json();
+    const { messages } = await req.json();
     // BYO key: prefer the user's own saved OpenAI key, fall back to platform.
-    const { data: __aikeys } = await userClient.from("social_writer_settings").select("openai_api_key").eq("user_id", userRes.user.id).maybeSingle();
-    const OPENAI_API_KEY = ((__aikeys as any)?.openai_api_key || "").trim() || Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("No OpenAI key available. Add your own in Social Hub → Settings → AI provider.");
+    const { data: settings } = await userClient.from("social_writer_settings")
+      .select("openai_api_key, display_name, about_me, career_summary, expertise, target_audience, goals, linkedin_url")
+      .eq("user_id", userRes.user.id).maybeSingle();
+    const s: any = settings ?? {};
+    const OPENAI_API_KEY = ((s.openai_api_key || "").trim()) || Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("No OpenAI key available. Add your own in Settings → AI API.");
 
-    const systemPrompt = `You are Syncvida — a personal AI health intelligence system. You have FULL ACCESS to the user's complete, real-time health data from ALL modules: sleep, nutrition, exercise, fasting, weight, blood tests, and daily habits. ALL these data points are interconnected — they form ONE health system. Syncvida (syncvida.io) is the unified health platform that synchronizes all health data.
+    const userContext = [
+      s.display_name && `Name: ${s.display_name}`,
+      s.about_me && `About: ${s.about_me}`,
+      s.career_summary && `Background: ${s.career_summary}`,
+      s.expertise && `Expertise: ${s.expertise}`,
+      s.target_audience && `Audience: ${s.target_audience}`,
+      s.goals && `Goal: ${s.goals}`,
+      s.linkedin_url && `LinkedIn: ${s.linkedin_url}`,
+    ].filter(Boolean).join("\n") || "(Profile not filled in yet — suggest they complete Settings → Social Hub.)";
 
-The user's actual health data context is provided below. Use ONLY this data — do not assume or fabricate any health information.
+    const systemPrompt = `You are the **Syncvida Assistant**, an AI copilot inside Syncvida (syncvida.io) — a LinkedIn intelligence, content-creation and (soon) lead-management platform. You help the user grow their personal brand and turn social activity into opportunities.
 
-${healthContext || "No health data available yet. Encourage the user to start logging their data."}
+What Syncvida does, and what you can help with:
+- **Social Hub** — track LinkedIn profiles, scrape their posts, an Engagement Feed for drafting comments, Hot Topics & Rewrites, plus Search, YouTube and News/RSS radars.
+- **Content Studio & Content Planner** — build a content library, generate posts, and schedule them.
+- **Designer** — carousels, post images, and a brand kit.
+- **Projects, Tasks & Calendar** — lightweight productivity.
+- **Leads / Pre-CRM** — coming soon: turn tracked profiles and engagement into a client pipeline.
 
-CROSS-MODULE ANALYSIS RULES:
-1. Always analyze how modules affect each other (sleep→exercise, nutrition→liver, exercise→weight, sleep→nutrition)
-2. If sleep quality is low, suggest how it affects exercise recovery, weight, and overall health
-3. If exercise is lacking, explain impact on sleep quality, weight, and overall wellness
-4. If hydration is low, connect to sleep disruption, exercise performance, and organ function
-5. For liver questions: connect to nutrition choices, exercise patterns, and sleep recovery
-6. For weight questions: connect to sleep, exercise frequency, fasting compliance, and calorie intake
-7. For mood questions: analyze sleep quality, exercise endorphins, nutrition quality, and fasting state
-8. Always provide ACTIONABLE suggestions that consider ALL modules together
-9. Always check if user is in fasting window before discussing food
-10. Recommend consulting their doctor for medical concerns
-11. Respond in the same language the user writes in
-12. Be warm, honest, and motivational
-13. Use markdown formatting for clarity
-14. When giving overall health assessment, score each area and show how they interconnect`;
+Be a sharp, practical copilot. Help with: writing LinkedIn posts and comments in the user's voice, content ideas and angles, planning a content calendar, analysing what tracked profiles are posting about, engagement strategy, repurposing content, and general project/task questions. When you draft posts or comments, write like a real human (no corporate filler, no em-dashes, no hashtags unless asked).
+
+This is NOT a health or medical product — never give health, nutrition, fitness, or medical advice; if asked, gently redirect to what Syncvida actually does.
+
+THE USER:
+${userContext}
+
+Style: respond in the user's language, use clear markdown, be concise and actionable, and tailor advice to their goal and audience above.`;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
