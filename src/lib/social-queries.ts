@@ -531,10 +531,26 @@ export async function deletePlanEntry(id: string) {
 }
 
 // ── Writer settings ──
+/**
+ * Strip plaintext third-party API keys from any settings row before it leaves the
+ * edge and reaches browser memory. RLS already scopes the row to the owning user,
+ * but keeping high-value secrets out of `select *` responses removes them from
+ * dev tools, React state dumps, and any future logging path.
+ */
+function sanitizeWriterSettings<T extends Record<string, any> | null | undefined>(row: T): T {
+  if (!row) return row;
+  const { openai_api_key, anthropic_api_key, ...rest } = row as Record<string, any>;
+  return {
+    ...rest,
+    has_openai_api_key: !!(openai_api_key && String(openai_api_key).trim()),
+    has_anthropic_api_key: !!(anthropic_api_key && String(anthropic_api_key).trim()),
+  } as unknown as T;
+}
+
 export async function getWriterSettings() {
   const u = await uid(); if (!u) return null;
   const { data } = await supabase.from("social_writer_settings" as any).select("*").eq("user_id", u).maybeSingle();
-  return data;
+  return sanitizeWriterSettings(data);
 }
 export async function upsertWriterSettings(s: Record<string, any>) {
   const u = await uid(); if (!u) return null;
@@ -542,11 +558,11 @@ export async function upsertWriterSettings(s: Record<string, any>) {
   if (existing) {
     const { data, error } = await supabase.from("social_writer_settings" as any).update(s).eq("user_id", u).select().single();
     if (error) throw error;
-    return data;
+    return sanitizeWriterSettings(data);
   }
   const { data, error } = await supabase.from("social_writer_settings" as any).insert({ ...s, user_id: u } as any).select().single();
   if (error) throw error;
-  return data;
+  return sanitizeWriterSettings(data);
 }
 
 // ── Engagement analytics ──────────────────────────────────────────────
