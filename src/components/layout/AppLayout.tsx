@@ -1,12 +1,13 @@
 import { ReactNode, useState, useEffect, Suspense } from "react";
 import { useLocation, Link } from "react-router-dom";
 import {
-  LayoutDashboard, Utensils, Dumbbell, HeartPulse,
+  LayoutGrid, Utensils, Dumbbell, HeartPulse,
   MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun,
-  FolderKanban, CheckSquare, CalendarDays,
-  PanelLeftClose, PanelLeft, Megaphone, Library, ClipboardList, Palette,
-  Shield, User as UserIcon, Menu, MoreHorizontal,
+  FolderKanban, CalendarDays,
+  PanelLeftClose, PanelLeft, Share2, PenLine, CalendarClock, PenTool, ListChecks,
+  User as UserIcon, Menu, MoreHorizontal, LogOut,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import syncvidaLogo from "@/assets/syncvida-icon.png";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
@@ -26,23 +27,23 @@ const navGroups: NavGroup[] = [
   {
     label: "",
     items: [
-      { path: "/", icon: LayoutDashboard, label: "Dashboard" },
+      { path: "/", icon: LayoutGrid, label: "Dashboard" },
     ],
   },
   {
     label: "Content",
     items: [
-      { path: "/social", icon: Megaphone, label: "Social Hub" },
-      { path: "/content-studio", icon: Library, label: "Content Studio" },
-      { path: "/content-planner", icon: ClipboardList, label: "Content Planner" },
-      { path: "/designer", icon: Palette, label: "Designer" },
+      { path: "/social", icon: Share2, label: "Social Hub" },
+      { path: "/content-studio", icon: PenLine, label: "Content Studio" },
+      { path: "/content-planner", icon: CalendarClock, label: "Content Planner" },
+      { path: "/designer", icon: PenTool, label: "Designer" },
     ],
   },
   {
     label: "Productivity",
     items: [
       { path: "/projects", icon: FolderKanban, label: "Projects" },
-      { path: "/tasks", icon: CheckSquare, label: "Tasks" },
+      { path: "/tasks", icon: ListChecks, label: "Tasks" },
       { path: "/calendar", icon: CalendarDays, label: "Calendar" },
       { path: "/goals", icon: Target, label: "Goals" },
     ],
@@ -63,7 +64,7 @@ const navGroups: NavGroup[] = [
 // Bottom-pinned items (always visible at the bottom of sidebar)
 const bottomNavItems: NavItem[] = [
   { path: "/assistant", icon: MessageCircle, label: "Assistant" },
-  { path: "/admin", icon: Shield, label: "Settings" },
+  { path: "/admin", icon: Settings, label: "Settings" },
   { path: "/settings", icon: UserIcon, label: "Profile" },
 ];
 
@@ -81,7 +82,7 @@ const allNavItems = navGroups.flatMap(g => g.items);
 
 // Mobile bottom nav: 4 key sections + More (opens full menu)
 const mobileNavItems: NavItem[] = [
-  allNavItems.find(i => i.path === "/") ?? { path: "/", icon: LayoutDashboard, label: "Dashboard" },
+  allNavItems.find(i => i.path === "/") ?? { path: "/", icon: LayoutGrid, label: "Dashboard" },
   allNavItems.find(i => i.path === "/nutrition") ?? { path: "/nutrition", icon: Utensils, label: "Nutrition" },
   allNavItems.find(i => i.path === "/health") ?? { path: "/health", icon: HeartPulse, label: "Records" },
   allNavItems.find(i => i.path === "/goals") ?? { path: "/goals", icon: Target, label: "Goals" },
@@ -89,6 +90,7 @@ const mobileNavItems: NavItem[] = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const { signOut } = useAuth();
   // Light-first: the redesigned Syncvida is light by default. Dark is opt-in via
   // the toggle. (New storage key so old OS-derived "dark" prefs don't stick.)
   const [dark, setDark] = useState(() => {
@@ -175,6 +177,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          <button
+            type="button"
+            onClick={() => signOut()}
+            className={`${navItemClass(false, sidebarOpen)} w-full text-destructive hover:bg-destructive/10`}
+            title="Log out"
+          >
+            <LogOut className="w-[17px] h-[17px] shrink-0" />
+            {sidebarOpen && <span>Log out</span>}
+          </button>
           </div>
 
         </nav>
@@ -275,6 +286,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       </Link>
                     );
                   })}
+                  <button
+                    type="button"
+                    onClick={() => signOut()}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm min-h-11 text-destructive hover:bg-destructive/10"
+                  >
+                    <LogOut className="w-5 h-5 shrink-0" />
+                    <span>Log out</span>
+                  </button>
                 </div>
               </SheetContent>
             </Sheet>
