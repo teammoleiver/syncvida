@@ -1,15 +1,13 @@
 import { ReactNode, useState, useEffect, Suspense } from "react";
 import { useLocation, Link } from "react-router-dom";
-import { onSync } from "@/lib/sync-events";
 import {
   LayoutDashboard, Utensils, Dumbbell, HeartPulse,
   MessageCircle, Timer, BarChart3, Settings, Target, Moon, Sun,
-  Droplets, FolderKanban, CheckSquare, CalendarDays,
+  FolderKanban, CheckSquare, CalendarDays,
   PanelLeftClose, PanelLeft, Megaphone, Library, ClipboardList, Palette,
   Shield, User as UserIcon, Menu, MoreHorizontal,
 } from "lucide-react";
 import syncvidaLogo from "@/assets/syncvida-icon.png";
-import { getTodayWaterLog } from "@/lib/supabase-queries";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 // ── Grouped navigation ──
@@ -32,14 +30,12 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Health",
+    label: "Content",
     items: [
-      { path: "/nutrition", icon: Utensils, label: "Nutrition" },
-      { path: "/fasting", icon: Timer, label: "Fasting" },
-      { path: "/exercise", icon: Dumbbell, label: "Exercise" },
-      { path: "/sleep", icon: Moon, label: "Sleep" },
-      { path: "/health", icon: HeartPulse, label: "Records" },
-      { path: "/body", icon: BarChart3, label: "Body" },
+      { path: "/social", icon: Megaphone, label: "Social Hub" },
+      { path: "/content-studio", icon: Library, label: "Content Studio" },
+      { path: "/content-planner", icon: ClipboardList, label: "Content Planner" },
+      { path: "/designer", icon: Palette, label: "Designer" },
     ],
   },
   {
@@ -52,12 +48,14 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Content",
+    label: "Health",
     items: [
-      { path: "/social", icon: Megaphone, label: "Social Hub" },
-      { path: "/content-studio", icon: Library, label: "Content Studio" },
-      { path: "/content-planner", icon: ClipboardList, label: "Content Planner" },
-      { path: "/designer", icon: Palette, label: "Designer" },
+      { path: "/nutrition", icon: Utensils, label: "Nutrition" },
+      { path: "/fasting", icon: Timer, label: "Fasting" },
+      { path: "/exercise", icon: Dumbbell, label: "Exercise" },
+      { path: "/sleep", icon: Moon, label: "Sleep" },
+      { path: "/health", icon: HeartPulse, label: "Records" },
+      { path: "/body", icon: BarChart3, label: "Body" },
     ],
   },
 ];
@@ -90,7 +88,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return false;
   });
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [waterGlasses, setWaterGlasses] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Close the mobile sheet on route change
@@ -100,19 +97,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("ht-theme", dark ? "dark" : "light");
   }, [dark]);
-
-  const [waterMl, setWaterMl] = useState(0);
-
-  // Poll water intake for sidebar display + sync on water events
-  useEffect(() => {
-    const load = () => getTodayWaterLog().then((w) => {
-      setWaterGlasses(w?.glasses ?? 0);
-      setWaterMl(w?.ml_total ?? (w?.glasses ?? 0) * 250);
-    });
-    load();
-    const unsub = onSync("water:updated", load);
-    return () => { unsub(); };
-  }, []);
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -199,36 +183,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           })}
           </div>
 
-          {/* Water progress widget */}
-          <Link
-          to="/nutrition"
-          className="mt-2 px-2.5 py-1.5 rounded-lg bg-sidebar-accent/40 hover:bg-sidebar-accent/70 transition block"
-        >
-          {sidebarOpen ? (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Droplets className="w-3.5 h-3.5 text-blue-400" />
-                  <span className="text-[10px] font-medium text-sidebar-foreground/70">Water</span>
-                </div>
-                <span className={`text-[10px] font-bold ${waterMl >= 3000 ? "text-blue-400" : "text-sidebar-foreground/50"}`}>
-                  {(waterMl / 1000).toFixed(1)}L
-                </span>
-              </div>
-              <div className="h-[3px] bg-sidebar-border rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-500 transition-[width] duration-300 ease-out"
-                  style={{ width: `${Math.min((waterMl / 3000) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-0.5">
-              <Droplets className={`w-3.5 h-3.5 ${waterMl >= 3000 ? "text-blue-400" : "text-sidebar-foreground/40"}`} />
-              <span className="text-[8px] font-bold text-sidebar-foreground/50">{(waterMl / 1000).toFixed(1)}L</span>
-            </div>
-          )}
-          </Link>
         </nav>
 
         {/* Footer */}
