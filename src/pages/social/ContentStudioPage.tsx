@@ -16,6 +16,7 @@ import {
   updateContentCategory, bulkUpdateContentItems, bulkDeleteContentItems,
   createPlannerPost, PLANNER_PLATFORMS,
 } from "@/lib/social-queries";
+import { isSeedUser } from "@/lib/linkedin-review";
 
 type Cat = { id: string; name: string; slug: string; color?: string };
 type Item = {
@@ -52,7 +53,6 @@ export default function ContentStudioPage() {
   const [chatInput, setChatInput] = useState("");
   const [chatBusy, setChatBusy] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const autoSeedAttemptedRef = useRef(false);
 
   // edit modal
   const [editing, setEditing] = useState<Item | null>(null);
@@ -73,12 +73,12 @@ export default function ContentStudioPage() {
     setLoading(false);
   }
   useEffect(() => { refresh(); }, []);
-  useEffect(() => {
-    if (!loading && cats.length === 0 && items.length === 0 && !autoSeedAttemptedRef.current) {
-      autoSeedAttemptedRef.current = true;
-      handleSeed(false);
-    }
-  }, [loading, cats.length, items.length]);
+  // The starter library is the app author's personal GTM catalog, so it must NOT
+  // be auto-imported into every user's Studio. New users start empty and add
+  // their own content (manually or via the AI). The "Seed starter library"
+  // button is shown only to the author.
+  const [canSeed, setCanSeed] = useState(false);
+  useEffect(() => { void isSeedUser().then(setCanSeed).catch(() => setCanSeed(false)); }, []);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat]);
 
   async function handleSeed(force = false) {
@@ -202,7 +202,7 @@ export default function ContentStudioPage() {
           <p className="text-sm text-muted-foreground">Brainstorm, combine, and ship videos for YouTube, LinkedIn, Instagram & Facebook.</p>
         </div>
         <div className="flex gap-2">
-          {(cats.length === 0 || items.length === 0) && (
+          {canSeed && (cats.length === 0 || items.length === 0) && (
             <Button onClick={() => handleSeed(false)}><Sparkles className="w-4 h-4" /> Seed starter library</Button>
           )}
           <Button variant="outline" onClick={() => setCreating(true)}><Plus className="w-4 h-4" /> New idea</Button>
@@ -313,7 +313,7 @@ export default function ContentStudioPage() {
               {loading && <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Loading…</td></tr>}
               {!loading && pageItems.length === 0 && (
                 <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">
-                  {items.length === 0 ? "Empty library — click 'Seed starter library' to import 557 lessons from your catalog." : "No items match these filters."}
+                  {items.length === 0 ? "Empty library — click 'New idea' to add your own content, or use the AI to brainstorm ideas." : "No items match these filters."}
                 </td></tr>
               )}
               {pageItems.map((it) => (
