@@ -13,6 +13,12 @@ interface SitemapEntry {
 const entries: SitemapEntry[] = [
   { path: "/", changefreq: "daily", priority: "1.0" },
   { path: "/auth", changefreq: "monthly", priority: "0.3" },
+  // CRM
+  { path: "/crm", changefreq: "daily", priority: "0.9" },
+  { path: "/crm/contacts", changefreq: "daily", priority: "0.8" },
+  { path: "/crm/companies", changefreq: "weekly", priority: "0.7" },
+  { path: "/crm/deals", changefreq: "daily", priority: "0.8" },
+  { path: "/crm/pipelines", changefreq: "monthly", priority: "0.4" },
   // Content
   { path: "/social", changefreq: "daily", priority: "0.9" },
   { path: "/social/search", changefreq: "weekly", priority: "0.6" },

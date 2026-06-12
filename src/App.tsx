@@ -18,6 +18,12 @@ const CalendarModule = lazy(() => import("./pages/CalendarModule"));
 const SocialMediaModule = lazy(() => import("./pages/SocialMediaModule"));
 const SocialStudioLayout = lazy(() => import("./pages/social/SocialStudioLayout"));
 const SocialOverview = lazy(() => import("./pages/social/SocialOverview"));
+const CrmLayout = lazy(() => import("./pages/crm/CrmLayout"));
+const CrmDashboard = lazy(() => import("./pages/crm/CrmDashboard"));
+const ContactsPage = lazy(() => import("./pages/crm/ContactsPage"));
+const CompaniesPage = lazy(() => import("./pages/crm/CompaniesPage"));
+const DealsPage = lazy(() => import("./pages/crm/DealsPage"));
+const PipelinesPage = lazy(() => import("./pages/crm/PipelinesPage"));
 const NewsPage = lazy(() => import("./pages/social/NewsPage"));
 const ContentPlannerPage = lazy(() => import("./pages/social/ContentPlannerPage"));
 const SearchPage = lazy(() => import("./pages/social/SearchPage"));
@@ -93,6 +99,13 @@ function AppRoutes() {
       <Route path="/oauth/canva/callback" element={<ProtectedRoute><CanvaCallback /></ProtectedRoute>} />
       <Route path="/oauth/meta/callback" element={<ProtectedRoute><MetaCallback /></ProtectedRoute>} />
       <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+      <Route path="/crm" element={<ProtectedRoute><AppLayout><CrmLayout /></AppLayout></ProtectedRoute>}>
+        <Route index element={<CrmDashboard />} />
+        <Route path="contacts" element={<ContactsPage />} />
+        <Route path="companies" element={<CompaniesPage />} />
+        <Route path="deals" element={<DealsPage />} />
+        <Route path="pipelines" element={<PipelinesPage />} />
+      </Route>
       <Route path="/assistant" element={<ProtectedRoute><AppLayout><AssistantModule /></AppLayout></ProtectedRoute>} />
       <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsModule /></AppLayout></ProtectedRoute>} />
       <Route path="/tasks" element={<ProtectedRoute><AppLayout><TasksModule /></AppLayout></ProtectedRoute>} />
