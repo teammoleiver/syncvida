@@ -221,11 +221,11 @@ export async function pushContactToTrackedProfile(contactId: string) {
     username,
     display_name: displayName,
     company: contact.company?.name ?? null,
-    headline: contact.title ?? null,
+    job_title: contact.title ?? null,
+    title: contact.title ?? null,
     avatar_url: contact.avatar_url ?? null,
     active: true,
     scrape_cadence: "weekly",
-    source: "crm" as any,
   } as any).select().single();
   if (error) throw error;
   // Back-link
@@ -247,7 +247,7 @@ export async function createContactFromTrackedProfile(profile: any) {
   const contact = await createContact({
     first_name: first || null,
     last_name: rest.join(" ") || null,
-    title: profile.headline ?? null,
+    title: profile.job_title ?? profile.title ?? null,
     company_id: company?.id ?? null,
     linkedin_url: url,
     avatar_url: profile.avatar_url ?? null,
