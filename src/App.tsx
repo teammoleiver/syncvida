@@ -105,8 +105,8 @@ function AppRoutes() {
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="companies" element={<CompaniesPage />} />
         <Route path="deals" element={<DealsPage />} />
-        <Route path="pipelines" element={<Navigate to="/crm/settings" replace />} />
-        <Route path="settings" element={<CrmSettingsPage />} />
+        <Route path="pipelines" element={<Navigate to="/settings/crm" replace />} />
+        <Route path="settings" element={<Navigate to="/settings/crm" replace />} />
       </Route>
       <Route path="/assistant" element={<ProtectedRoute><AppLayout><AssistantModule /></AppLayout></ProtectedRoute>} />
       <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsModule /></AppLayout></ProtectedRoute>} />
