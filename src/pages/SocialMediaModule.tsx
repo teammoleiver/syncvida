@@ -906,6 +906,9 @@ function ProfilesTab() {
                     {rotatingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shuffle className="w-3.5 h-3.5" />}
                   </Button>
                   <ProfileHistoryButton profile={p} />
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => pushProfileToCrm(p)} title="Create in CRM">
+                    <UserPlus className="w-3.5 h-3.5" />
+                  </Button>
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={async () => { if (confirm("Delete profile?")) { await deleteSocialProfile(p.id); load(); } }} title="Delete">
                     <Trash2 className="w-3.5 h-3.5 text-destructive" />
                   </Button>
