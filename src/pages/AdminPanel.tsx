@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Shield, Folder, Megaphone, Library, ClipboardList, Plus, Trash2, Loader2, FolderKanban, User as UserIcon, Webhook, Linkedin, Facebook, Instagram, Twitter, Youtube, Save, History, Plug } from "lucide-react";
+import { Shield, Folder, Megaphone, Library, ClipboardList, Plus, Trash2, Loader2, FolderKanban, User as UserIcon, Webhook, Linkedin, Facebook, Instagram, Twitter, Youtube, Save, History, Plug, Workflow } from "lucide-react";
 import WebhookHistory from "@/components/WebhookHistory";
 import SocialConnections from "@/components/SocialConnections";
 import { Link, useParams, useNavigate } from "react-router-dom";
@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import SettingsModule from "./SettingsModule";
 import SocialHubSettings from "@/components/settings/SocialHubSettings";
 import AiProviderSettings from "@/components/settings/AiProviderSettings";
+import CrmSettingsPage from "./crm/CrmSettingsPage";
 import { Sparkles } from "lucide-react";
 
 type Cat = { id: string; name: string; slug: string; color?: string };
@@ -50,6 +51,7 @@ export default function AdminPanel() {
           <TabsTrigger value="social-hub"><Megaphone className="w-4 h-4 mr-1.5" />Social Hub</TabsTrigger>
           <TabsTrigger value="content-planner"><ClipboardList className="w-4 h-4 mr-1.5" />Content Planner</TabsTrigger>
           <TabsTrigger value="productivity"><FolderKanban className="w-4 h-4 mr-1.5" />Productivity</TabsTrigger>
+          <TabsTrigger value="crm"><Workflow className="w-4 h-4 mr-1.5" />CRM</TabsTrigger>
           <TabsTrigger value="ai-api"><Sparkles className="w-4 h-4 mr-1.5" />AI API</TabsTrigger>
         </TabsList>
 
@@ -148,6 +150,10 @@ export default function AdminPanel() {
               { to: "/goals", label: "Goals" },
             ]}
           />
+        </TabsContent>
+
+        <TabsContent value="crm">
+          <CrmSettingsPage />
         </TabsContent>
 
       </Tabs>
