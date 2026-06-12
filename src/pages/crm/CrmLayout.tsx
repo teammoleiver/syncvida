@@ -1,12 +1,12 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { LayoutGrid, Users, Building2, Trello, Workflow } from "lucide-react";
+import { LayoutGrid, Users, Building2, Trello, Settings as SettingsIcon } from "lucide-react";
 
 const tabs = [
   { to: "/crm", label: "Dashboard", icon: LayoutGrid, end: true },
   { to: "/crm/contacts", label: "Contacts", icon: Users },
   { to: "/crm/companies", label: "Companies", icon: Building2 },
   { to: "/crm/deals", label: "Deals", icon: Trello },
-  { to: "/crm/pipelines", label: "Pipelines", icon: Workflow },
+  { to: "/crm/settings", label: "Settings", icon: SettingsIcon },
 ];
 
 export default function CrmLayout() {

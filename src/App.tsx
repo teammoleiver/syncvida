@@ -24,6 +24,7 @@ const ContactsPage = lazy(() => import("./pages/crm/ContactsPage"));
 const CompaniesPage = lazy(() => import("./pages/crm/CompaniesPage"));
 const DealsPage = lazy(() => import("./pages/crm/DealsPage"));
 const PipelinesPage = lazy(() => import("./pages/crm/PipelinesPage"));
+const CrmSettingsPage = lazy(() => import("./pages/crm/CrmSettingsPage"));
 const NewsPage = lazy(() => import("./pages/social/NewsPage"));
 const ContentPlannerPage = lazy(() => import("./pages/social/ContentPlannerPage"));
 const SearchPage = lazy(() => import("./pages/social/SearchPage"));
@@ -104,7 +105,8 @@ function AppRoutes() {
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="companies" element={<CompaniesPage />} />
         <Route path="deals" element={<DealsPage />} />
-        <Route path="pipelines" element={<PipelinesPage />} />
+        <Route path="pipelines" element={<Navigate to="/crm/settings" replace />} />
+        <Route path="settings" element={<CrmSettingsPage />} />
       </Route>
       <Route path="/assistant" element={<ProtectedRoute><AppLayout><AssistantModule /></AppLayout></ProtectedRoute>} />
       <Route path="/projects" element={<ProtectedRoute><AppLayout><ProjectsModule /></AppLayout></ProtectedRoute>} />

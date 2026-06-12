@@ -67,9 +67,15 @@ export default function ContactDrawer({ contactId, open, onOpenChange, onChanged
 
   async function fetchPosts() {
     if (!c?.linkedin_url) return;
+    if (!tracked?.id) {
+      toast.error("Push to Social Hub tracking first");
+      return;
+    }
     setBusy("scrape");
     try {
-      const { error } = await supabase.functions.invoke("scrape-linkedin-profile", { body: { profileUrl: c.linkedin_url } });
+      const { error } = await supabase.functions.invoke("scrape-linkedin-profile", {
+        body: { profile_id: tracked.id, manual: true, limit: 10 },
+      });
       if (error) throw error;
       toast.success("Scrape kicked off — refresh in a moment");
       setTimeout(load, 4000);
