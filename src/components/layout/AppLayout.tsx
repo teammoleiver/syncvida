@@ -5,6 +5,7 @@ import {
   FolderKanban, CalendarDays,
   PanelLeftClose, PanelLeft, Share2, PenLine, CalendarClock, PenTool, ListChecks,
   User as UserIcon, Menu, MoreHorizontal, LogOut,
+  Users, Building2, Trello, Workflow,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import syncvidaLogo from "@/assets/syncvida-icon.png";
@@ -27,6 +28,16 @@ const navGroups: NavGroup[] = [
     label: "",
     items: [
       { path: "/", icon: LayoutGrid, label: "Dashboard" },
+    ],
+  },
+  {
+    label: "CRM",
+    items: [
+      { path: "/crm", icon: LayoutGrid, label: "Overview" },
+      { path: "/crm/contacts", icon: Users, label: "Contacts" },
+      { path: "/crm/companies", icon: Building2, label: "Companies" },
+      { path: "/crm/deals", icon: Trello, label: "Deals" },
+      { path: "/crm/pipelines", icon: Workflow, label: "Pipelines" },
     ],
   },
   {
