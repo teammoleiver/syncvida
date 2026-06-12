@@ -1,135 +1,92 @@
+## CRM Module — Scope
 
-# Designer — internal Canva/Figma-lite for social posts
-
-A new page under **Content → Designer** (`/designer`) that lets you generate, edit and export visual posts (LinkedIn carousel PDF + single 1:1 / 4:5 / 9:16 images for LinkedIn / Facebook / Instagram / X) from a prompt + your brand style, with AI image generation, AI image editing, your own logos/photos, and an automatic style extractor that reads your website.
-
-Everything stays inside our existing Supabase project. No Canva, no external design tool.
+A new top-level **CRM** section in the sidebar (above Content) with three pages: **Contacts**, **Companies**, **Deals**. Deals supports user-defined pipelines, each with custom stages and kanban/table views. Contacts and Companies are first-class records that sync bidirectionally with Social Hub tracked profiles.
 
 ---
 
-## 1. What the user can do
+## Database (new tables, all RLS-scoped to `auth.uid()`)
 
-### 1.1 Brand Kit (one per user)
-- Brand name, tagline, handle, website URL.
-- Colors: primary, secondary, accent, background, text (5 swatches, hex).
-- Fonts: heading + body (curated Google Fonts list).
-- Logo: light + dark variants (PNG/SVG upload).
-- Default avatar / author photo.
-- Default footer text (e.g. "@yourhandle · yourwebsite.com").
-- Toggle: "Match my website" → paste a URL, AI extracts colors + fonts + tone and pre-fills the kit (you can still override).
+- `crm_companies` — name, domain, industry, size, website, logo_url, notes, linkedin_url
+- `crm_contacts` — first_name, last_name, email, phone, title, company_id (→ crm_companies), linkedin_url, avatar_url, notes, source ('manual' | 'card_scan' | 'csv' | 'social_hub'), source_profile_id (→ social_profiles, nullable), tags[]
+- `crm_pipelines` — name, description, color, is_default, position
+- `crm_pipeline_stages` — pipeline_id, name, color, position, is_won, is_lost
+- `crm_deals` — pipeline_id, stage_id, contact_id, company_id, title, value, currency, expected_close_date, notes, position
+- `crm_activities` — contact_id/deal_id, type ('note'|'email'|'call'|'meeting'|'task'), content, occurred_at
 
-### 1.2 Asset Library
-- Upload your own photos and logos. Stored in a private bucket, listed in a grid, drag into any slide.
-- Generate new images from a prompt using Lovable AI (Nano Banana / Nano Banana Pro). Saved to the library.
-- Edit any library image with a prompt (Nano Banana edit). New version saved alongside original.
-
-### 1.3 Designer canvas
-Two doc types:
-- **Single post** (square 1080, portrait 1080×1350, story 1080×1920).
-- **Carousel** (1–10 slides, 1080×1350 LinkedIn-friendly, exportable as PDF).
-
-Each slide is composed of layered elements:
-- `text` (editable copy, font from brand kit, size, weight, color, alignment)
-- `image` (from library / uploaded / AI-generated; supports cover/contain, rounded corners)
-- `shape` (rect / circle / line — colored from brand kit)
-- `logo` (auto-bound to brand kit logo)
-
-Editor controls (right-rail Inspector):
-- Move / resize / rotate, z-order, duplicate, delete.
-- Color pickers locked to the brand palette + free hex.
-- "Edit with AI" on any image element → opens a prompt box → Nano Banana edits in place.
-- Templates: a starter set (3 carousel templates × 4 styles, 3 single-post templates) generated from the brand kit so first-time experience is instant.
-
-### 1.4 Generate-from-prompt
-A top input: "Describe the post you want." Chooses doc type, calls Lovable AI to:
-1. Write the copy (hook, body, CTA, per-slide text for carousels).
-2. Pick template + suggest images for each slide (text-to-image via Nano Banana).
-3. Drop everything onto the canvas pre-styled with the brand kit so you only fine-tune.
-
-### 1.5 Export
-- Single post → PNG download (rendered client-side from the canvas).
-- Carousel → multi-page PDF (1 page per slide) + zip of PNGs.
-- "Send to Content Planner" → creates a planner entry with the generated image(s) attached, scheduled draft.
+A trigger seeds a "Sales" default pipeline with stages (New → Qualified → Proposal → Won / Lost) for each new user. All tables get standard GRANTs + RLS (`auth.uid() = user_id`).
 
 ---
 
-## 2. Data model (new tables, RLS = owner-only)
+## Pages
 
-```text
-brand_kits
-  id, user_id (unique), brand_name, website_url,
-  colors jsonb { primary, secondary, accent, bg, text },
-  fonts jsonb { heading, body },
-  logo_light_url, logo_dark_url, avatar_url,
-  footer_text, extracted_at
+**`/crm`** — Dashboard: counts, recent contacts, deals by stage, conversion funnel.
 
-design_assets
-  id, user_id, kind ('upload' | 'ai_generated' | 'ai_edited'),
-  storage_path, public_url, prompt nullable, parent_asset_id nullable,
-  width, height, mime, created_at
+**`/crm/contacts`** — Table + search/filter. Header capture widgets:
+- AI Card Scan (image upload → OCR via tesseract.js in-browser, then a light AI parse to structure name/email/phone/company; tesseract is free + fast, AI only structures the extracted text — cheaper than full vision call)
+- Quick Add by Text (textarea → AI parse)
+- CSV import with template + preview
+- Manual "Add Contact" form
+Each row: edit/delete + **Contact Detail Drawer** with tabs: Overview, Posts (LinkedIn), Deals, Activities.
 
-designs
-  id, user_id, type ('single' | 'carousel'),
-  title, platform ('linkedin'|'instagram'|'facebook'|'x'|'multi'),
-  width, height, slides jsonb (array of { id, elements: Element[] }),
-  thumbnail_url, planner_entry_id nullable, created_at, updated_at
-```
+**`/crm/companies`** — Table of companies, add/edit, click → company detail with list of associated contacts and deals.
 
-Storage buckets:
-- `brand-assets` (private, RLS by `auth.uid()/...`) — logos, brand photos.
-- `design-assets` (private) — uploaded + AI-generated images.
-- `design-exports` (private) — final PNG/PDF exports.
+**`/crm/deals`** — Pipeline picker dropdown + "New Pipeline" button. Kanban (drag between stages, dnd-kit) / Table toggle. Each deal card: title, value, contact, company. Click → deal drawer with stage, value, notes, activities.
+
+**`/crm/pipelines`** — Manage pipelines: create/rename/delete, reorder stages, set colors, mark won/lost stages.
 
 ---
 
-## 3. Edge functions
+## Social Hub ↔ CRM Sync (bidirectional)
 
-- `extract-brand-from-url` — fetches the user's website HTML + favicon, extracts dominant colors (CSS palette + favicon analysis) and font-family hints, asks Lovable AI to return `{ colors, fonts, tone, logoCandidates[] }`. Pre-fills brand kit.
-- `generate-design-image` — takes `{ prompt, aspect, brandKitId }`, calls Lovable AI Gateway with `google/gemini-2.5-flash-image` (or `gemini-3-pro-image-preview` when `quality:"high"`), saves PNG to `design-assets`, returns row.
-- `edit-design-image` — takes `{ asset_id, prompt }`, runs Nano Banana edit, saves new asset linked via `parent_asset_id`.
-- `generate-design-from-prompt` — orchestrator: copy + slide structure (Lovable AI text), then N parallel `generate-design-image` calls, returns a fully-populated `designs` row.
+**On a CRM Contact detail page:**
+1. **"Find LinkedIn URL"** button → edge function `crm-find-linkedin-url` uses AI search (Linkup API already configured) to locate the contact's LinkedIn URL from name + company; user confirms and saves.
+2. **"Push to Social Hub Tracking"** button (enabled once LinkedIn URL exists) → creates a row in `social_profiles` linked back via `source_contact_id`; immediately schedules a scrape.
+3. **"Fetch Latest Posts"** button → triggers `scrape-linkedin-profile` for this contact's URL and renders posts inline in the contact drawer (Posts tab) from `social_posts`.
 
-All functions: validate input with zod, JWT-validate the caller, use `LOVABLE_API_KEY` via Lovable AI Gateway. No third-party design APIs.
+**On a Social Hub tracked profile (`/social/linkedin/profiles` profile row):**
+1. **"Create in CRM"** button → creates/updates `crm_contacts` row (matched by `linkedin_url`), copies display_name, headline → title, company → links/creates `crm_companies`, sets `source='social_hub'` and `source_profile_id`. Existing scrape history stays linked via `linkedin_url`.
 
----
-
-## 4. Frontend
-
-New routes (added to `App.tsx`, sidebar entry under **Content** right below Content Planner):
-- `/designer` — gallery of your designs + "New design" button + brand-kit shortcut.
-- `/designer/brand` — brand kit editor (palette, fonts, logos, "Match my website" extractor).
-- `/designer/assets` — asset library (uploads + AI generations + edits).
-- `/designer/:id` — the canvas editor.
-
-Tech for the canvas:
-- HTML/SVG-based editor (absolutely-positioned layers inside a fixed-px frame, scaled responsively). Lightweight, no Fabric/Konva dependency, themeable with our existing tokens.
-- Export: `html-to-image` for PNG, `jspdf` for combining slides into a single PDF. Both small and already friendly with React.
-- Drag/resize: a tiny custom handler (no extra dep) since elements are simple boxes.
-
-Design tokens: all UI uses existing `--background / --foreground / --primary` tokens; brand-kit colors only apply *inside* the design canvas, never to the app chrome.
+**Auto-link rule:** whenever a contact and a tracked profile share the same normalized LinkedIn URL, they're treated as linked — the Posts tab queries `social_posts` by URL, and "Push to Tracking" upserts on URL conflict.
 
 ---
 
-## 5. Build order
+## Capture Tech Choices
 
-1. Migration: `brand_kits`, `design_assets`, `designs`, three storage buckets + RLS.
-2. Sidebar entry + routes + page shells (`/designer`, `/designer/brand`, `/designer/assets`, `/designer/:id`).
-3. Brand Kit page with manual editor + logo upload.
-4. Edge function `extract-brand-from-url` + "Match my website" button.
-5. Asset Library page: upload, AI generate, AI edit.
-6. Edge functions `generate-design-image`, `edit-design-image`.
-7. Canvas editor: render slides, select/move/resize, text/image/shape/logo elements, brand-palette color picker.
-8. Templates (seeded JSON in code, instantiated against the active brand kit).
-9. Edge function `generate-design-from-prompt` + the top "Describe your post" bar.
-10. Export: PNG (single), PDF (carousel), "Send to Content Planner" hand-off.
+- **OCR**: `tesseract.js` (free, in-browser, no API cost). Worker loaded lazily on first card scan.
+- **Text structuring**: small Lovable AI Gateway call (`google/gemini-3-flash-preview`) — cheap, fast, JSON output.
+- **CSV**: parsed client-side with `papaparse`.
+- **Drag/drop kanban**: `@dnd-kit/core` (already in deps).
 
 ---
 
-## 6. Notes / out of scope for v1
+## Sidebar / Sitemap
 
-- No real-time multi-user collaboration.
-- No vector freehand drawing — only text, image, basic shapes, logo (covers 95% of social-post needs).
-- No video/Reels — images + carousels only.
-- We build entirely on Lovable AI for both text and image; no Canva, no Figma, no Gamma.
+- Reorder `navGroups` in `AppLayout.tsx`: **CRM** first (Dashboard, Contacts, Companies, Deals, Pipelines) → then existing Content → Productivity → Health.
+- Update `scripts/generate-sitemap.ts` with the 5 new routes; regenerate `public/sitemap.xml`.
 
-If you approve, I'll start with the migration + sidebar/routes and work down the build-order list.
+---
+
+## File Plan
+
+**New:**
+- `supabase/migrations/<ts>_crm_module.sql` (tables + RLS + GRANTs + default pipeline trigger)
+- `supabase/functions/crm-find-linkedin-url/index.ts` (AI search via Linkup)
+- `supabase/functions/crm-parse-card-text/index.ts` (AI structures OCR text → contact)
+- `src/lib/crm-queries.ts` (CRUD helpers)
+- `src/pages/crm/CrmLayout.tsx` + `CrmDashboard.tsx` + `ContactsPage.tsx` + `CompaniesPage.tsx` + `DealsPage.tsx` + `PipelinesPage.tsx`
+- `src/components/crm/ContactDrawer.tsx`, `CompanyDrawer.tsx`, `DealDrawer.tsx`, `DealKanban.tsx`, `CardScanner.tsx`, `CsvImporter.tsx`, `QuickCaptureBar.tsx`, `PipelinePicker.tsx`, `SyncToSocialButton.tsx`
+- `src/lib/crm-card-ocr.ts` (tesseract.js wrapper)
+
+**Edited:**
+- `src/App.tsx` — register `/crm/*` routes
+- `src/components/layout/AppLayout.tsx` — add CRM group at top
+- `src/pages/social/...ProfilesTab` — add "Create in CRM" action on each tracked profile
+- `scripts/generate-sitemap.ts` + `public/sitemap.xml`
+
+---
+
+## Out of scope for v1 (can add later)
+- Email send/track integration
+- Custom contact fields
+- Deal pipeline templates marketplace
+- Voice dictation capture (text capture covers the use case)
