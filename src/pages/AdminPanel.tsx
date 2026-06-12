@@ -152,6 +152,10 @@ export default function AdminPanel() {
           />
         </TabsContent>
 
+        <TabsContent value="crm">
+          <CrmSettingsPage />
+        </TabsContent>
+
       </Tabs>
     </div>
   );
