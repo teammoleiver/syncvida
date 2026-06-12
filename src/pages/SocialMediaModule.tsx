@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, ChevronLeft, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, EyeOff, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle, Star, ListPlus, Tag, Folder, ChevronDown, BarChart3, Pin, PinOff, Search as SearchIcon, ThumbsUp, ThumbsDown, Brain } from "lucide-react";
+import { Link as LinkIcon, Plus, Play, Trash2, Sparkles, Settings as SettingsIcon, TrendingUp, FileText, CalendarDays, Users, RefreshCw, Loader2, Wand2, ChevronRight, ChevronLeft, Copy, ArrowUpRight, Pencil, Check, X, History, Shuffle, Eye, EyeOff, Activity, Upload, Download, ArrowUp, ArrowDown, ChevronsUpDown, MessageCircle, Star, ListPlus, Tag, Folder, ChevronDown, BarChart3, Pin, PinOff, Search as SearchIcon, ThumbsUp, ThumbsDown, Brain, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +45,17 @@ import {
   addScrapeMemory, listScrapeMemory, updateScrapeMemory, deleteScrapeMemory,
   type ScrapeMemoryRow, type ScrapeMemorySignal, type ScrapeMemorySource,
 } from "@/lib/social-memory";
+import { createContactFromTrackedProfile } from "@/lib/crm-queries";
+
+async function pushProfileToCrm(p: any) {
+  try {
+    const c = await createContactFromTrackedProfile(p);
+    if (c) toast.success("Added to CRM contacts");
+    else toast.error("Could not create CRM contact");
+  } catch (e: any) {
+    toast.error(e?.message ?? "Failed to create CRM contact");
+  }
+}
 
 /**
  * Masked, reveal-toggle input for a user's own API key. When a key is already
@@ -789,6 +800,9 @@ function ProfilesTab() {
                       {rotatingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shuffle className="w-3.5 h-3.5" />}
                     </Button>
                     <ProfileHistoryButton profile={p} />
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => pushProfileToCrm(p)} title="Create in CRM">
+                      <UserPlus className="w-3.5 h-3.5" />
+                    </Button>
                     <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={async () => { if (confirm("Delete profile?")) { await deleteSocialProfile(p.id); load(); } }} title="Delete">
                       <Trash2 className="w-3.5 h-3.5 text-destructive" />
                     </Button>
@@ -892,6 +906,9 @@ function ProfilesTab() {
                     {rotatingId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shuffle className="w-3.5 h-3.5" />}
                   </Button>
                   <ProfileHistoryButton profile={p} />
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => pushProfileToCrm(p)} title="Create in CRM">
+                    <UserPlus className="w-3.5 h-3.5" />
+                  </Button>
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={async () => { if (confirm("Delete profile?")) { await deleteSocialProfile(p.id); load(); } }} title="Delete">
                     <Trash2 className="w-3.5 h-3.5 text-destructive" />
                   </Button>
