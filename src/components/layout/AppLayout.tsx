@@ -37,7 +37,6 @@ const navGroups: NavGroup[] = [
       { path: "/crm/contacts", icon: Users, label: "Contacts" },
       { path: "/crm/companies", icon: Building2, label: "Companies" },
       { path: "/crm/deals", icon: Trello, label: "Deals" },
-      { path: "/crm/pipelines", icon: Workflow, label: "Pipelines" },
     ],
   },
   {
