@@ -62,7 +62,7 @@ export default function Dashboard() {
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
       {/* Greeting */}
       <header>
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">{greeting}, {name} 👋</h1>
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">{greeting}, {name}</h1>
         <p className="text-sm text-muted-foreground mt-1">Here's your Syncvida command center.</p>
       </header>
 

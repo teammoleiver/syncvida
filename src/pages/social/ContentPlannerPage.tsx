@@ -382,7 +382,7 @@ function MonthView({ cursor, grouped, onPick, onOpen, onSelectDay }: { cursor: D
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1 flex-wrap">
                         <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${statusColor(e.status)}`}>{e.status}</Badge>
-                        {e.scheduled_date && <span>📅 {e.scheduled_date}{e.scheduled_time ? ` · ${e.scheduled_time.slice(0,5)}` : ""}</span>}
+                        {e.scheduled_date && <span>{e.scheduled_date}{e.scheduled_time ? ` · ${e.scheduled_time.slice(0,5)}` : ""}</span>}
                         {(e.platforms ?? []).map((p: string) => {
                           const Ic = PLATFORM_ICONS[p];
                           return Ic ? <Ic key={p} className="w-3 h-3" /> : null;
@@ -561,7 +561,7 @@ function ListView({ entries, onOpen, onDeleted }: { entries: any[]; onOpen: (e: 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5 flex-wrap">
                     <Badge variant="outline" className={`text-[10px] ${statusColor(e.status)}`}>{e.status}</Badge>
-                    {e.scheduled_date && <span>📅 {e.scheduled_date}{e.scheduled_time ? ` · ${e.scheduled_time.slice(0,5)}` : ""}</span>}
+                    {e.scheduled_date && <span>{e.scheduled_date}{e.scheduled_time ? ` · ${e.scheduled_time.slice(0,5)}` : ""}</span>}
                     {(e.platforms ?? []).map((p: string) => {
                       const Ic = PLATFORM_ICONS[p];
                       return Ic ? <Ic key={p} className="w-3 h-3" /> : null;

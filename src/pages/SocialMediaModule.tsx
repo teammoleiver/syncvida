@@ -1349,7 +1349,7 @@ function ProfileDetailDialog({ profile, onClose, onSaved }: { profile: any | nul
                   <Card key={p.id} className="p-3 space-y-1">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"}</span>
-                      <span>👍 {p.likes ?? 0} · 💬 {p.comments ?? 0} · 🔁 {p.shares ?? 0}</span>
+                      <span>{p.likes ?? 0} likes · {p.comments ?? 0} comments · {p.shares ?? 0} reposts</span>
                     </div>
                     <p className="text-sm whitespace-pre-wrap line-clamp-6">{p.post_text}</p>
                     {p.post_url && <button type="button" onClick={() => copyLinkedInUrl(p.post_url)} className="text-xs text-primary inline-flex items-center gap-1 hover:underline">Copy LinkedIn link <Copy className="w-3 h-3" /></button>}
@@ -2373,7 +2373,7 @@ function PostInspectorDialog({ post, onClose, onGenerated }: { post: any; onClos
 
           <Card className="p-4 bg-muted/30 whitespace-pre-wrap text-sm">{post.post_text}</Card>
           <div className="text-xs text-muted-foreground flex gap-3">
-            <span>👍 {post.likes}</span><span>💬 {post.comments}</span><span>🔁 {post.shares}</span>
+            <span>{post.likes} likes</span><span>{post.comments} comments</span><span>{post.shares} reposts</span>
             {post.post_url && <button type="button" onClick={() => copyLinkedInUrl(post.post_url)} className="text-primary inline-flex items-center gap-1 hover:underline">Copy LinkedIn link <Copy className="w-3 h-3" /></button>}
           </div>
 
@@ -2446,7 +2446,7 @@ function TopicsTab() {
   return (
     <section className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="font-display text-xl flex items-center gap-2">🔥 Hot Topics</h2>
+        <h2 className="font-display text-xl flex items-center gap-2">Hot Topics</h2>
         <Button onClick={cluster} disabled={clustering} className="w-full sm:w-auto shrink-0">
           {clustering ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
           Re-cluster from posts
@@ -3000,8 +3000,8 @@ function ScrapeMemoryPanel() {
             <SelectTrigger className="h-8 w-[160px] text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All signals</SelectItem>
-              <SelectItem value="positive">👍 Relevant</SelectItem>
-              <SelectItem value="negative">👎 Not relevant</SelectItem>
+              <SelectItem value="positive">Relevant</SelectItem>
+              <SelectItem value="negative">Not relevant</SelectItem>
             </SelectContent>
           </Select>
           <Button size="sm" variant="ghost" onClick={load}><RefreshCw className="w-3.5 h-3.5" /></Button>
@@ -3013,7 +3013,7 @@ function ScrapeMemoryPanel() {
         Toggle off any rule that's no longer accurate.
       </p>
       {loading ? <p className="text-xs text-muted-foreground">Loading…</p> :
-        visible.length === 0 ? <p className="text-xs text-muted-foreground py-3">No memory yet. Use the 👍 / ✕ / 🗑 buttons on scraped posts to teach the AI.</p> :
+        visible.length === 0 ? <p className="text-xs text-muted-foreground py-3">No memory yet. Use the relevance, ignore, or delete buttons on scraped posts to teach the AI.</p> :
         <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
           {visible.map((r) => (
             <div key={r.id} className={`flex items-start gap-3 p-3 rounded-md border ${r.active ? "border-border" : "border-border/40 opacity-60"}`}>
@@ -3196,7 +3196,7 @@ function ApifyAccountsPanel() {
 
       {/* One-time actor approval — the #1 reason scraping fails on a fresh account. */}
       <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs space-y-1">
-        <div className="font-medium text-amber-700 dark:text-amber-400">⚠ One-time setup: approve the scraper actor for each account</div>
+        <div className="font-medium text-amber-700 dark:text-amber-400">One-time setup: approve the scraper actor for each account</div>
         <p className="text-muted-foreground">The built-in LinkedIn actor needs its permissions approved once per Apify account before it can run. Log into each Apify account, open the link below, and click <strong>Approve</strong>. Then scraping works.</p>
         <a href={approvalUrl || "https://console.apify.com/actors/94SdiE9JwTx0RNyfS?approvePermissions=true"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline font-medium">Open actor approval page <ArrowUpRight className="w-3 h-3" /></a>
       </div>
@@ -3273,7 +3273,7 @@ function ApifyAccountsPanel() {
                     </Badge>
                     <Badge variant="outline">{h.daysLeft}d left in period</Badge>
                     {/out of credit|usage|402/i.test(a.last_test_status || "") ? (
-                      <Badge variant="destructive" className="gap-1">⚠ Credits out</Badge>
+                      <Badge variant="destructive" className="gap-1">Credits out</Badge>
                     ) : a.last_test_status ? (
                       <Badge variant={a.last_test_status === "ok" || a.last_test_status === "health ok" ? "secondary" : "destructive"}>test: {a.last_test_status}</Badge>
                     ) : null}
@@ -3732,7 +3732,7 @@ function ProfileHistoryButton({ profile }: { profile: any }) {
               <Card key={p.id} className="p-3 space-y-1">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"}</span>
-                  <span>👍 {p.likes ?? 0} · 💬 {p.comments ?? 0} · 🔁 {p.shares ?? 0}</span>
+                  <span>{p.likes ?? 0} likes · {p.comments ?? 0} comments · {p.shares ?? 0} reposts</span>
                 </div>
                 <p className="text-sm whitespace-pre-wrap line-clamp-6">{p.post_text}</p>
                 {p.post_url && <button type="button" onClick={() => copyLinkedInUrl(p.post_url)} className="text-xs text-primary inline-flex items-center gap-1 hover:underline">Copy LinkedIn link <Copy className="w-3 h-3" /></button>}

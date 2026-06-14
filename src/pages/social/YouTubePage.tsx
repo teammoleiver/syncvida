@@ -546,7 +546,7 @@ export default function YouTubePage() {
                         )}
                         {v.fetched_at && (Date.now() - new Date(v.fetched_at).getTime()) < 48 * 3600 * 1000 && (
                           <Badge className="absolute top-1.5 left-1.5 bg-primary text-primary-foreground border-0 gap-1 text-[10px] py-0.5 px-1.5 animate-pulse">
-                            ✨ NEW
+                            NEW
                           </Badge>
                         )}
                         {v.is_liked && (
