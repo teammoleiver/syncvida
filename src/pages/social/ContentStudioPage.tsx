@@ -275,9 +275,9 @@ export default function ContentStudioPage() {
           <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Source" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All sources</SelectItem>
-            <SelectItem value="brainstorm">🧠 Brainstorm (AI)</SelectItem>
-            <SelectItem value="web_search">🌐 Web search</SelectItem>
-            <SelectItem value="manual">✍️ Manual / seed</SelectItem>
+            <SelectItem value="brainstorm">Brainstorm (AI)</SelectItem>
+            <SelectItem value="web_search">Web search</SelectItem>
+            <SelectItem value="manual">Manual / seed</SelectItem>
           </SelectContent>
         </Select>
         <span className="text-xs text-muted-foreground w-full sm:w-auto">{filtered.length} shown · {selected.size} selected</span>

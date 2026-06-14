@@ -10,7 +10,7 @@ interface Message {
   content: string;
 }
 
-const WELCOME = `Hi! 👋 I'm your **Syncvida assistant**. Ask me anything about your work in Syncvida — Social Hub, content, planning, and your accounts.
+const WELCOME = `Welcome to your **Syncvida assistant**. Ask anything about your work in Syncvida — Social Hub, content, planning, and your accounts.
 
 For example:
 - "Draft a LinkedIn post about our launch"

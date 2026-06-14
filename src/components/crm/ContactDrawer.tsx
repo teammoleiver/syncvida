@@ -162,7 +162,7 @@ export default function ContactDrawer({ contactId, open, onOpenChange, onChanged
                 <div className="space-y-3">
                   {posts.map((p) => (
                     <div key={p.id} className="border border-border rounded-lg p-3">
-                      <div className="text-xs text-muted-foreground mb-1">{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"} · {p.likes ?? 0} ♥</div>
+                      <div className="text-xs text-muted-foreground mb-1">{p.posted_at ? new Date(p.posted_at).toLocaleDateString() : "—"} · {p.likes ?? 0} likes</div>
                       <div className="text-sm whitespace-pre-wrap line-clamp-6">{p.post_text}</div>
                       {p.post_url && <a href={p.post_url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline mt-1 inline-block">View on LinkedIn →</a>}
                     </div>

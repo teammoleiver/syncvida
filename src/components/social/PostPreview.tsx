@@ -65,7 +65,7 @@ function MediaBlock({ image_url, document_filename, ratio = "square" }: { image_
   if (document_filename && !image_url) {
     return (
       <div className="border-y border-border bg-muted/40 p-6 text-center text-xs text-muted-foreground">
-        📄 PDF carousel · {document_filename}
+        PDF carousel · {document_filename}
       </div>
     );
   }
@@ -91,7 +91,7 @@ function LinkedInCard({ hook, body, image_url, document_filename, author }: Prop
         <Avatar author={author} />
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold truncate">{author.name || "Your name"}</div>
-          <div className="text-[11px] text-muted-foreground truncate">{author.headline || "Your headline · Now · 🌐"}</div>
+          <div className="text-[11px] text-muted-foreground truncate">{author.headline || "Your headline · Now"}</div>
         </div>
         <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
       </div>
@@ -100,7 +100,7 @@ function LinkedInCard({ hook, body, image_url, document_filename, author }: Prop
       </div>
       <MediaBlock image_url={image_url} document_filename={document_filename} ratio="auto" />
       <div className="px-3 py-2 text-[11px] text-muted-foreground flex justify-between border-b border-border">
-        <span>👍❤️💡 12</span><span>3 comments · 1 repost</span>
+        <span>12 reactions</span><span>3 comments · 1 repost</span>
       </div>
       <div className="grid grid-cols-4 text-xs text-muted-foreground">
         {[
@@ -133,7 +133,7 @@ function FacebookCard({ hook, body, image_url, author }: Props) {
       </div>
       <MediaBlock image_url={image_url} ratio="auto" />
       <div className="px-3 py-2 text-[11px] text-muted-foreground flex justify-between border-b border-border">
-        <span>👍❤️ 24</span><span>5 comments · 2 shares</span>
+        <span>24 reactions</span><span>5 comments · 2 shares</span>
       </div>
       <div className="grid grid-cols-3 text-xs text-muted-foreground">
         {[{ Ic: ThumbsUp, l: "Like" }, { Ic: MessageCircle, l: "Comment" }, { Ic: Send, l: "Share" }].map(({ Ic, l }) => (

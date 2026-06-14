@@ -40,7 +40,6 @@ export default function CanvaCallback() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md p-6 space-y-4">
         <div className="flex items-center gap-3">
-          <span className="text-xl">🎨</span>
           <h1 className="font-display text-lg font-semibold">Canva connection</h1>
         </div>
         {phase === "working" && (
