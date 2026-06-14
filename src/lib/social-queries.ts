@@ -742,12 +742,12 @@ export async function createApifyAccount(p: { label: string; api_token: string; 
     user_id: u, label: p.label, api_token: p.api_token, actor_id: p.actor_id ?? null,
     monthly_budget_usd: p.monthly_budget_usd ?? 5,
     period_start: new Date().toISOString().slice(0, 10),
-  } as any).select("id,user_id,label,actor_id,monthly_budget_usd,period_start,created_at,updated_at,is_active,last_verified_at,last_status,last_error,spent_usd_estimate,actor_runs_count,last_run_at").single();
+  } as any).select("id,user_id,label,actor_id,monthly_budget_usd,cost_per_10_posts_usd,period_start,posts_used_this_period,last_used_at,last_test_status,last_test_at,active,created_at,updated_at,actor_input_defaults,apify_usage_usd,apify_limit_usd,apify_cycle_end,apify_checked_at").single();
   if (error) throw error;
   return data;
 }
 export async function updateApifyAccount(id: string, updates: Record<string, any>) {
-  const { data, error } = await supabase.from("social_apify_accounts" as any).update(updates).eq("id", id).select("id,user_id,label,actor_id,monthly_budget_usd,period_start,created_at,updated_at,is_active,last_verified_at,last_status,last_error,spent_usd_estimate,actor_runs_count,last_run_at").single();
+  const { data, error } = await supabase.from("social_apify_accounts" as any).update(updates).eq("id", id).select("id,user_id,label,actor_id,monthly_budget_usd,cost_per_10_posts_usd,period_start,posts_used_this_period,last_used_at,last_test_status,last_test_at,active,created_at,updated_at,actor_input_defaults,apify_usage_usd,apify_limit_usd,apify_cycle_end,apify_checked_at").single();
   if (error) throw error;
   return data;
 }
