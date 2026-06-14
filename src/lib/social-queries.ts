@@ -539,11 +539,18 @@ export async function deletePlanEntry(id: string) {
  */
 function sanitizeWriterSettings<T extends Record<string, any> | null | undefined>(row: T): T {
   if (!row) return row;
-  const { openai_api_key, anthropic_api_key, ...rest } = row as Record<string, any>;
+  const { openai_api_key, anthropic_api_key, ai_provider_keys, ...rest } = row as Record<string, any>;
+  const providerKeyPresence: Record<string, boolean> = {};
+  if (ai_provider_keys && typeof ai_provider_keys === "object") {
+    for (const [k, v] of Object.entries(ai_provider_keys as Record<string, any>)) {
+      providerKeyPresence[k] = !!(v && String(v).trim());
+    }
+  }
   return {
     ...rest,
     has_openai_api_key: !!(openai_api_key && String(openai_api_key).trim()),
     has_anthropic_api_key: !!(anthropic_api_key && String(anthropic_api_key).trim()),
+    has_ai_provider_keys: providerKeyPresence,
   } as unknown as T;
 }
 
@@ -735,12 +742,12 @@ export async function createApifyAccount(p: { label: string; api_token: string; 
     user_id: u, label: p.label, api_token: p.api_token, actor_id: p.actor_id ?? null,
     monthly_budget_usd: p.monthly_budget_usd ?? 5,
     period_start: new Date().toISOString().slice(0, 10),
-  } as any).select().single();
+  } as any).select("id,user_id,label,actor_id,monthly_budget_usd,period_start,created_at,updated_at,is_active,last_verified_at,last_status,last_error,spent_usd_estimate,actor_runs_count,last_run_at").single();
   if (error) throw error;
   return data;
 }
 export async function updateApifyAccount(id: string, updates: Record<string, any>) {
-  const { data, error } = await supabase.from("social_apify_accounts" as any).update(updates).eq("id", id).select().single();
+  const { data, error } = await supabase.from("social_apify_accounts" as any).update(updates).eq("id", id).select("id,user_id,label,actor_id,monthly_budget_usd,period_start,created_at,updated_at,is_active,last_verified_at,last_status,last_error,spent_usd_estimate,actor_runs_count,last_run_at").single();
   if (error) throw error;
   return data;
 }
