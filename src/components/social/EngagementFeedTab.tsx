@@ -134,6 +134,11 @@ export default function EngagementFeedTab() {
   }, [posts]);
 
   const noLinkCount = useMemo(() => posts.filter((p) => !linkByPost.get(p.id)).length, [posts, linkByPost]);
+  const [lowScoreThreshold, setLowScoreThreshold] = useState<number>(50);
+  const lowScoreCount = useMemo(
+    () => posts.filter((p) => typeof p.relevance_score === "number" && (p.relevance_score as number) < lowScoreThreshold).length,
+    [posts, lowScoreThreshold],
+  );
 
   const profileById = useMemo(() => new Map(profiles.map((p: any) => [p.id, p])), [profiles]);
   const allLists = useMemo(() => {
@@ -476,6 +481,36 @@ export default function EngagementFeedTab() {
                 <Link2 className="w-3.5 h-3.5" /> Delete {noLinkCount} without link
               </Button>
             )}
+            <div className="flex items-center gap-1.5 rounded-md border border-border bg-background px-1.5 py-0.5">
+              <span className="text-muted-foreground">Score &lt;</span>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={lowScoreThreshold}
+                onChange={(e) => {
+                  const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                  setLowScoreThreshold(v);
+                }}
+                className="h-6 w-14 px-1.5 text-xs"
+              />
+              <span className="text-muted-foreground">%</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs gap-1.5"
+                disabled={lowScoreCount === 0}
+                onClick={() => {
+                  const ids = posts
+                    .filter((p) => typeof p.relevance_score === "number" && (p.relevance_score as number) < lowScoreThreshold)
+                    .map((p) => p.id);
+                  setBulkConfirm({ ids, reason: `${ids.length} post${ids.length === 1 ? "" : "s"} scored below ${lowScoreThreshold}%` });
+                }}
+                title="Delete all scored posts below this threshold"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Delete {lowScoreCount} low-score
+              </Button>
+            </div>
             <Button
               variant="outline"
               size="sm"
