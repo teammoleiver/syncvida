@@ -127,7 +127,7 @@ Deno.serve(async (req: Request) => {
       }
       try {
         await assertPublicUrl(f.feed_url);
-        const r = await fetch(f.feed_url, { headers: { "User-Agent": "Mozilla/5.0 SyncvidaRSS/1.0", Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*" } });
+        const r = await fetch(f.feed_url, { headers: { "User-Agent": "Mozilla/5.0 InstaleadsyncRSS/1.0", Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*" } });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const xml = await r.text();
         const { items, sourceLabel } = parseFeed(xml);

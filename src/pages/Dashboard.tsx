@@ -63,7 +63,7 @@ export default function Dashboard() {
       {/* Greeting */}
       <header>
         <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">{greeting}, {name}</h1>
-        <p className="text-sm text-muted-foreground mt-1">Here's your Syncvida command center.</p>
+        <p className="text-sm text-muted-foreground mt-1">Here's your Instaleadsync command center.</p>
       </header>
 
       {/* Stats */}
@@ -119,7 +119,7 @@ export default function Dashboard() {
           </div>
           <div className="flex-1">
             <div className="font-display font-semibold flex items-center gap-2">Leads & Pre-CRM <span className="text-[10px] uppercase tracking-wide bg-primary/15 text-primary px-1.5 py-0.5 rounded">Coming soon</span></div>
-            <p className="text-sm text-muted-foreground">Turn your tracked profiles and engagement into a lightweight client pipeline — capture, qualify, and nurture leads inside Syncvida.</p>
+            <p className="text-sm text-muted-foreground">Turn your tracked profiles and engagement into a lightweight client pipeline — capture, qualify, and nurture leads inside Instaleadsync.</p>
           </div>
           <Sparkles className="w-5 h-5 text-muted-foreground" />
         </div>

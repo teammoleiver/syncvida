@@ -38,7 +38,7 @@ export default function AdminPanel() {
         </div>
         <div>
           <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Settings</h1>
-          <p className="text-xs md:text-sm text-muted-foreground">Centralized settings for every module in Syncvida.</p>
+          <p className="text-xs md:text-sm text-muted-foreground">Centralized settings for every module in Instaleadsync.</p>
         </div>
       </header>
 
@@ -70,7 +70,7 @@ export default function AdminPanel() {
               <h2 className="font-display font-semibold">Direct platform connections</h2>
             </div>
             <p className="text-xs text-muted-foreground mb-4">
-              Connect a platform to post directly from Syncvida — no Zapier, no n8n. Tokens are stored
+              Connect a platform to post directly from Instaleadsync — no Zapier, no n8n. Tokens are stored
               server-side and never exposed to the browser.
             </p>
             <SocialConnections />

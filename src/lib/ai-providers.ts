@@ -1,4 +1,4 @@
-// The 20 most popular AI/LLM API providers Syncvida can run on. Most expose an
+// The 20 most popular AI/LLM API providers Instaleadsync can run on. Most expose an
 // OpenAI-compatible endpoint, so one backend code path (baseUrl + key + model)
 // covers them; "kind" tells the caller which API shape to use.
 export type AiProviderKind = "openai" | "anthropic" | "gemini" | "compat" | "builtin";

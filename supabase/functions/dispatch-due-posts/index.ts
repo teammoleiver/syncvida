@@ -61,7 +61,7 @@ function defaultPayload(platform: string, ctx: Record<string, any>) {
 }
 
 function appBaseUrl(): string {
-  return Deno.env.get("APP_BASE_URL") || "https://app.syncvida.com";
+  return Deno.env.get("APP_BASE_URL") || "https://app.instaleadsync.com";
 }
 
 /**

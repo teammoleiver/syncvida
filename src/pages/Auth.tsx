@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import syncvidaLogo from "@/assets/syncvida-icon.png";
+import instaleadsyncLogo from "@/assets/instaleadsync-icon.png";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -48,8 +48,8 @@ export default function Auth() {
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="text-center space-y-2">
-          <img src={syncvidaLogo} alt="Syncvida" className="w-14 h-14 mx-auto" />
-          <h1 className="text-2xl font-display font-bold text-foreground">Syncvida</h1>
+          <img src={instaleadsyncLogo} alt="Instaleadsync" className="w-14 h-14 mx-auto" />
+          <h1 className="text-2xl font-display font-bold text-foreground">Instaleadsync</h1>
           <p className="text-sm text-muted-foreground">Your Health Operating System</p>
         </div>
 
@@ -61,7 +61,7 @@ export default function Auth() {
 
           {mode === "waitlist" && (
             <p className="text-xs text-center text-muted-foreground -mt-2">
-              New signups are currently paused. Leave your email and we'll notify you the moment Syncvida opens to new users.
+              New signups are currently paused. Leave your email and we'll notify you the moment Instaleadsync opens to new users.
             </p>
           )}
 
@@ -124,7 +124,7 @@ export default function Auth() {
         </div>
 
         <p className="text-xs text-center text-muted-foreground">
-          © {new Date().getFullYear()} Syncvida · syncvida.io
+          © {new Date().getFullYear()} Instaleadsync · instaleadsync.com
         </p>
       </div>
     </div>

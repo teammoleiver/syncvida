@@ -8,7 +8,7 @@ import {
   Users, Building2, Trello, Workflow,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import syncvidaLogo from "@/assets/syncvida-icon.png";
+import instaleadsyncLogo from "@/assets/instaleadsync-icon.png";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 // ── Grouped navigation ──
@@ -90,11 +90,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   // Highlight a nav item on its sub-routes too (e.g. /settings/profile → Settings).
   const isActive = (path: string) =>
     location.pathname === path || (path !== "/" && location.pathname.startsWith(path + "/"));
-  // Light-first: the redesigned Syncvida is light by default. Dark is opt-in via
+  // Light-first: the redesigned Instaleadsync is light by default. Dark is opt-in via
   // the toggle. (New storage key so old OS-derived "dark" prefs don't stick.)
   const [dark, setDark] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("syncvida-theme") === "dark";
+      return localStorage.getItem("instaleadsync-theme") === "dark";
     }
     return false;
   });
@@ -106,7 +106,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("syncvida-theme", dark ? "dark" : "light");
+    localStorage.setItem("instaleadsync-theme", dark ? "dark" : "light");
   }, [dark]);
 
   return (
@@ -121,13 +121,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-sidebar-border">
           <img
-            src={syncvidaLogo}
-            alt="Syncvida"
+            src={instaleadsyncLogo}
+            alt="Instaleadsync"
             className="w-6 h-6 object-contain"
           />
           {sidebarOpen && (
             <span className="text-sidebar-foreground font-display font-bold text-sm">
-              Syncvida
+              Instaleadsync
             </span>
           )}
         </div>
@@ -231,8 +231,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <SheetContent side="left" className="w-72 p-0 flex flex-col">
                 <SheetHeader className="px-4 py-3 border-b border-border">
                   <SheetTitle className="flex items-center gap-2 text-left">
-                    <img src={syncvidaLogo} alt="" className="w-6 h-6" />
-                    <span className="font-display font-bold">Syncvida</span>
+                    <img src={instaleadsyncLogo} alt="" className="w-6 h-6" />
+                    <span className="font-display font-bold">Instaleadsync</span>
                   </SheetTitle>
                 </SheetHeader>
                 <nav className="flex-1 overflow-y-auto py-2 px-2">
@@ -297,8 +297,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </SheetContent>
             </Sheet>
             <div className="flex items-center gap-2">
-              <img src={syncvidaLogo} alt="Syncvida" className="w-7 h-7" />
-              <span className="font-display font-bold text-foreground">Syncvida</span>
+              <img src={instaleadsyncLogo} alt="Instaleadsync" className="w-7 h-7" />
+              <span className="font-display font-bold text-foreground">Instaleadsync</span>
             </div>
           </div>
           <button

@@ -112,7 +112,7 @@ function ProviderKeyRow({ provider, value, model, onChange, onModel, onSave, onR
       <Dialog open={pwOpen} onOpenChange={(v) => { if (!v) { setPwOpen(false); setPw(""); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><KeyRound className="w-4 h-4" /> Confirm your password</DialogTitle></DialogHeader>
-          <p className="text-xs text-muted-foreground">For security, enter your Syncvida account password to reveal this API key.</p>
+          <p className="text-xs text-muted-foreground">For security, enter your Instaleadsync account password to reveal this API key.</p>
           <Input type="password" autoFocus value={pw} placeholder="Your account password"
             onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && pw) verifyPassword(); }} />
           <DialogFooter>
@@ -220,8 +220,8 @@ export default function AiProviderSettings() {
       <Card className="p-5 space-y-4">
         <div className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-primary" /><h2 className="font-display font-semibold">AI provider — used everywhere</h2></div>
         <p className="text-xs text-muted-foreground">
-          One place for your AI credentials, across <strong>20 providers</strong>. <strong>Every</strong> AI feature in Syncvida runs on
-          these keys; leave them blank to use Syncvida's built-in keys. The preferred provider is tried first, then it falls back automatically.
+          One place for your AI credentials, across <strong>20 providers</strong>. <strong>Every</strong> AI feature in Instaleadsync runs on
+          these keys; leave them blank to use Instaleadsync's built-in keys. The preferred provider is tried first, then it falls back automatically.
         </p>
 
         <div>

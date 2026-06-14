@@ -112,11 +112,11 @@ async function sendSESEmail(request: EmailRequest) {
 // Email templates
 function getEmailTemplate(type: string, data: Record<string, any> = {}): { subject: string; html: string; text: string } {
   const brandColor = "#1D9E75";
-  const appName = "Syncvida";
+  const appName = "Instaleadsync";
   const footer = `
     <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;text-align:center;color:#9ca3af;font-size:12px;">
       <p>${appName} — Your unified health intelligence platform</p>
-      <p><a href="https://syncvida.io" style="color:${brandColor};">syncvida.io</a></p>
+      <p><a href="https://instaleadsync.com" style="color:${brandColor};">instaleadsync.com</a></p>
     </div>`;
 
   const wrap = (content: string, subject: string, textContent: string) => ({
@@ -142,7 +142,7 @@ function getEmailTemplate(type: string, data: Record<string, any> = {}): { subje
         `<h1 style="color:#111;font-size:20px;">Welcome to ${appName}, ${data.name || "there"}! 🎉</h1>
         <p style="color:#374151;line-height:1.6;">Your unified health journey starts now. Track your nutrition, exercise, sleep, fasting, and more — all in one place.</p>
         <div style="text-align:center;margin:24px 0;">
-          <a href="https://syncvida.io" style="background:${brandColor};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;">Get Started</a>
+          <a href="https://instaleadsync.com" style="background:${brandColor};color:#fff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;">Get Started</a>
         </div>`,
         `Welcome to ${appName}!`,
         `Welcome to ${appName}, ${data.name || "there"}! Your unified health journey starts now.`
@@ -155,7 +155,7 @@ function getEmailTemplate(type: string, data: Record<string, any> = {}): { subje
         ${data.stats ? `<div style="background:#f0fdf4;border-radius:8px;padding:16px;margin:16px 0;">
           <p style="color:#166534;margin:0;font-size:14px;">${data.stats}</p>
         </div>` : ""}`,
-        data.title || "Health Reminder — Syncvida",
+        data.title || "Health Reminder — Instaleadsync",
         `${data.title || "Health Reminder"}: ${data.message || "Stay on track with your health goals!"}`
       );
 
@@ -163,8 +163,8 @@ function getEmailTemplate(type: string, data: Record<string, any> = {}): { subje
       return wrap(
         `<h1 style="color:#111;font-size:20px;">⚠️ ${data.title || "System Alert"}</h1>
         <p style="color:#374151;line-height:1.6;">${data.message || "An important update from your health system."}</p>`,
-        data.title || "System Alert — Syncvida",
-        `${data.title || "System Alert"}: ${data.message || "Important update from Syncvida."}`
+        data.title || "System Alert — Instaleadsync",
+        `${data.title || "System Alert"}: ${data.message || "Important update from Instaleadsync."}`
       );
 
     case "weekly-report":
@@ -176,8 +176,8 @@ function getEmailTemplate(type: string, data: Record<string, any> = {}): { subje
             <h3 style="color:#111;margin:0 0 4px;font-size:14px;">${s.title}</h3>
             <p style="color:#6b7280;margin:0;font-size:13px;">${s.value}</p>
           </div>`).join("") : ""}`,
-        "Your Weekly Health Report — Syncvida",
-        `Weekly Health Report: Check your progress on syncvida.io`
+        "Your Weekly Health Report — Instaleadsync",
+        `Weekly Health Report: Check your progress on instaleadsync.com`
       );
 
     case "notification":
@@ -185,7 +185,7 @@ function getEmailTemplate(type: string, data: Record<string, any> = {}): { subje
       return wrap(
         `<h1 style="color:#111;font-size:20px;">${data.title || "Notification"}</h1>
         <p style="color:#374151;line-height:1.6;">${data.message || ""}</p>`,
-        data.title || "Notification — Syncvida",
+        data.title || "Notification — Instaleadsync",
         `${data.title || "Notification"}: ${data.message || ""}`
       );
   }

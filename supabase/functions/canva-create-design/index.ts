@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           design_type: { type: "custom", width: size.width, height: size.height },
-          title: body?.title ?? "Syncvida design",
+          title: body?.title ?? "Instaleadsync design",
         }),
       });
       if (!r.ok) {
@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           brand_template_id: brandTemplateId,
-          title: body?.title ?? "Syncvida autofill",
+          title: body?.title ?? "Instaleadsync autofill",
           // Canva expects a map of placeholder_name → { type: "text"|"image", text?: "...", asset_id?: "..." }
           data: Object.fromEntries(Object.entries(fields).map(([k, v]) =>
             typeof v === "string" ? [k, { type: "text", text: v }] : [k, v])),

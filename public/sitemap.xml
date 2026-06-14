@@ -1,167 +1,167 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://syncvida.io/</loc>
+    <loc>https://instaleadsync.com/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/auth</loc>
+    <loc>https://instaleadsync.com/auth</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/crm</loc>
+    <loc>https://instaleadsync.com/crm</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/crm/contacts</loc>
+    <loc>https://instaleadsync.com/crm/contacts</loc>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/crm/companies</loc>
+    <loc>https://instaleadsync.com/crm/companies</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/crm/deals</loc>
+    <loc>https://instaleadsync.com/crm/deals</loc>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/crm/pipelines</loc>
+    <loc>https://instaleadsync.com/crm/pipelines</loc>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/social</loc>
+    <loc>https://instaleadsync.com/social</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/social/search</loc>
+    <loc>https://instaleadsync.com/social/search</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/social/linkedin</loc>
+    <loc>https://instaleadsync.com/social/linkedin</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/social/youtube</loc>
+    <loc>https://instaleadsync.com/social/youtube</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/social/news</loc>
+    <loc>https://instaleadsync.com/social/news</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/social/settings</loc>
+    <loc>https://instaleadsync.com/social/settings</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/content-studio</loc>
+    <loc>https://instaleadsync.com/content-studio</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/content-planner</loc>
+    <loc>https://instaleadsync.com/content-planner</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/carousel-generator</loc>
+    <loc>https://instaleadsync.com/carousel-generator</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/carousel-history</loc>
+    <loc>https://instaleadsync.com/carousel-history</loc>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/designer</loc>
+    <loc>https://instaleadsync.com/designer</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/designer/brand</loc>
+    <loc>https://instaleadsync.com/designer/brand</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/designer/assets</loc>
+    <loc>https://instaleadsync.com/designer/assets</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/designer/linkedin-templates</loc>
+    <loc>https://instaleadsync.com/designer/linkedin-templates</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/projects</loc>
+    <loc>https://instaleadsync.com/projects</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/tasks</loc>
+    <loc>https://instaleadsync.com/tasks</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/calendar</loc>
+    <loc>https://instaleadsync.com/calendar</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/goals</loc>
+    <loc>https://instaleadsync.com/goals</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/nutrition</loc>
+    <loc>https://instaleadsync.com/nutrition</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/fasting</loc>
+    <loc>https://instaleadsync.com/fasting</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/exercise</loc>
+    <loc>https://instaleadsync.com/exercise</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/sleep</loc>
+    <loc>https://instaleadsync.com/sleep</loc>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/health</loc>
+    <loc>https://instaleadsync.com/health</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/body</loc>
+    <loc>https://instaleadsync.com/body</loc>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/assistant</loc>
+    <loc>https://instaleadsync.com/assistant</loc>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://syncvida.io/settings</loc>
+    <loc>https://instaleadsync.com/settings</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>

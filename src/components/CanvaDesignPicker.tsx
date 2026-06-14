@@ -48,7 +48,7 @@ export function CanvaDesignPicker({
         plan_id: planId,
         kind: "blank",
         design_type: blankSize,
-        title: hook?.slice(0, 60) || "Syncvida design",
+        title: hook?.slice(0, 60) || "Instaleadsync design",
       });
       if (!r.design_id) throw new Error("No design id returned");
       toast.success("Canva design created");
@@ -152,7 +152,7 @@ function BrandTemplatesTab({
         plan_id: planId, kind: "autofill",
         brand_template_id: picked.id,
         fields,
-        title: hook?.slice(0, 60) || "Syncvida autofill",
+        title: hook?.slice(0, 60) || "Instaleadsync autofill",
       });
       if (!r.design_id) throw new Error("Autofill failed (no design id)");
       toast.success("Template autofilled — opening in Canva");

@@ -13,7 +13,7 @@ import {
   type ApifyActor, type ApifyActorKind,
 } from "@/lib/social-queries";
 
-// The actors Syncvida actually runs by default across the system. Shown so you
+// The actors Instaleadsync actually runs by default across the system. Shown so you
 // can see (and test) exactly what's scraping, even before registering your own.
 const BUILTIN_ACTORS = [
   { label: "LinkedIn posts scraper", actor_id: "94SdiE9JwTx0RNyfS", usedBy: "LinkedIn → scrape posts (daily cron + on-demand)" },
@@ -259,7 +259,7 @@ export default function ApifyActorsPanel() {
         <div className="text-sm text-muted-foreground">Loading…</div>
       ) : actors.length === 0 ? (
         <div className="text-sm text-muted-foreground italic">
-          Using Syncvida's built-in default actors (YouTube channel, YouTube transcript, LinkedIn profile). You don't need to add anything here —
+          Using Instaleadsync's built-in default actors (YouTube channel, YouTube transcript, LinkedIn profile). You don't need to add anything here —
           just make sure you have an Apify API account above. Add an actor only to override a built-in default.
         </div>
       ) : (
