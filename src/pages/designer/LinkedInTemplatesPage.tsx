@@ -1682,7 +1682,7 @@ export default function LinkedInTemplatesPage() {
                     />
                   </div>
                   {allDone && (
-                    <p className="text-[12px] text-emerald-500 font-medium mt-1.5">🎯 All fixes applied — Re-run for final score</p>
+                    <p className="text-[12px] text-emerald-500 font-medium mt-1.5">All fixes applied — re-run for final score</p>
                   )}
                 </div>
               )}
