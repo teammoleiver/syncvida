@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { User, Target, Linkedin, ChevronRight, ChevronLeft, Loader2, Check, Sparkles } from "lucide-react";
 import { updateProfile } from "@/lib/supabase-queries";
 import { upsertWriterSettings, analyzeSelfProfile } from "@/lib/social-queries";
-import syncvidaLogo from "@/assets/syncvida-icon.png";
+import instaleadsyncLogo from "@/assets/instaleadsync-icon.png";
 
 interface OnboardingWizardProps {
   onComplete: () => void;
@@ -62,8 +62,8 @@ export default function OnboardingWizard({ onComplete, userName }: OnboardingWiz
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-2 mb-6">
-          <img src={syncvidaLogo} alt="Syncvida" className="w-7 h-7 object-contain" />
-          <span className="font-display font-bold text-lg">Syncvida</span>
+          <img src={instaleadsyncLogo} alt="Instaleadsync" className="w-7 h-7 object-contain" />
+          <span className="font-display font-bold text-lg">Instaleadsync</span>
         </div>
 
         <div className="bg-card border border-border rounded-2xl shadow-xl p-6 space-y-5">
@@ -90,7 +90,7 @@ export default function OnboardingWizard({ onComplete, userName }: OnboardingWiz
               )}
               {step === 1 && (
                 <div>
-                  <label className="text-xs text-muted-foreground block mb-1">What's your main goal on Syncvida?</label>
+                  <label className="text-xs text-muted-foreground block mb-1">What's your main goal on Instaleadsync?</label>
                   <textarea value={form.goal} onChange={(e) => set("goal", e.target.value)} autoFocus rows={3}
                     placeholder="e.g. Grow my LinkedIn presence and turn engagement into leads."
                     className="w-full px-3 py-2.5 rounded-lg bg-secondary border border-border text-foreground text-sm outline-none focus:ring-2 focus:ring-primary resize-none" />

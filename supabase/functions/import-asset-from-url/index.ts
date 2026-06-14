@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return json({ error: "Valid URL required" }, 400);
 
     try { await assertPublicUrl(url); } catch (e) { return json({ error: (e as Error).message }, 400); }
-    const fetched = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 SyncvidaDesigner" } });
+    const fetched = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 InstaleadsyncDesigner" } });
     if (!fetched.ok) return json({ error: `Could not fetch URL (${fetched.status})` }, 400);
     const ct = fetched.headers.get("content-type") ?? "image/png";
     if (!ct.startsWith("image/")) return json({ error: `URL is not an image (got ${ct})` }, 400);

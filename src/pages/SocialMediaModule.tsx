@@ -127,7 +127,7 @@ function ApiKeyInput({ label, placeholder, saved, onChange, hint, provider }: {
 type Tab = "profiles" | "posts" | "engagement" | "analytics" | "topics" | "planner" | "settings";
 
 // ─── Pinned lists (persisted per-user in localStorage) ───
-const PINNED_LISTS_KEY = "syncvida.social.pinnedLists";
+const PINNED_LISTS_KEY = "instaleadsync.social.pinnedLists";
 function readPinnedLists(): string[] {
   try {
     const raw = localStorage.getItem(PINNED_LISTS_KEY);
@@ -2967,7 +2967,7 @@ function SettingsTab() {
 
       <Card className="p-4 space-y-1 bg-muted/30">
         <div className="flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /><h2 className="font-medium text-sm">AI provider</h2></div>
-        <p className="text-xs text-muted-foreground">Your AI keys & models now live in one universal place: <strong>Settings → AI API</strong>. They power every AI feature across Syncvida.</p>
+        <p className="text-xs text-muted-foreground">Your AI keys & models now live in one universal place: <strong>Settings → AI API</strong>. They power every AI feature across Instaleadsync.</p>
       </Card>
 
       <FrameworkPromptsEditor />

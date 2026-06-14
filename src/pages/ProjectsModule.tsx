@@ -259,9 +259,9 @@ const SAMPLE_PROJECTS: Project[] = [
     updatedAt: new Date().toISOString(),
   },
   {
-    id: "proj_syncvida",
-    title: "Launch Syncvida.io",
-    outcomeStatement: "Syncvida health OS live at syncvida.io with Supabase connected and all modules functional.",
+    id: "proj_instaleadsync",
+    title: "Launch Instaleadsync.io",
+    outcomeStatement: "Instaleadsync health OS live at instaleadsync.com with Supabase connected and all modules functional.",
     purpose: "Build a personal health operating system that integrates all health data in one place.",
     status: "active",
     area: "work",
@@ -274,7 +274,7 @@ const SAMPLE_PROJECTS: Project[] = [
     milestones: [
       { id: "m8", title: "Supabase schema complete", dueDate: null, completed: false, completedAt: null },
       { id: "m9", title: "All modules functional", dueDate: null, completed: false, completedAt: null },
-      { id: "m10", title: "Domain live at syncvida.io", dueDate: null, completed: false, completedAt: null },
+      { id: "m10", title: "Domain live at instaleadsync.com", dueDate: null, completed: false, completedAt: null },
     ],
     notes: [],
     tags: ["dev", "startup", "product"],
@@ -282,9 +282,9 @@ const SAMPLE_PROJECTS: Project[] = [
     nextActionId: null,
     isStuck: false,
     healthModuleLink: null,
-    brainstormNotes: "Built in Lovable + Claude Code. Supabase backend. Domain: syncvida.io",
+    brainstormNotes: "Built in Lovable + Claude Code. Supabase backend. Domain: instaleadsync.com",
     successCriteria: [
-      "syncvida.io resolves and loads correctly",
+      "instaleadsync.com resolves and loads correctly",
       "Supabase tables all seeded with real data",
       "All 9 modules navigable and functional",
       "Sleep, Tasks, Projects pages live",

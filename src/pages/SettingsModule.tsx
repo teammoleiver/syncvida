@@ -212,7 +212,7 @@ export default function SettingsModule() {
         {
           icon: Key,
           title: "OpenAI API Key",
-          desc: hasApiKey ? "Connected — Syncvida AI is ready" : "Required for Syncvida AI Assistant",
+          desc: hasApiKey ? "Connected — Instaleadsync AI is ready" : "Required for Instaleadsync AI Assistant",
           action: hasApiKey ? "Connected" : "Configure",
           badge: hasApiKey,
           onClick: () => setApiKeyModal(true),
@@ -473,7 +473,7 @@ function InvitePeopleSettings() {
 
   const loginUrl = `${window.location.origin}/auth`;
   const inviteMessage = lastInvite
-    ? `You're invited to Syncvida (closed beta).\n\nSign in here: ${loginUrl}\nEmail: ${lastInvite.email}\nTemporary password: ${lastInvite.password}\n\nAfter you log in, change your password in Settings.`
+    ? `You're invited to Instaleadsync (closed beta).\n\nSign in here: ${loginUrl}\nEmail: ${lastInvite.email}\nTemporary password: ${lastInvite.password}\n\nAfter you log in, change your password in Settings.`
     : "";
 
   async function sendInvite() {

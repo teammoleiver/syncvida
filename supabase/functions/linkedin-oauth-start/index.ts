@@ -16,8 +16,8 @@ function allowedOrigins(): string[] {
   const fromEnv = (Deno.env.get("OAUTH_ALLOWED_ORIGINS") ?? "")
     .split(",").map((s) => s.trim().replace(/\/$/, "")).filter(Boolean);
   const defaults = [
-    "https://syncvida.io",
-    "https://www.syncvida.io",
+    "https://instaleadsync.com",
+    "https://www.instaleadsync.com",
     "http://localhost:8080",
     "http://127.0.0.1:8080",
   ];

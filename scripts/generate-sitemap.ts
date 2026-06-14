@@ -2,7 +2,7 @@
 import { writeFileSync } from "fs";
 import { resolve } from "path";
 
-const BASE_URL = "https://syncvida.io";
+const BASE_URL = "https://instaleadsync.com";
 
 interface SitemapEntry {
   path: string;

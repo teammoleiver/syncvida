@@ -163,7 +163,7 @@ const COLUMN_ICON_MAP: Record<string, React.ComponentType<any>> = {
 const PROJECT_NAMES: Record<string, string> = {
   proj_health_2026: "Liver Recovery & ALT Normalization",
   proj_bioage: "Reduce BioAge from 48 to below 40",
-  proj_syncvida: "Launch Syncvida.io",
+  proj_instaleadsync: "Launch Instaleadsync.io",
 };
 
 // ============================================================
@@ -241,11 +241,11 @@ const SAMPLE_TASKS: Task[] = [
   },
   {
     id: "task_3",
-    title: "Run Supabase migrations for Syncvida",
+    title: "Run Supabase migrations for Instaleadsync",
     description: "Execute all SQL migration files in Supabase SQL editor.",
     status: "in_progress",
     columnId: "col_doing",
-    projectId: "proj_syncvida",
+    projectId: "proj_instaleadsync",
     priority: "high",
     contexts: ["@computer"],
     dueDate: null,
@@ -271,11 +271,11 @@ const SAMPLE_TASKS: Task[] = [
   },
   {
     id: "task_4",
-    title: "DNS configured for syncvida.io",
+    title: "DNS configured for instaleadsync.com",
     description: "Waiting for Namecheap DNS propagation after pointing to hosting.",
     status: "waiting_for",
     columnId: "col_waiting",
-    projectId: "proj_syncvida",
+    projectId: "proj_instaleadsync",
     priority: "medium",
     contexts: ["@computer"],
     dueDate: null,
@@ -1326,7 +1326,7 @@ function WeeklyReviewModal({
             </button>
           )}
           <button
-            onClick={() => { if (isLast) { localStorage.setItem("syncvida-last-review", new Date().toISOString()); onClose(); } else setStep(s => s + 1); }}
+            onClick={() => { if (isLast) { localStorage.setItem("instaleadsync-last-review", new Date().toISOString()); onClose(); } else setStep(s => s + 1); }}
             className="flex items-center gap-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-xs font-medium ml-auto"
           >
             {isLast ? "Finish Review" : "Next"} {!isLast && <ChevronRight className="w-3.5 h-3.5" />}
@@ -1874,7 +1874,7 @@ export default function TasksModule() {
   const projectFilterName = filterProject !== "all" ? (PROJECT_NAMES[filterProject] || filterProject) : null;
 
   // Weekly review check
-  const lastReview = localStorage.getItem("syncvida-last-review");
+  const lastReview = localStorage.getItem("instaleadsync-last-review");
   const daysSinceReview = lastReview ? Math.floor((Date.now() - new Date(lastReview).getTime()) / 86400000) : 999;
   const showReviewBanner = daysSinceReview > 7 || new Date().getDay() === 0;
 

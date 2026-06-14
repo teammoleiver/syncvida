@@ -24,7 +24,7 @@ export default function ApiKeyModal({ open, onClose }: Props) {
             <span className="text-sm text-foreground">AI is enabled by default</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Syncvida now runs AI features through a secure server-side gateway. You no longer need to provide your own OpenAI API key — analysis, chat, and insights are handled automatically.
+            Instaleadsync now runs AI features through a secure server-side gateway. You no longer need to provide your own OpenAI API key — analysis, chat, and insights are handled automatically.
           </p>
           <button onClick={onClose} className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary-dark transition">Got it</button>
         </div>

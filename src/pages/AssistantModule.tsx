@@ -10,7 +10,7 @@ interface Message {
   content: string;
 }
 
-const WELCOME = `Welcome to your **Syncvida assistant**. Ask anything about your work in Syncvida — Social Hub, content, planning, and your accounts.
+const WELCOME = `Welcome to your **Instaleadsync assistant**. Ask anything about your work in Instaleadsync — Social Hub, content, planning, and your accounts.
 
 For example:
 - "Draft a LinkedIn post about our launch"
@@ -131,8 +131,8 @@ export default function AssistantModule() {
     <div className="flex flex-col h-[calc(100vh-4rem)] md:h-screen max-w-3xl mx-auto">
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-display font-bold text-foreground">Syncvida Assistant</h1>
-          <p className="text-xs text-muted-foreground">Powered by AI — your Syncvida copilot</p>
+          <h1 className="text-xl font-display font-bold text-foreground">Instaleadsync Assistant</h1>
+          <p className="text-xs text-muted-foreground">Powered by AI — your Instaleadsync copilot</p>
         </div>
         <button onClick={handleClear} className="text-muted-foreground hover:text-foreground p-2" title="Clear chat">
           <Trash2 className="w-4 h-4" />
@@ -182,7 +182,7 @@ export default function AssistantModule() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-            placeholder="Ask me anything about your Syncvida workspace..."
+            placeholder="Ask me anything about your Instaleadsync workspace..."
             disabled={isLoading}
             className="flex-1 px-4 py-2.5 rounded-xl bg-secondary text-foreground text-sm border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
           />

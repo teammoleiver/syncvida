@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import syncvidaLogo from "@/assets/syncvida-icon.png";
+import instaleadsyncLogo from "@/assets/instaleadsync-icon.png";
 import { Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,7 +40,7 @@ export default function ResetPassword() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="text-center space-y-4">
-          <img src={syncvidaLogo} alt="Syncvida" className="w-14 h-14 mx-auto" />
+          <img src={instaleadsyncLogo} alt="Instaleadsync" className="w-14 h-14 mx-auto" />
           <p className="text-muted-foreground">Invalid or expired reset link.</p>
           <button onClick={() => navigate("/auth")} className="text-primary hover:underline text-sm">Back to sign in</button>
         </div>
@@ -52,7 +52,7 @@ export default function ResetPassword() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
-          <img src={syncvidaLogo} alt="Syncvida" className="w-14 h-14 mx-auto" />
+          <img src={instaleadsyncLogo} alt="Instaleadsync" className="w-14 h-14 mx-auto" />
           <h1 className="text-2xl font-display font-bold text-foreground">Set New Password</h1>
         </div>
         <div className="glass-card rounded-2xl p-6">
